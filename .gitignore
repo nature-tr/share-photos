@@ -12,9 +12,10 @@ frontend/vite.config.js
 frontend/uno.config.d.ts
 frontend/uno.config.js
 
-# Runtime
-storage/
-data/
+# Runtime（仅忽略 backend 运行时生成的存储与数据库目录，
+# 注意要带前导 /，否则会误伤 backend/src/infra/storage/ 源码目录）
+/backend/storage/
+/backend/data/
 *.db
 *.db-journal
 *.db-wal
