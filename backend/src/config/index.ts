@@ -1,16 +1,20 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// backend/src/config → backend
-const backendDir = path.resolve(__dirname, '../..');
-// backend → 项目根
-const projectRoot = path.resolve(backendDir, '..');
+/**
+ * 基准目录：
+ * - 显式优先：APP_BASE_DIR 环境变量
+ * - 否则使用进程当前工作目录（process.cwd()）
+ *   • 开发：从仓库根 `pnpm -F backend dev` 时 cwd = backend/
+ *   • 生产：pm2 / node 在 release 目录启动时 cwd = release/
+ *   data/、storage/ 都会落在该基准目录下，可移植、可打包。
+ */
+const baseDir = process.env.APP_BASE_DIR
+  ? path.resolve(process.env.APP_BASE_DIR)
+  : process.cwd();
 
-/** .env 里的相对路径相对 backend/ 解析（与运行 cwd 无关） */
+/** .env 里的相对路径相对 baseDir 解析 */
 function resolvePath(p: string): string {
-  return path.isAbsolute(p) ? p : path.resolve(backendDir, p);
+  return path.isAbsolute(p) ? p : path.resolve(baseDir, p);
 }
 
 export const config = {
@@ -24,12 +28,11 @@ export const config = {
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-me',
   },
 
-  dbPath: resolvePath(process.env.DB_PATH ?? '../data/app.db'),
-  storageDir: resolvePath(process.env.STORAGE_DIR ?? '../storage'),
+  dbPath: resolvePath(process.env.DB_PATH ?? './data/app.db'),
+  storageDir: resolvePath(process.env.STORAGE_DIR ?? './storage'),
 
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   cookieSecure: process.env.COOKIE_SECURE === '1',
 
-  projectRoot,
-  backendDir,
+  baseDir,
 } as const;
