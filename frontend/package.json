@@ -1,0 +1,31 @@
+{
+  "name": "@photo/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@photo/shared": "workspace:*",
+    "browser-image-compression": "^2.0.2",
+    "photoswipe": "^5.4.4",
+    "pinia": "^2.2.6",
+    "tdesign-vue-next": "^1.10.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@iconify-json/tdesign": "^1.2.6",
+    "@types/node": "^22.10.0",
+    "@unocss/preset-icons": "^0.65.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.6.3",
+    "unocss": "^0.65.1",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.1.10"
+  }
+}

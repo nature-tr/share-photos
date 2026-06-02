@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm-cache/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
+frontend/uno.config.d.ts
+frontend/uno.config.js
+
+# Runtime
+storage/
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+logs/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/

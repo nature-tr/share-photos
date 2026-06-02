@@ -1,0 +1,72 @@
+import { request, uploadWithProgress } from './client';
+import type {
+  ShareSummary,
+  ShareDetail,
+  ShareListResponse,
+  ViewerAlbum,
+  UploadPhotoResponse,
+  UploadedAs,
+} from '@photo/shared';
+
+export const shareApi = {
+  create(input: { ttlSeconds: number; title?: string }) {
+    return request<ShareSummary>('/api/shares', { method: 'POST', body: input });
+  },
+  list(query: { page?: number; pageSize?: number; status?: string } = {}) {
+    return request<ShareListResponse>('/api/shares', { query });
+  },
+  getById(shareId: string) {
+    return request<ShareDetail>(`/api/shares/${shareId}`);
+  },
+  extend(shareId: string, extendSeconds: number) {
+    return request<{ id: string; expiresAt: number }>(`/api/shares/${shareId}/extend`, {
+      method: 'PATCH',
+      body: { extendSeconds },
+    });
+  },
+  end(shareId: string) {
+    return request<void>(`/api/shares/${shareId}`, { method: 'DELETE' });
+  },
+
+  // 凭码访问（公开）
+  getByCode(code: string) {
+    return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}`, { auth: false });
+  },
+};
+
+export const photoApi = {
+  upload(
+    shareId: string,
+    file: File,
+    uploadedAs: UploadedAs,
+    onProgress?: (p: number) => void,
+    signal?: AbortSignal,
+  ) {
+    const fd = new FormData();
+    fd.append('uploadedAs', uploadedAs);
+    fd.append('file', file, file.name);
+    return uploadWithProgress<UploadPhotoResponse>(
+      `/api/shares/${shareId}/photos`,
+      fd,
+      onProgress,
+      signal,
+    );
+  },
+  delete(shareId: string, photoId: string) {
+    return request<void>(`/api/shares/${shareId}/photos/${photoId}`, { method: 'DELETE' });
+  },
+
+  // 凭码访问图片 URL（用作 <img> src）
+  thumbUrl(code: string, photoId: string) {
+    return `/api/v/${encodeURIComponent(code)}/photos/${photoId}/thumb`;
+  },
+  mediumUrl(code: string, photoId: string) {
+    return `/api/v/${encodeURIComponent(code)}/photos/${photoId}/medium`;
+  },
+  originalUrl(code: string, photoId: string, download = false) {
+    return `/api/v/${encodeURIComponent(code)}/photos/${photoId}/original${download ? '?download=1' : ''}`;
+  },
+  zipDownloadUrl(code: string) {
+    return `/api/v/${encodeURIComponent(code)}/download`;
+  },
+};

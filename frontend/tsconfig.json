@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "noEmit": true,
+    "noUncheckedIndexedAccess": false,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@photo/shared": ["../shared/src/index.ts"],
+      "@photo/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src/**/*", "src/**/*.vue"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

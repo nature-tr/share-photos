@@ -1,0 +1,19 @@
+{
+  "name": "photo-album",
+  "version": "0.1.0",
+  "private": true,
+  "description": "在线共享相册 — 单仓多包",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:backend": "pnpm --filter @photo/backend dev",
+    "dev:frontend": "pnpm --filter @photo/frontend dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "db:push": "pnpm --filter @photo/backend db:push",
+    "fix:native": "node ./scripts/fix-native.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
