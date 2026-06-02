@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { MessagePlugin, NotifyPlugin } from 'tdesign-vue-next';
+import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next';
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import type PhotoSwipe from 'photoswipe';
 import 'photoswipe/style.css';
@@ -10,15 +10,7 @@ import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes } from '@photo/shared';
 import type { ViewerAlbum } from '@photo/shared';
 import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/composables/useDevice';
-import {
-  saveImage,
-  saveImagesViaShare,
-  saveImagesSequentially,
-  saveImagesToDirectory,
-  splitIntoBatches,
-  canPickDirectory,
-  type BatchProgress,
-} from '@/utils/download';
+import { saveImage } from '@/utils/download';
 import { copyText } from '@/utils/clipboard';
 
 const props = defineProps<{ code: string }>();
@@ -32,13 +24,7 @@ const tick = ref(0);
 let timer: number | null = null;
 let lightbox: PhotoSwipeLightbox | null = null;
 
-const downloadDialogVisible = ref(false);
-const batchSaving = ref(false);
-const batchProgress = ref<BatchProgress | null>(null);
-const abortController = ref<AbortController | null>(null);
-
 const supportsShare = canShareFiles();
-const supportsPickDir = canPickDirectory();
 const inWeChat = isWeChatBrowser();
 const inAppWebView = isInAppWebView();
 const wechatTipDismissed = ref(false);
@@ -49,23 +35,15 @@ const remaining = computed(() => {
   return formatRemaining(album.value.expiresAt - Date.now());
 });
 
-/** 总字节数 */
 const totalBytes = computed(() => {
   if (!album.value) return 0;
   return album.value.photos.reduce((s, p) => s + p.sizeBytes, 0);
 });
 
-/** 估算需要分多少批 share */
-const batchInfo = computed(() => {
-  if (!album.value) return { batches: 0, totalBytes: 0 };
-  const batches = splitIntoBatches(
-    album.value.photos.map((p) => ({
-      url: '',
-      filename: p.originalName,
-      sizeBytes: p.sizeBytes,
-    })),
-  );
-  return { batches: batches.length, totalBytes: totalBytes.value };
+/** 浏览器外打开的提示文案 */
+const externalOpenHint = computed(() => {
+  if (inWeChat) return '请点右上角「⋯」选择「在浏览器打开」';
+  return '请用系统浏览器（Safari / Chrome）打开本页面再下载';
 });
 
 async function load() {
@@ -81,6 +59,7 @@ async function load() {
   }
 }
 
+/** PhotoSwipe 大图查看时顶部「保存到相册 / 下载」按钮 */
 function attachSavePhotoButton(pswp: PhotoSwipe) {
   pswp.ui!.registerElement({
     name: 'save-button',
@@ -99,17 +78,7 @@ function attachSavePhotoButton(pswp: PhotoSwipe) {
       const idx = pswp.currIndex;
       const photo = album.value.photos[idx];
       if (!photo) return;
-      try {
-        const result = await saveImage(photoApi.originalUrl(props.code, photo.id, true), {
-          filename: photo.originalName,
-          preferShare: isMobile.value && supportsShare,
-          title: photo.originalName,
-        });
-        if (result === 'shared') MessagePlugin.success('请在系统面板选「存储图像」保存到相册');
-        else if (result === 'downloaded') MessagePlugin.success('图片已下载');
-      } catch (err) {
-        MessagePlugin.error((err as Error).message ?? '保存失败');
-      }
+      await saveOne(photo.id, photo.originalName);
     },
   });
 }
@@ -147,18 +116,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer);
   if (lightbox) lightbox.destroy();
-  abortController.value?.abort();
 });
 
-function buildBatchItems() {
-  if (!album.value) return [];
-  return album.value.photos.map((p) => ({
-    url: photoApi.originalUrl(props.code, p.id, true),
-    filename: p.originalName,
-    sizeBytes: p.sizeBytes,
-  }));
-}
-
+/** 单张保存（缩略图右下角 + PhotoSwipe 大图按钮共用） */
 async function saveOne(photoId: string, name: string) {
   try {
     const result = await saveImage(photoApi.originalUrl(props.code, photoId, true), {
@@ -173,153 +133,45 @@ async function saveOne(photoId: string, name: string) {
   }
 }
 
-async function withBatchTracking<T>(fn: () => Promise<T>): Promise<T | null> {
-  abortController.value = new AbortController();
-  batchSaving.value = true;
-  batchProgress.value = null;
-  try {
-    return await fn();
-  } catch (err) {
-    MessagePlugin.error((err as Error).message ?? '保存失败');
-    return null;
-  } finally {
-    batchSaving.value = false;
-    batchProgress.value = null;
-    abortController.value = null;
-  }
-}
+/** 顶栏「下载全部」按钮 */
+function onDownloadAllClick() {
+  if (!album.value || album.value.photos.length === 0) return;
 
-/** 移动端首选：一次性 share 全部到相册 */
-async function handleSaveAllToAlbum() {
-  if (!album.value) return;
-  downloadDialogVisible.value = false;
-
-  if (batchInfo.value.batches > 1) {
-    NotifyPlugin.info({
-      title: `图片较多，将分 ${batchInfo.value.batches} 批保存`,
-      content: '每批弹出系统面板，请依次选「存储图像」',
-      duration: 4500,
+  // 微信/QQ 等内置浏览器：zip 下载会被劫持成"在浏览器打开"或预览，直接弹引导
+  if (inAppWebView) {
+    const dlg = DialogPlugin.alert({
+      header: `当前在 ${inWeChat ? '微信' : 'App'} 内置浏览器`,
+      body: `${externalOpenHint.value}，否则无法下载 zip 文件到手机。`,
+      confirmBtn: '复制链接',
+      onConfirm: async () => {
+        try {
+          await copyText(window.location.href);
+          MessagePlugin.success('链接已复制，去浏览器粘贴打开');
+        } catch {
+          MessagePlugin.warning('复制失败，请长按地址栏手动复制');
+        }
+        dlg.destroy();
+      },
     });
+    return;
   }
 
-  const result = await withBatchTracking(() =>
-    saveImagesViaShare(buildBatchItems(), {
-      title: album.value!.title ?? '相册',
-      signal: abortController.value!.signal,
-      onProgress: (p) => {
-        batchProgress.value = p;
-      },
-    }),
-  );
-
-  if (!result) return;
-  if (result.cancelled) MessagePlugin.warning(`已取消，已保存 ${result.done}/${result.total}`);
-  else if (result.failed > 0) MessagePlugin.warning(`完成 ${result.done}/${result.total}，失败 ${result.failed}`);
-  else MessagePlugin.success(`已唤起系统面板，请选「存储图像」保存到相册（${result.total} 张）`);
-}
-
-/** 逐张{保存到相册 | 下载} */
-async function handleSaveAllSequentially() {
-  if (!album.value) return;
-  downloadDialogVisible.value = false;
-
-  const result = await withBatchTracking(() =>
-    saveImagesSequentially(buildBatchItems(), {
-      preferShare: sequentialPreferShare.value,
-      title: album.value!.title ?? '相册',
-      signal: abortController.value!.signal,
-      onProgress: (p) => {
-        batchProgress.value = p;
-      },
-    }),
-  );
-
-  if (!result) return;
-  if (result.cancelled) MessagePlugin.warning(`已取消，已保存 ${result.done}/${result.total}`);
-  else MessagePlugin.success(`完成 ${result.done}/${result.total}`);
-}
-
-/** 桌面：选择文件夹一次性写入 */
-async function handleSaveAllToDirectory() {
-  if (!album.value) return;
-  downloadDialogVisible.value = false;
-
-  const result = await withBatchTracking(() =>
-    saveImagesToDirectory(buildBatchItems(), {
-      signal: abortController.value!.signal,
-      onProgress: (p) => {
-        batchProgress.value = p;
-      },
-    }),
-  );
-
-  if (!result) return;
-  if (result.cancelled) MessagePlugin.info(`已取消，已保存 ${result.done}/${result.total}`);
-  else if (result.failed > 0) MessagePlugin.warning(`完成 ${result.done}/${result.total}，失败 ${result.failed}`);
-  else MessagePlugin.success(`已保存 ${result.total} 张到所选文件夹`);
-}
-
-function downloadZip() {
-  if (!album.value) return;
-  downloadDialogVisible.value = false;
-  MessagePlugin.info('开始打包下载（首次较大可能较慢）');
+  MessagePlugin.info('开始打包下载（图片较多时可能稍慢）');
   window.location.href = photoApi.zipDownloadUrl(props.code);
 }
-
-function cancelBatch() {
-  abortController.value?.abort();
-}
-
-function onMainDownloadClick() {
-  if (!album.value || album.value.photos.length === 0) return;
-  downloadDialogVisible.value = true;
-}
-
-async function copyLinkInDialog() {
-  try {
-    await copyText(window.location.href);
-    MessagePlugin.success('链接已复制，请粘贴到浏览器');
-  } catch {
-    MessagePlugin.warning('复制失败，请长按地址栏手动复制');
-  }
-}
-
-/** 浏览器外打开的提示文案 */
-const externalOpenHint = computed(() => {
-  if (inWeChat) return '请点击右上角「⋯」选择「在浏览器打开」';
-  return '请用系统自带浏览器（Safari / Chrome）打开本页面再下载';
-});
-
-/** 是否显示「保存到相册」相关方案（仅移动端真机浏览器，且 share files 可用） */
-const showAlbumSave = computed(() => isMobile.value && supportsShare && !inAppWebView);
-
-/** 是否显示「桌面选文件夹」 */
-const showPickDir = computed(() => !isMobile.value && supportsPickDir);
-
-/** 「逐张保存」是否走 share（仅移动端真机），否则走下载 */
-const sequentialPreferShare = computed(() => isMobile.value && supportsShare);
 
 function gotoHome() {
   router.push({ name: 'home' });
 }
 
 async function copyShareLink() {
-  const url = window.location.href;
   try {
-    await copyText(url);
+    await copyText(window.location.href);
     MessagePlugin.success('链接已复制');
   } catch {
     MessagePlugin.warning('复制失败，请长按选中手动复制');
   }
 }
-
-const progressText = computed(() => {
-  if (!batchProgress.value) return '';
-  const p = batchProgress.value;
-  const phaseText = p.phase === 'downloading' ? '准备图片' : p.phase === 'sharing' ? '等待系统面板' : '保存中';
-  const batchText = p.totalBatches && p.totalBatches > 1 ? ` · 第 ${p.batch}/${p.totalBatches} 批` : '';
-  return `${phaseText}（${p.done}/${p.total}）${batchText}`;
-});
 </script>
 
 <template>
@@ -350,11 +202,10 @@ const progressText = computed(() => {
             theme="primary"
             size="small"
             class="download-main"
-            :loading="batchSaving"
-            @click="onMainDownloadClick"
+            @click="onDownloadAllClick"
           >
             <template #icon><span class="i-tdesign:download"></span></template>
-            <span class="download-text">下载</span>
+            <span class="download-text">下载 zip</span>
           </t-button>
         </div>
       </div>
@@ -365,8 +216,8 @@ const progressText = computed(() => {
       <div class="container webview-banner-inner">
         <span class="i-tdesign:browser webview-icon"></span>
         <div class="webview-text">
-          <div class="webview-title">想保存图片到相册？</div>
-          <div class="webview-desc">{{ externalOpenHint }}，否则系统不允许网页保存到相册。</div>
+          <div class="webview-title">想下载图片？</div>
+          <div class="webview-desc">{{ externalOpenHint }}，否则系统不允许网页下载到本地或相册。</div>
         </div>
         <button class="webview-close" @click="wechatTipDismissed = true" aria-label="收起提示">
           <span class="i-tdesign:close text-16px"></span>
@@ -388,172 +239,42 @@ const progressText = computed(() => {
           <p class="muted">该分享尚未上传图片</p>
         </div>
 
-        <div v-else-if="album" id="viewer-gallery" class="gallery">
-          <a
-            v-for="p in album.photos"
-            :key="p.id"
-            :href="photoApi.originalUrl(props.code, p.id)"
-            :data-pswp-src="photoApi.originalUrl(props.code, p.id)"
-            :data-pswp-width="p.width"
-            :data-pswp-height="p.height"
-            target="_blank"
-            class="gallery-item"
-            @click.prevent
-          >
-            <img
-              :src="photoApi.thumbUrl(props.code, p.id)"
-              :alt="p.originalName"
-              loading="lazy"
-            />
-            <button
-              class="quick-save"
-              :title="supportsShare ? '保存到相册' : '下载'"
-              @click.prevent.stop="saveOne(p.id, p.originalName)"
+        <div v-else-if="album">
+          <!-- 单张保存的轻提示（移动端展示，避免用户找不到入口） -->
+          <div v-if="isMobile && !inAppWebView" class="single-save-tip">
+            <span class="i-tdesign:tips text-14px"></span>
+            <span>点开任意图片可单张保存到相册，整本下载请用顶部「下载 zip」</span>
+          </div>
+
+          <div id="viewer-gallery" class="gallery">
+            <a
+              v-for="p in album.photos"
+              :key="p.id"
+              :href="photoApi.originalUrl(props.code, p.id)"
+              :data-pswp-src="photoApi.originalUrl(props.code, p.id)"
+              :data-pswp-width="p.width"
+              :data-pswp-height="p.height"
+              target="_blank"
+              class="gallery-item"
+              @click.prevent
             >
-              <span class="i-tdesign:download text-16px"></span>
-            </button>
-          </a>
+              <img
+                :src="photoApi.thumbUrl(props.code, p.id)"
+                :alt="p.originalName"
+                loading="lazy"
+              />
+              <button
+                class="quick-save"
+                :title="supportsShare ? '保存到相册' : '下载'"
+                @click.prevent.stop="saveOne(p.id, p.originalName)"
+              >
+                <span class="i-tdesign:download text-16px"></span>
+              </button>
+            </a>
+          </div>
         </div>
       </t-loading>
     </main>
-
-    <!-- 下载方式选择 -->
-    <t-dialog
-      v-model:visible="downloadDialogVisible"
-      :footer="false"
-      :close-btn="true"
-      placement="center"
-      width="92%"
-      class="download-dialog"
-    >
-      <template #header>批量下载方式</template>
-
-      <!-- App 内置浏览器：直接显示引导，禁用其他选项 -->
-      <div v-if="inAppWebView" class="webview-tip-block">
-        <span class="webview-tip-icon i-tdesign:browser"></span>
-        <h3>当前在 {{ inWeChat ? '微信' : 'App' }} 内置浏览器</h3>
-        <p class="webview-tip-msg">{{ externalOpenHint }}</p>
-        <p class="muted webview-tip-sub">
-          这是系统限制：网页保存图片到相册需要原生浏览器（Safari / Chrome）权限。
-        </p>
-        <div class="webview-actions">
-          <t-button theme="primary" block @click="copyLinkInDialog">
-            <template #icon><span class="i-tdesign:link"></span></template>
-            复制链接
-          </t-button>
-          <t-button variant="outline" block @click="downloadDialogVisible = false">
-            知道了
-          </t-button>
-        </div>
-      </div>
-
-      <!-- 普通浏览器：显示按平台过滤的下载选项 -->
-      <template v-else>
-        <div class="dl-info" v-if="album">
-          共 {{ album.photos.length }} 张 · {{ formatBytes(totalBytes) }}
-        </div>
-        <div class="dl-options">
-          <!-- 移动端首选：一次性 share 全部进相册 -->
-          <button
-            v-if="showAlbumSave"
-            class="dl-card primary"
-            :disabled="batchSaving"
-            @click="handleSaveAllToAlbum"
-          >
-            <span class="dl-icon i-tdesign:image-1"></span>
-            <div class="dl-text">
-              <div class="dl-title">
-                一次性保存到相册
-                <span class="badge recommend">推荐</span>
-              </div>
-              <div class="dl-desc">
-                <template v-if="batchInfo.batches <= 1">
-                  系统弹出一次面板，点「存储图像」即可全部保存到相册
-                </template>
-                <template v-else>
-                  图片较多，将分 {{ batchInfo.batches }} 批，每批点一次「存储图像」
-                </template>
-              </div>
-            </div>
-          </button>
-
-          <!-- 桌面：选文件夹批量写入 -->
-          <button
-            v-if="showPickDir"
-            class="dl-card primary"
-            :disabled="batchSaving"
-            @click="handleSaveAllToDirectory"
-          >
-            <span class="dl-icon i-tdesign:folder-open"></span>
-            <div class="dl-text">
-              <div class="dl-title">
-                保存到本地文件夹
-                <span class="badge recommend">推荐</span>
-              </div>
-              <div class="dl-desc">选一个文件夹，浏览器一次性写入所有原图</div>
-            </div>
-          </button>
-
-          <!-- 通用：zip 打包（手机上不再推荐） -->
-          <button v-if="!isMobile || !showAlbumSave" class="dl-card" :disabled="batchSaving" @click="downloadZip">
-            <span class="dl-icon i-tdesign:zip"></span>
-            <div class="dl-text">
-              <div class="dl-title">打包 zip 下载</div>
-              <div class="dl-desc">{{ isMobile ? '手机需在文件 App 内解压后再保存' : '电脑直接解压使用' }}</div>
-            </div>
-          </button>
-
-          <!-- 兜底：逐张 -->
-          <button
-            v-if="album && album.photos.length > 1"
-            class="dl-card secondary"
-            :disabled="batchSaving"
-            @click="handleSaveAllSequentially"
-          >
-            <span class="dl-icon i-tdesign:image-search"></span>
-            <div class="dl-text">
-              <div class="dl-title">
-                逐张{{ sequentialPreferShare ? '保存到相册' : '下载到本地' }}
-              </div>
-              <div class="dl-desc">
-                <template v-if="sequentialPreferShare">
-                  每张单独唤起系统面板（兼容性最好）
-                </template>
-                <template v-else>
-                  自动间隔 700ms 触发下载，避免被浏览器拦截
-                </template>
-              </div>
-            </div>
-          </button>
-
-          <!-- iOS Safari 老版本提示 -->
-          <div class="dl-tip" v-if="isMobile && !supportsShare">
-            <span class="i-tdesign:info-circle text-14px"></span>
-            <span>
-              当前浏览器不支持「直接存到相册」。建议升级到 iOS 16.4+ Safari，
-              或在大图查看时<b>长按图片 → 添加到照片</b>。
-            </span>
-          </div>
-          <!-- 桌面提示：长链接限制说明 -->
-          <div class="dl-tip" v-if="!isMobile && !showPickDir">
-            <span class="i-tdesign:info-circle text-14px"></span>
-            <span>建议用 Chrome / Edge 桌面版，可直接「保存到本地文件夹」体验更佳。</span>
-          </div>
-        </div>
-      </template>
-    </t-dialog>
-
-    <!-- 底部进度条（批量下载中） -->
-    <div v-if="batchSaving && batchProgress" class="batch-progress">
-      <div class="bp-content">
-        <div class="bp-text">{{ progressText }}</div>
-        <t-progress
-          :percentage="batchProgress.total ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0"
-          :stroke-width="6"
-        />
-      </div>
-      <t-button size="small" variant="text" @click="cancelBatch">取消</t-button>
-    </div>
   </div>
 </template>
 
@@ -641,9 +362,7 @@ const progressText = computed(() => {
   font-weight: 600;
 }
 
-.dot {
-  opacity: 0.4;
-}
+.dot { opacity: 0.4; }
 
 .header-actions {
   display: flex;
@@ -674,6 +393,20 @@ const progressText = computed(() => {
   margin: 16px 0 8px;
   font-size: 18px;
   font-weight: 600;
+}
+
+/* —— 单张保存提示条 —— */
+.single-save-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--surface-soft);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  line-height: 1.5;
 }
 
 /* —— 网格 —— */
@@ -740,122 +473,6 @@ const progressText = computed(() => {
   opacity: 1;
 }
 
-/* —— Dialog —— */
-.dl-info {
-  font-size: 13px;
-  color: var(--text-3);
-  margin: -4px 0 16px;
-}
-
-.dl-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 4px 0;
-}
-
-.dl-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px;
-  background: var(--surface-soft);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--transition-fast);
-  width: 100%;
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-}
-
-.dl-card:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.dl-card:not(:disabled):hover {
-  background: var(--surface-hover);
-  border-color: var(--border);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.dl-card.primary {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(139, 92, 246, 0.06));
-  border-color: rgba(37, 99, 235, 0.18);
-}
-
-.dl-card.primary:not(:disabled):hover {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(139, 92, 246, 0.1));
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-.dl-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.dl-card.primary .dl-icon {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-}
-
-.dl-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.dl-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-1);
-}
-
-.badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 1px 8px;
-  border-radius: var(--radius-full);
-  background: var(--primary);
-  color: #fff;
-}
-
-.dl-desc {
-  font-size: 12px;
-  color: var(--text-3);
-  line-height: 1.5;
-}
-
-.dl-tip {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-3);
-  padding: 8px 12px 0;
-  line-height: 1.6;
-}
-.dl-tip b {
-  color: var(--text-1);
-  font-weight: 600;
-}
-
 /* —— 微信/App 内置浏览器引导 —— */
 .webview-banner {
   background: linear-gradient(135deg, #fff7ed, #fef3c7);
@@ -905,74 +522,6 @@ const progressText = computed(() => {
 }
 .webview-close:hover {
   background: rgba(180, 83, 9, 0.1);
-}
-
-.webview-tip-block {
-  text-align: center;
-  padding: 8px 4px 4px;
-}
-.webview-tip-icon {
-  display: inline-block;
-  font-size: 56px;
-  color: var(--primary);
-  margin-bottom: 12px;
-}
-.webview-tip-block h3 {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-1);
-  margin: 0 0 8px;
-}
-.webview-tip-msg {
-  font-size: 14px;
-  color: var(--text-2);
-  margin: 0 0 12px;
-  line-height: 1.6;
-}
-.webview-tip-sub {
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 0 0 18px;
-  padding: 10px 14px;
-  background: var(--surface-soft);
-  border-radius: var(--radius-md);
-  text-align: left;
-}
-.webview-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* —— 进度条 —— */
-.batch-progress {
-  position: fixed;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
-  max-width: 480px;
-  margin: 0 auto;
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--border-light);
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  z-index: 100;
-}
-
-.bp-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.bp-text {
-  font-size: 13px;
-  margin-bottom: 8px;
-  color: var(--text-1);
-  font-weight: 500;
 }
 
 .muted { color: var(--text-3); }
@@ -1035,36 +584,9 @@ const progressText = computed(() => {
     right: 6px;
   }
   .viewer-main {
-    padding: 12px 8px;
-    padding-bottom: max(80px, calc(var(--safe-bottom) + 80px));
+    padding: 12px 8px 80px;
     padding-left: max(8px, var(--safe-left));
     padding-right: max(8px, var(--safe-right));
-  }
-  /* 进度条贴底，避开安全区 */
-  .batch-progress {
-    bottom: max(16px, calc(var(--safe-bottom) + 12px));
-    left: 12px;
-    right: 12px;
-    padding: 12px 14px;
-  }
-  /* Dialog 移动端优化 */
-  :deep(.t-dialog) {
-    max-height: 80vh;
-  }
-  .dl-card {
-    padding: 14px;
-    border-radius: var(--radius-md);
-  }
-  .dl-icon {
-    width: 38px;
-    height: 38px;
-    font-size: 20px;
-  }
-  .dl-title {
-    font-size: 14px;
-  }
-  .dl-desc {
-    font-size: 12px;
   }
   .webview-banner {
     top: calc(54px + var(--safe-top));
