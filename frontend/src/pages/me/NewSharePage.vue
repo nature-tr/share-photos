@@ -5,6 +5,7 @@ import { MessagePlugin } from 'tdesign-vue-next';
 import imageCompression from 'browser-image-compression';
 import { shareApi, photoApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
+import { copyText } from '@/utils/clipboard';
 import {
   TTL_PRESETS,
   MAX_FILE_SIZE,
@@ -187,10 +188,10 @@ async function startUpload() {
 async function copyCode() {
   if (!createdShare.value) return;
   try {
-    await navigator.clipboard.writeText(createdShare.value.code);
+    await copyText(createdShare.value.code);
     MessagePlugin.success('分享码已复制');
   } catch {
-    MessagePlugin.warning('复制失败，请手动复制');
+    MessagePlugin.warning('复制失败，请长按选中手动复制');
   }
 }
 
@@ -198,10 +199,10 @@ async function copyLink() {
   if (!createdShare.value) return;
   const url = `${window.location.origin}/v/${createdShare.value.code}`;
   try {
-    await navigator.clipboard.writeText(url);
+    await copyText(url);
     MessagePlugin.success('链接已复制');
   } catch {
-    MessagePlugin.warning('复制失败');
+    MessagePlugin.warning('复制失败，请长按选中手动复制');
   }
 }
 

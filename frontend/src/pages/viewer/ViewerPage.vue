@@ -19,6 +19,7 @@ import {
   canPickDirectory,
   type BatchProgress,
 } from '@/utils/download';
+import { copyText } from '@/utils/clipboard';
 
 const props = defineProps<{ code: string }>();
 const router = useRouter();
@@ -275,12 +276,14 @@ function gotoHome() {
   router.push({ name: 'home' });
 }
 
-function copyShareLink() {
+async function copyShareLink() {
   const url = window.location.href;
-  navigator.clipboard
-    .writeText(url)
-    .then(() => MessagePlugin.success('链接已复制'))
-    .catch(() => MessagePlugin.warning('复制失败，请手动复制'));
+  try {
+    await copyText(url);
+    MessagePlugin.success('链接已复制');
+  } catch {
+    MessagePlugin.warning('复制失败，请长按选中手动复制');
+  }
 }
 
 const progressText = computed(() => {

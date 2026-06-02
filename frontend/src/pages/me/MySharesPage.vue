@@ -6,6 +6,7 @@ import { shareApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes, formatDateTime, TTL_PRESETS } from '@photo/shared';
 import type { ShareSummary } from '@photo/shared';
+import { copyText } from '@/utils/clipboard';
 
 const router = useRouter();
 const items = ref<ShareSummary[]>([]);
@@ -56,20 +57,20 @@ function remaining(s: ShareSummary): string {
 
 async function copyCode(code: string) {
   try {
-    await navigator.clipboard.writeText(code);
+    await copyText(code);
     MessagePlugin.success(`分享码 ${code} 已复制`);
   } catch {
-    MessagePlugin.warning('复制失败，请手动复制');
+    MessagePlugin.warning('复制失败，请长按选中手动复制');
   }
 }
 
 async function copyLink(code: string) {
   const url = `${window.location.origin}/v/${code}`;
   try {
-    await navigator.clipboard.writeText(url);
+    await copyText(url);
     MessagePlugin.success('链接已复制');
   } catch {
-    MessagePlugin.warning('复制失败');
+    MessagePlugin.warning('复制失败，请长按选中手动复制');
   }
 }
 
