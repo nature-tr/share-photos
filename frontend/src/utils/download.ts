@@ -200,7 +200,9 @@ export async function saveImagesViaShare(
   return { done: doneCount, total, cancelled: false, failed };
 }
 
-/** 串行：每张单独 share。Web Share 不可用 / 一次性失败时降级使用 */
+/** 串行：每张单独 share。Web Share 不可用 / 一次性失败时降级使用。
+ *  桌面端浏览器对"网页连续触发多次 <a download>"会拦截（Safari 直接拦，Chrome 弹确认），
+ *  所以这里在每张之间插入 sleep，给浏览器/系统下载管理器留出处理时间。 */
 export async function saveImagesSequentially(
   items: BatchItem[],
   opts: {
@@ -208,11 +210,19 @@ export async function saveImagesSequentially(
     title?: string;
     onProgress?: (p: BatchProgress) => void;
     signal?: AbortSignal;
+    /** 张与张之间的间隔（ms）。share 模式无需间隔，download 模式建议 ≥ 500ms */
+    intervalMs?: number;
   } = {},
 ): Promise<BatchResult> {
   let done = 0;
   let failed = 0;
-  for (const item of items) {
+  const interval = opts.intervalMs ?? (opts.preferShare ? 0 : 700);
+
+  for (let i = 0; i < items.length; i++) {
+    if (opts.signal?.aborted) {
+      return { done, total: items.length, cancelled: true, failed };
+    }
+    const item = items[i]!;
     try {
       const result = await saveImage(item.url, {
         filename: item.filename,
@@ -231,6 +241,10 @@ export async function saveImagesSequentially(
       done,
       total: items.length,
     });
+    // 最后一张不必再 sleep
+    if (interval > 0 && i < items.length - 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, interval));
+    }
   }
   return { done, total: items.length, cancelled: false, failed };
 }

@@ -9,7 +9,7 @@ import { shareApi, photoApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes } from '@photo/shared';
 import type { ViewerAlbum } from '@photo/shared';
-import { useDevice, canShareFiles } from '@/composables/useDevice';
+import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/composables/useDevice';
 import {
   saveImage,
   saveImagesViaShare,
@@ -39,6 +39,9 @@ const abortController = ref<AbortController | null>(null);
 
 const supportsShare = canShareFiles();
 const supportsPickDir = canPickDirectory();
+const inWeChat = isWeChatBrowser();
+const inAppWebView = isInAppWebView();
+const wechatTipDismissed = ref(false);
 
 const remaining = computed(() => {
   void tick.value;
@@ -215,14 +218,14 @@ async function handleSaveAllToAlbum() {
   else MessagePlugin.success(`已唤起系统面板，请选「存储图像」保存到相册（${result.total} 张）`);
 }
 
-/** 逐张 share（兜底） */
+/** 逐张{保存到相册 | 下载} */
 async function handleSaveAllSequentially() {
   if (!album.value) return;
   downloadDialogVisible.value = false;
 
   const result = await withBatchTracking(() =>
     saveImagesSequentially(buildBatchItems(), {
-      preferShare: supportsShare,
+      preferShare: sequentialPreferShare.value,
       title: album.value!.title ?? '相册',
       signal: abortController.value!.signal,
       onProgress: (p) => {
@@ -271,6 +274,30 @@ function onMainDownloadClick() {
   if (!album.value || album.value.photos.length === 0) return;
   downloadDialogVisible.value = true;
 }
+
+async function copyLinkInDialog() {
+  try {
+    await copyText(window.location.href);
+    MessagePlugin.success('链接已复制，请粘贴到浏览器');
+  } catch {
+    MessagePlugin.warning('复制失败，请长按地址栏手动复制');
+  }
+}
+
+/** 浏览器外打开的提示文案 */
+const externalOpenHint = computed(() => {
+  if (inWeChat) return '请点击右上角「⋯」选择「在浏览器打开」';
+  return '请用系统自带浏览器（Safari / Chrome）打开本页面再下载';
+});
+
+/** 是否显示「保存到相册」相关方案（仅移动端真机浏览器，且 share files 可用） */
+const showAlbumSave = computed(() => isMobile.value && supportsShare && !inAppWebView);
+
+/** 是否显示「桌面选文件夹」 */
+const showPickDir = computed(() => !isMobile.value && supportsPickDir);
+
+/** 「逐张保存」是否走 share（仅移动端真机），否则走下载 */
+const sequentialPreferShare = computed(() => isMobile.value && supportsShare);
 
 function gotoHome() {
   router.push({ name: 'home' });
@@ -333,6 +360,20 @@ const progressText = computed(() => {
       </div>
     </header>
 
+    <!-- 微信/App 内置浏览器引导横幅 -->
+    <div v-if="inAppWebView && !wechatTipDismissed" class="webview-banner">
+      <div class="container webview-banner-inner">
+        <span class="i-tdesign:browser webview-icon"></span>
+        <div class="webview-text">
+          <div class="webview-title">想保存图片到相册？</div>
+          <div class="webview-desc">{{ externalOpenHint }}，否则系统不允许网页保存到相册。</div>
+        </div>
+        <button class="webview-close" @click="wechatTipDismissed = true" aria-label="收起提示">
+          <span class="i-tdesign:close text-16px"></span>
+        </button>
+      </div>
+    </div>
+
     <main class="viewer-main">
       <t-loading :loading="loading">
         <div v-if="error" class="error-state">
@@ -386,79 +427,120 @@ const progressText = computed(() => {
       class="download-dialog"
     >
       <template #header>批量下载方式</template>
-      <div class="dl-info" v-if="album">
-        共 {{ album.photos.length }} 张 · {{ formatBytes(totalBytes) }}
-      </div>
-      <div class="dl-options">
-        <!-- 移动端首选 -->
-        <button
-          v-if="supportsShare"
-          class="dl-card primary"
-          :disabled="batchSaving"
-          @click="handleSaveAllToAlbum"
-        >
-          <span class="dl-icon i-tdesign:image-1"></span>
-          <div class="dl-text">
-            <div class="dl-title">
-              一次性保存到相册
-              <span class="badge recommend">推荐</span>
-            </div>
-            <div class="dl-desc">
-              <template v-if="batchInfo.batches <= 1">
-                系统弹出一次面板，点「存储图像」即可全部保存到相册
-              </template>
-              <template v-else>
-                图片较多，将分 {{ batchInfo.batches }} 批，每批点一次「存储图像」
-              </template>
-            </div>
-          </div>
-        </button>
 
-        <!-- 桌面：选文件夹批量写入 -->
-        <button
-          v-if="supportsPickDir && !isMobile"
-          class="dl-card primary"
-          :disabled="batchSaving"
-          @click="handleSaveAllToDirectory"
-        >
-          <span class="dl-icon i-tdesign:folder-open"></span>
-          <div class="dl-text">
-            <div class="dl-title">
-              保存到本地文件夹
-              <span class="badge recommend">推荐</span>
-            </div>
-            <div class="dl-desc">选一个文件夹，浏览器一次性写入所有原图</div>
-          </div>
-        </button>
-
-        <!-- 通用：zip 打包 -->
-        <button class="dl-card" :disabled="batchSaving" @click="downloadZip">
-          <span class="dl-icon i-tdesign:zip"></span>
-          <div class="dl-text">
-            <div class="dl-title">打包 zip 下载</div>
-            <div class="dl-desc">完整保留文件，{{ isMobile ? '手机上需文件 App 解压' : '电脑直接解压' }}</div>
-          </div>
-        </button>
-
-        <!-- 兜底：逐张 -->
-        <button
-          v-if="album && album.photos.length > 1"
-          class="dl-card secondary"
-          :disabled="batchSaving"
-          @click="handleSaveAllSequentially"
-        >
-          <span class="dl-icon i-tdesign:image-search"></span>
-          <div class="dl-text">
-            <div class="dl-title">逐张{{ supportsShare ? '保存到相册' : '下载' }}</div>
-            <div class="dl-desc">每张单独操作，速度较慢但兼容性最好</div>
-          </div>
-        </button>
-
-        <div class="dl-tip" v-if="!supportsShare && isMobile">
-          <span class="i-tdesign:info-circle text-14px"></span>
-          当前浏览器不支持「存储到相册」。建议用 Safari（iOS 16.4+）或 Chrome
+      <!-- App 内置浏览器：直接显示引导，禁用其他选项 -->
+      <div v-if="inAppWebView" class="webview-tip-block">
+        <span class="webview-tip-icon i-tdesign:browser"></span>
+        <h3>当前在 {{ inWeChat ? '微信' : 'App' }} 内置浏览器</h3>
+        <p class="webview-tip-msg">{{ externalOpenHint }}</p>
+        <p class="muted webview-tip-sub">
+          这是系统限制：网页保存图片到相册需要原生浏览器（Safari / Chrome）权限。
+        </p>
+        <div class="webview-actions">
+          <t-button theme="primary" block @click="copyLinkInDialog">
+            <template #icon><span class="i-tdesign:link"></span></template>
+            复制链接
+          </t-button>
+          <t-button variant="outline" block @click="downloadDialogVisible = false">
+            知道了
+          </t-button>
         </div>
       </div>
+
+      <!-- 普通浏览器：显示按平台过滤的下载选项 -->
+      <template v-else>
+        <div class="dl-info" v-if="album">
+          共 {{ album.photos.length }} 张 · {{ formatBytes(totalBytes) }}
+        </div>
+        <div class="dl-options">
+          <!-- 移动端首选：一次性 share 全部进相册 -->
+          <button
+            v-if="showAlbumSave"
+            class="dl-card primary"
+            :disabled="batchSaving"
+            @click="handleSaveAllToAlbum"
+          >
+            <span class="dl-icon i-tdesign:image-1"></span>
+            <div class="dl-text">
+              <div class="dl-title">
+                一次性保存到相册
+                <span class="badge recommend">推荐</span>
+              </div>
+              <div class="dl-desc">
+                <template v-if="batchInfo.batches <= 1">
+                  系统弹出一次面板，点「存储图像」即可全部保存到相册
+                </template>
+                <template v-else>
+                  图片较多，将分 {{ batchInfo.batches }} 批，每批点一次「存储图像」
+                </template>
+              </div>
+            </div>
+          </button>
+
+          <!-- 桌面：选文件夹批量写入 -->
+          <button
+            v-if="showPickDir"
+            class="dl-card primary"
+            :disabled="batchSaving"
+            @click="handleSaveAllToDirectory"
+          >
+            <span class="dl-icon i-tdesign:folder-open"></span>
+            <div class="dl-text">
+              <div class="dl-title">
+                保存到本地文件夹
+                <span class="badge recommend">推荐</span>
+              </div>
+              <div class="dl-desc">选一个文件夹，浏览器一次性写入所有原图</div>
+            </div>
+          </button>
+
+          <!-- 通用：zip 打包（手机上不再推荐） -->
+          <button v-if="!isMobile || !showAlbumSave" class="dl-card" :disabled="batchSaving" @click="downloadZip">
+            <span class="dl-icon i-tdesign:zip"></span>
+            <div class="dl-text">
+              <div class="dl-title">打包 zip 下载</div>
+              <div class="dl-desc">{{ isMobile ? '手机需在文件 App 内解压后再保存' : '电脑直接解压使用' }}</div>
+            </div>
+          </button>
+
+          <!-- 兜底：逐张 -->
+          <button
+            v-if="album && album.photos.length > 1"
+            class="dl-card secondary"
+            :disabled="batchSaving"
+            @click="handleSaveAllSequentially"
+          >
+            <span class="dl-icon i-tdesign:image-search"></span>
+            <div class="dl-text">
+              <div class="dl-title">
+                逐张{{ sequentialPreferShare ? '保存到相册' : '下载到本地' }}
+              </div>
+              <div class="dl-desc">
+                <template v-if="sequentialPreferShare">
+                  每张单独唤起系统面板（兼容性最好）
+                </template>
+                <template v-else>
+                  自动间隔 700ms 触发下载，避免被浏览器拦截
+                </template>
+              </div>
+            </div>
+          </button>
+
+          <!-- iOS Safari 老版本提示 -->
+          <div class="dl-tip" v-if="isMobile && !supportsShare">
+            <span class="i-tdesign:info-circle text-14px"></span>
+            <span>
+              当前浏览器不支持「直接存到相册」。建议升级到 iOS 16.4+ Safari，
+              或在大图查看时<b>长按图片 → 添加到照片</b>。
+            </span>
+          </div>
+          <!-- 桌面提示：长链接限制说明 -->
+          <div class="dl-tip" v-if="!isMobile && !showPickDir">
+            <span class="i-tdesign:info-circle text-14px"></span>
+            <span>建议用 Chrome / Edge 桌面版，可直接「保存到本地文件夹」体验更佳。</span>
+          </div>
+        </div>
+      </template>
     </t-dialog>
 
     <!-- 底部进度条（批量下载中） -->
@@ -767,6 +849,99 @@ const progressText = computed(() => {
   font-size: 12px;
   color: var(--text-3);
   padding: 8px 12px 0;
+  line-height: 1.6;
+}
+.dl-tip b {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+/* —— 微信/App 内置浏览器引导 —— */
+.webview-banner {
+  background: linear-gradient(135deg, #fff7ed, #fef3c7);
+  border-bottom: 1px solid rgba(180, 83, 9, 0.15);
+  position: sticky;
+  top: calc(60px + var(--safe-top));
+  z-index: 9;
+}
+.webview-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+}
+.webview-icon {
+  font-size: 24px;
+  color: #b45309;
+  flex-shrink: 0;
+}
+.webview-text {
+  flex: 1;
+  min-width: 0;
+}
+.webview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #78350f;
+}
+.webview-desc {
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.webview-close {
+  background: transparent;
+  border: none;
+  color: #92400e;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.webview-close:hover {
+  background: rgba(180, 83, 9, 0.1);
+}
+
+.webview-tip-block {
+  text-align: center;
+  padding: 8px 4px 4px;
+}
+.webview-tip-icon {
+  display: inline-block;
+  font-size: 56px;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.webview-tip-block h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 8px;
+}
+.webview-tip-msg {
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+.webview-tip-sub {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  background: var(--surface-soft);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+.webview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* —— 进度条 —— */
@@ -872,7 +1047,7 @@ const progressText = computed(() => {
     right: 12px;
     padding: 12px 14px;
   }
-  /* Dialog 移动端优化（来自 global.css 的 sheet 样式 + 这里微调） */
+  /* Dialog 移动端优化 */
   :deep(.t-dialog) {
     max-height: 80vh;
   }
@@ -890,6 +1065,24 @@ const progressText = computed(() => {
   }
   .dl-desc {
     font-size: 12px;
+  }
+  .webview-banner {
+    top: calc(54px + var(--safe-top));
+  }
+  .webview-banner-inner {
+    padding: 9px 14px;
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
+    gap: 10px;
+  }
+  .webview-icon {
+    font-size: 22px;
+  }
+  .webview-title {
+    font-size: 12.5px;
+  }
+  .webview-desc {
+    font-size: 11.5px;
   }
 }
 

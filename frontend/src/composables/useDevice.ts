@@ -50,3 +50,31 @@ export function isCoarsePointerSync(): boolean {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(pointer: coarse)').matches;
 }
+
+/** 是否在微信内置浏览器（X5/WKWebView） */
+export function isWeChatBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /micromessenger/i.test(navigator.userAgent);
+}
+
+/** 是否在常见 App 内置 WebView（微信/企业微信/QQ/钉钉/飞书）
+ *  这些环境下 navigator.share / 多文件下载 几乎都被劫持，需要强引导用户在浏览器打开 */
+export function isInAppWebView(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /micromessenger|wxwork|qq\/|qqbrowser\/mqq|dingtalk|lark|feishu/i.test(navigator.userAgent);
+}
+
+/** 是否 iOS（iPhone / iPad / iPod；含 iPadOS Safari 桌面 UA 兜底） */
+export function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  // iPadOS Safari 默认报 Mac UA，但有触屏
+  return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+}
+
+/** 是否 Android */
+export function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
