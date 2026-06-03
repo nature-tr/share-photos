@@ -9,7 +9,7 @@
  *   3. MediaLibrary.createAssetAsync(localUri) 写入相册
  *   4. 删除 cache 临时文件
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 
 export interface SaveItem {
