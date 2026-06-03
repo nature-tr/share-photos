@@ -4,12 +4,13 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
+    "prestart": "pnpm -F @photo/shared build",
     "start": "expo start",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
-    "web": "expo start --web",
-    "build:ios": "eas build --platform ios",
-    "build:android": "eas build --platform android",
+    "ios": "pnpm -F @photo/shared build && expo start --ios",
+    "android": "pnpm -F @photo/shared build && expo start --android",
+    "web": "pnpm -F @photo/shared build && expo start --web",
+    "build:ios": "pnpm -F @photo/shared build && eas build --platform ios",
+    "build:android": "pnpm -F @photo/shared build && eas build --platform android",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
