@@ -1,18 +1,8 @@
-import { Stack } from 'expo-router';
-import HeaderBackButton from '@/components/HeaderBackButton';
-import { stackScreenOptions } from '../_layout';
+import { Slot } from 'expo-router';
 
+/**
+ * (auth) 分组无额外逻辑，由 root Stack 统一管理 header；这里仅透传子路由。
+ */
 export default function AuthLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        ...stackScreenOptions,
-        headerLeft: () => <HeaderBackButton />,
-        headerBackVisible: false,
-      }}
-    >
-      <Stack.Screen name="login" options={{ title: '登录' }} />
-      <Stack.Screen name="register" options={{ title: '注册' }} />
-    </Stack>
-  );
+  return <Slot />;
 }

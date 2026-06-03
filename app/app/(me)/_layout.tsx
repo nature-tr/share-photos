@@ -1,13 +1,11 @@
-import { Stack, useRouter } from 'expo-router';
+import { Slot, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/stores/auth.store';
 import { colors, radius, space } from '@/theme';
-import { stackScreenOptions } from '../_layout';
-import HeaderBackButton from '@/components/HeaderBackButton';
 
 /**
- * /(me) 这一组都需要登录；未登录推到 login
+ * /(me) 分组：仅做认证守卫，header 由 root Stack 统一管理。
  */
 export default function MeLayout() {
   const router = useRouter();
@@ -37,18 +35,7 @@ export default function MeLayout() {
       </View>
     );
   }
-  return (
-    <Stack
-      screenOptions={{
-        ...stackScreenOptions,
-        headerLeft: () => <HeaderBackButton />,
-        headerBackVisible: false,
-      }}
-    >
-      <Stack.Screen name="shares" options={{ title: '我的分享' }} />
-      <Stack.Screen name="new" options={{ title: '新建分享' }} />
-    </Stack>
-  );
+  return <Slot />;
 }
 
 const styles = StyleSheet.create({
