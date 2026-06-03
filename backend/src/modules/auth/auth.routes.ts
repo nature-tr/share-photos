@@ -7,6 +7,8 @@ import { now } from '../../common/time.js';
 
 const REFRESH_COOKIE = 'rt';
 const REFRESH_COOKIE_PATH = '/api/auth';
+/** 移动端用：refresh token 也可走 header（无浏览器 cookie） */
+const REFRESH_HEADER = 'x-refresh-token';
 
 function setRefreshCookie(reply: FastifyReply, value: string, expiresAt: number) {
   reply.setCookie(REFRESH_COOKIE, value, {
@@ -20,6 +22,19 @@ function setRefreshCookie(reply: FastifyReply, value: string, expiresAt: number)
 
 function clearRefreshCookie(reply: FastifyReply) {
   reply.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+}
+
+/** 兼容三种取 refresh token 的方式：cookie / header / body.refreshToken */
+function pickRefreshToken(req: FastifyRequest): string | undefined {
+  const cookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
+  if (cookie) return cookie;
+  const header = req.headers[REFRESH_HEADER];
+  if (typeof header === 'string' && header) return header;
+  const body = req.body as { refreshToken?: unknown } | undefined;
+  if (body && typeof body.refreshToken === 'string' && body.refreshToken) {
+    return body.refreshToken;
+  }
+  return undefined;
 }
 
 function buildAccessToken(app: FastifyInstance, userId: string, email: string) {
@@ -40,7 +55,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const access = buildAccessToken(app, user.id, user.email);
 
     setRefreshCookie(reply, refresh.refreshTokenPlain, refresh.refreshExpiresAt);
-    reply.code(201).send({ data: { user, ...access } });
+    reply.code(201).send({
+      data: {
+        user,
+        ...access,
+        refreshToken: refresh.refreshTokenPlain,
+        refreshExpiresAt: refresh.refreshExpiresAt,
+      },
+    });
   });
 
   // 登录
@@ -52,26 +74,39 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const access = buildAccessToken(app, user.id, user.email);
 
     setRefreshCookie(reply, refresh.refreshTokenPlain, refresh.refreshExpiresAt);
-    reply.send({ data: { user, ...access } });
+    reply.send({
+      data: {
+        user,
+        ...access,
+        refreshToken: refresh.refreshTokenPlain,
+        refreshExpiresAt: refresh.refreshExpiresAt,
+      },
+    });
   });
 
-  // 刷新 token
+  // 刷新 token（兼容 cookie / X-Refresh-Token header / body.refreshToken）
   app.post('/refresh', async (req, reply) => {
-    const cookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
-    if (!cookie) throw Errors.refreshInvalid();
+    const token = pickRefreshToken(req);
+    if (!token) throw Errors.refreshInvalid();
     const ctx = { userAgent: req.headers['user-agent'] ?? undefined, ip: req.ip };
-    const { userId, tokens } = await authService.rotateRefreshToken(cookie, ctx);
+    const { userId, tokens } = await authService.rotateRefreshToken(token, ctx);
     const user = await authService.getById(userId);
     const access = buildAccessToken(app, user.id, user.email);
 
     setRefreshCookie(reply, tokens.refreshTokenPlain, tokens.refreshExpiresAt);
-    reply.send({ data: access });
+    reply.send({
+      data: {
+        ...access,
+        refreshToken: tokens.refreshTokenPlain,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+      },
+    });
   });
 
-  // 登出
+  // 登出（也兼容三种来源）
   app.post('/logout', async (req, reply) => {
-    const cookie = (req.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
-    await authService.revokeRefreshToken(cookie);
+    const token = pickRefreshToken(req);
+    await authService.revokeRefreshToken(token);
     clearRefreshCookie(reply);
     reply.code(204).send();
   });

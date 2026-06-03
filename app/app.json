@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "Dolmo Photo",
+    "slug": "dolmo-photo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "dolmophoto",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "top.dolmo.photo",
+      "infoPlist": {
+        "NSCameraUsageDescription": "需要相机权限用于扫描分享码二维码",
+        "NSPhotoLibraryUsageDescription": "需要相册权限以保存图片到您的相册",
+        "NSPhotoLibraryAddUsageDescription": "需要相册写入权限以保存图片",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "top.dolmo.photo",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "需要相机权限用于扫描分享码二维码"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "需要相册权限以保存图片到您的相册",
+          "savePhotosPermission": "需要相册权限以保存图片到您的相册",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "需要相册权限以选择图片上传"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://www.dolmo.top"
+    }
+  }
+}
