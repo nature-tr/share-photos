@@ -1,13 +1,8 @@
 <script setup lang="ts">
 /**
  * 分享二维码弹窗
- * - PC：弹窗居中显示二维码
- * - 移动端：贴底 sheet（继承 global.css 的 t-dialog 移动端样式）
- *
- * 内嵌的二维码可：
- * - 移动端长按 → 「保存图像」直接进相册
- * - PC 右键 → 「图片另存为」
- * - 也可点「下载二维码」按钮主动保存
+ * - PC：居中圆角对话框
+ * - 移动端：贴底 sheet（圆角顶部 + handle），与 app 端 ShareQrSheet 视觉一致
  */
 import { computed, ref, watch, nextTick } from 'vue';
 import QRCode from 'qrcode';
@@ -48,7 +43,6 @@ watch(
   () => [props.visible, props.code] as const,
   async ([v, code]) => {
     if (v && code) {
-      // 等 DOM 就绪后生成（防止 SSR/首屏布局闪一下）
       await nextTick();
       await generate();
     } else if (!v) {
@@ -98,14 +92,19 @@ function onDownload() {
     :footer="false"
     :close-btn="true"
     placement="center"
-    width="92%"
+    :width="380"
     class="qr-dialog"
     @update:visible="(v: boolean) => emit('update:visible', v)"
     @close="close"
   >
-    <template #header>分享二维码</template>
+    <template #header>
+      <div class="qr-header">
+        <div class="qr-header-title">{{ props.title || '分享相册' }}</div>
+        <div class="qr-header-sub">对方扫码即可访问，无需手动输入</div>
+      </div>
+    </template>
+
     <div class="qr-body">
-      <div v-if="props.title" class="qr-title">{{ props.title }}</div>
       <div class="qr-frame">
         <img
           v-if="dataUrl"
@@ -118,20 +117,12 @@ function onDownload() {
         </div>
       </div>
 
-      <div class="qr-code">
-        <span class="qr-code-label">分享码</span>
-        <code class="qr-code-text">{{ props.code }}</code>
-      </div>
+      <div class="qr-code-text">{{ props.code }}</div>
 
       <div class="qr-url">{{ url }}</div>
 
-      <div class="qr-tip">
-        <span class="i-tdesign:tips text-14px"></span>
-        <span>对方扫码即可访问，无需手动输入</span>
-      </div>
-
       <div class="qr-actions">
-        <t-button theme="primary" block @click="onDownload" :disabled="!dataUrl">
+        <t-button theme="primary" block size="large" @click="onDownload" :disabled="!dataUrl">
           <template #icon><span class="i-tdesign:download"></span></template>
           下载二维码图片
         </t-button>
@@ -151,35 +142,39 @@ function onDownload() {
 </template>
 
 <style scoped>
+.qr-header {
+  text-align: center;
+  padding: 4px 0;
+}
+.qr-header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: -0.2px;
+}
+.qr-header-sub {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
 .qr-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 4px 0 8px;
-}
-
-.qr-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-1);
-  text-align: center;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 4px;
+  padding: 6px 0 4px;
 }
 
 .qr-frame {
-  position: relative;
-  width: 240px;
-  height: 240px;
+  width: 220px;
+  height: 220px;
   background: #fff;
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
   padding: 12px;
   box-sizing: border-box;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   border: 1px solid var(--border-light);
 }
 
@@ -188,7 +183,6 @@ function onDownload() {
   height: 100%;
   object-fit: contain;
   display: block;
-  /* 提示 iOS Safari 长按可保存 */
   -webkit-touch-callout: default;
 }
 
@@ -202,34 +196,21 @@ function onDownload() {
   color: var(--text-3);
   animation: spin 1.4s linear infinite;
 }
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.qr-code {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.qr-code-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--text-3);
-  font-weight: 500;
-}
-
 .qr-code-text {
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-  font-size: 22px;
-  letter-spacing: 5px;
-  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 6px;
+  font-weight: 800;
+  color: var(--primary);
   background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin-top: 4px;
 }
 
 .qr-url {
@@ -237,30 +218,22 @@ function onDownload() {
   color: var(--text-3);
   word-break: break-all;
   text-align: center;
-  padding: 0 8px;
+  padding: 8px 14px;
   line-height: 1.5;
+  background: var(--surface-soft);
+  border-radius: var(--radius-md);
   user-select: all;
   -webkit-user-select: all;
   max-width: 100%;
-}
-
-.qr-tip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-3);
-  background: var(--surface-soft);
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
 }
 
 .qr-actions {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .qr-actions-row {
@@ -272,15 +245,53 @@ function onDownload() {
   flex: 1;
 }
 
-@media (max-width: 768px) {
+/* 移动端：让 t-dialog 变成贴底 sheet */
+@media (max-width: 640px) {
+  /* 全局穿透：t-dialog 的 wrapper 与 dialog 容器 */
+  :global(.qr-dialog .t-dialog__wrap) {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+  }
+  :global(.qr-dialog .t-dialog) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 92vh;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  :global(.qr-dialog .t-dialog__header) {
+    padding: 18px 20px 0 !important;
+  }
+  :global(.qr-dialog .t-dialog__body) {
+    padding: 12px 20px 8px !important;
+  }
+  /* 顶部加一条 handle */
+  :global(.qr-dialog .t-dialog)::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
   .qr-frame {
-    width: 220px;
-    height: 220px;
+    width: 200px;
+    height: 200px;
     padding: 10px;
   }
   .qr-code-text {
-    font-size: 20px;
-    letter-spacing: 4px;
+    font-size: 24px;
+    letter-spacing: 5px;
   }
 }
 </style>
