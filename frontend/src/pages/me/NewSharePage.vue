@@ -6,6 +6,7 @@ import imageCompression from 'browser-image-compression';
 import { shareApi, photoApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
 import { copyText } from '@/utils/clipboard';
+import ShareQrDialog from '@/components/ShareQrDialog.vue';
 import {
   TTL_PRESETS,
   MAX_FILE_SIZE,
@@ -33,6 +34,7 @@ const uploadMode = ref<UploadedAs>('original');
 const items = ref<UploadItem[]>([]);
 const submitting = ref(false);
 const createdShare = ref<{ id: string; code: string } | null>(null);
+const qrVisible = ref(false);
 
 const ttlOptions = TTL_PRESETS.map((p) => ({ label: p.label, value: p.seconds }));
 
@@ -237,7 +239,11 @@ function viewAlbum() {
       </div>
 
       <div class="result-actions">
-        <t-button theme="primary" size="large" @click="copyCode">
+        <t-button theme="primary" size="large" @click="qrVisible = true">
+          <template #icon><span class="i-tdesign:qrcode"></span></template>
+          展示二维码
+        </t-button>
+        <t-button size="large" variant="outline" @click="copyCode">
           <template #icon><span class="i-tdesign:copy"></span></template>
           复制分享码
         </t-button>
@@ -393,6 +399,13 @@ function viewAlbum() {
         </t-button>
       </div>
     </template>
+
+    <ShareQrDialog
+      v-if="createdShare"
+      v-model:visible="qrVisible"
+      :code="createdShare.code"
+      :title="title.trim() || '未命名相册'"
+    />
   </div>
 </template>
 

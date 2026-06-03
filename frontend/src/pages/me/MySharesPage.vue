@@ -7,6 +7,7 @@ import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes, formatDateTime, TTL_PRESETS } from '@photo/shared';
 import type { ShareSummary } from '@photo/shared';
 import { copyText } from '@/utils/clipboard';
+import ShareQrDialog from '@/components/ShareQrDialog.vue';
 
 const router = useRouter();
 const items = ref<ShareSummary[]>([]);
@@ -17,6 +18,16 @@ const pageSize = 20;
 
 const tick = ref(0);
 let timer: number | null = null;
+
+const qrVisible = ref(false);
+const qrCode = ref('');
+const qrTitle = ref('');
+
+function showQr(s: ShareSummary) {
+  qrCode.value = s.code;
+  qrTitle.value = s.title || '未命名相册';
+  qrVisible.value = true;
+}
 
 async function load() {
   loading.value = true;
@@ -168,6 +179,9 @@ function gotoNew() {
             <div class="code-row">
               <code class="code">{{ s.code }}</code>
               <div class="code-actions">
+                <button class="icon-btn" @click="showQr(s)" title="二维码">
+                  <span class="i-tdesign:qrcode text-16px"></span>
+                </button>
                 <button class="icon-btn" @click="copyCode(s.code)" title="复制分享码">
                   <span class="i-tdesign:copy text-16px"></span>
                 </button>
@@ -238,6 +252,8 @@ function gotoNew() {
         />
       </div>
     </t-loading>
+
+    <ShareQrDialog v-model:visible="qrVisible" :code="qrCode" :title="qrTitle" />
   </div>
 </template>
 
