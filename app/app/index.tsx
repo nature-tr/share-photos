@@ -25,8 +25,52 @@ export default function HomeScreen() {
     router.push({ pathname: '/viewer/[code]', params: { code: c } });
   }
 
+  /** 分享图片 → 已登录跳新建分享，未登录跳登录页 */
+  function gotoShare() {
+    if (user) router.push('/(me)/new');
+    else router.push({ pathname: '/(auth)/login', params: { redirect: '/(me)/new' } });
+  }
+
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+      {/* 顶部账户状态栏 */}
+      <View style={s.topBar}>
+        {user ? (
+          <Pressable style={s.userTab} onPress={() => router.push('/(me)/shares')}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>
+                {(user.displayName || user.email).slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.userName} numberOfLines={1}>
+                {user.displayName || '我的'}
+              </Text>
+              <Text style={s.userEmail} numberOfLines={1}>
+                {user.email}
+              </Text>
+            </View>
+            <Text style={s.topArrow}>›</Text>
+          </Pressable>
+        ) : (
+          <View style={s.guestTab}>
+            <Text style={s.guestText}>未登录 · 仅可查看分享</Text>
+            <View style={s.guestBtns}>
+              <Link href="/(auth)/login" asChild>
+                <Pressable style={s.topBtnGhost}>
+                  <Text style={s.topBtnGhostText}>登录</Text>
+                </Pressable>
+              </Link>
+              <Link href="/(auth)/register" asChild>
+                <Pressable style={s.topBtnPrimary}>
+                  <Text style={s.topBtnPrimaryText}>注册</Text>
+                </Pressable>
+              </Link>
+            </View>
+          </View>
+        )}
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -68,47 +112,45 @@ export default function HomeScreen() {
 
           {/* 扫码 */}
           <Pressable
-            style={({ pressed }) => [s.scanCard, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [s.actionCard, pressed && { opacity: 0.85 }]}
             onPress={() => router.push('/scan')}
           >
-            <Text style={s.scanIcon}>⌒</Text>
+            <Text style={s.actionIcon}>⌒</Text>
             <View style={{ flex: 1 }}>
-              <Text style={s.scanTitle}>扫一扫</Text>
-              <Text style={s.scanDesc}>对方分享了二维码？直接扫描进入</Text>
+              <Text style={s.actionTitle}>扫一扫</Text>
+              <Text style={s.actionDesc}>对方分享了二维码？直接扫描进入</Text>
             </View>
-            <Text style={s.scanArrow}>›</Text>
+            <Text style={s.actionArrow}>›</Text>
           </Pressable>
 
-          {/* 个人入口 */}
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>账户</Text>
-            {user ? (
-              <View style={s.userBox}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.userName}>{user.displayName}</Text>
-                  <Text style={s.userEmail}>{user.email}</Text>
-                </View>
-                <Link href="/(me)/shares" asChild>
-                  <Pressable style={s.linkBtn}>
-                    <Text style={s.linkBtnText}>我的分享</Text>
-                  </Pressable>
-                </Link>
+          {/* 分享图片（新增）*/}
+          <Pressable
+            style={({ pressed }) => [s.actionCard, pressed && { opacity: 0.85 }]}
+            onPress={gotoShare}
+          >
+            <Text style={s.actionIcon}>↑</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.actionTitle}>分享图片</Text>
+              <Text style={s.actionDesc}>
+                {user ? '从相册选图，生成分享码与二维码' : '需要先登录账号'}
+              </Text>
+            </View>
+            <Text style={s.actionArrow}>›</Text>
+          </Pressable>
+
+          {user && (
+            <Pressable
+              style={({ pressed }) => [s.actionCard, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push('/(me)/shares')}
+            >
+              <Text style={s.actionIcon}>≡</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.actionTitle}>我的分享</Text>
+                <Text style={s.actionDesc}>查看、续期或结束已创建的分享</Text>
               </View>
-            ) : (
-              <View style={s.guestRow}>
-                <Link href="/(auth)/login" asChild>
-                  <Pressable style={[s.btnOutline, { flex: 1 }]}>
-                    <Text style={s.btnOutlineText}>登录</Text>
-                  </Pressable>
-                </Link>
-                <Link href="/(auth)/register" asChild>
-                  <Pressable style={[s.btnPrimary, { flex: 1 }]}>
-                    <Text style={s.btnPrimaryText}>注册</Text>
-                  </Pressable>
-                </Link>
-              </View>
-            )}
-          </View>
+              <Text style={s.actionArrow}>›</Text>
+            </Pressable>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -119,7 +161,61 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfaceSoft },
   container: { padding: space.lg, paddingBottom: 60 },
 
-  brand: { alignItems: 'center', marginTop: space.xl, marginBottom: space.xl },
+  /* 顶部账户状态栏 */
+  topBar: {
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
+    paddingBottom: space.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderLight,
+  },
+  userTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: 6,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  userName: { fontSize: 14, fontWeight: '600', color: colors.text1 },
+  userEmail: { fontSize: 11, color: colors.text3, marginTop: 1 },
+  topArrow: { fontSize: 20, color: colors.text3 },
+
+  guestTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    gap: space.sm,
+  },
+  guestText: { fontSize: 13, color: colors.text2, flex: 1 },
+  guestBtns: { flexDirection: 'row', gap: 8 },
+  topBtnGhost: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  topBtnGhostText: { color: colors.text1, fontSize: 13, fontWeight: '600' },
+  topBtnPrimary: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  topBtnPrimaryText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+
+  /* 品牌区 */
+  brand: { alignItems: 'center', marginTop: space.lg, marginBottom: space.xl },
   logo: {
     width: 72,
     height: 72,
@@ -133,6 +229,7 @@ const s = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', color: colors.text1, letterSpacing: -0.4 },
   subtitle: { fontSize: 13, color: colors.text3, marginTop: 4 },
 
+  /* 输入分享码 */
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -156,7 +253,8 @@ const s = StyleSheet.create({
     marginBottom: space.md,
   },
 
-  scanCard: {
+  /* 行动卡片：扫一扫 / 分享 / 我的分享 */
+  actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
@@ -165,41 +263,19 @@ const s = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    marginBottom: space.lg,
+    marginBottom: space.sm,
   },
-  scanIcon: {
+  actionIcon: {
     fontSize: 28,
     color: colors.primary,
     width: 40,
     textAlign: 'center',
   },
-  scanTitle: { fontSize: 15, fontWeight: '600', color: colors.text1 },
-  scanDesc: { fontSize: 12, color: colors.text3, marginTop: 2 },
-  scanArrow: { fontSize: 24, color: colors.text3 },
+  actionTitle: { fontSize: 15, fontWeight: '600', color: colors.text1 },
+  actionDesc: { fontSize: 12, color: colors.text3, marginTop: 2 },
+  actionArrow: { fontSize: 24, color: colors.text3 },
 
-  section: { marginTop: space.lg },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.text3,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginBottom: space.sm,
-    paddingHorizontal: 4,
-  },
-  userBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: space.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  userName: { fontSize: 15, fontWeight: '600', color: colors.text1 },
-  userEmail: { fontSize: 12, color: colors.text3, marginTop: 2 },
-  guestRow: { flexDirection: 'row', gap: space.sm },
-
+  /* 通用按钮 */
   btnPrimary: {
     height: 48,
     paddingHorizontal: space.lg,
@@ -210,22 +286,4 @@ const s = StyleSheet.create({
   },
   btnPrimaryText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   btnPressed: { opacity: 0.85 },
-  btnOutline: {
-    height: 48,
-    paddingHorizontal: space.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  btnOutlineText: { color: colors.text1, fontSize: 15, fontWeight: '600' },
-  linkBtn: {
-    paddingHorizontal: space.md,
-    paddingVertical: 8,
-    backgroundColor: colors.surfaceHover,
-    borderRadius: radius.full,
-  },
-  linkBtnText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
 });

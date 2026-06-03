@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -17,6 +17,7 @@ import { colors, radius, space } from '@/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ redirect?: string }>();
   const login = useAuth((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +32,9 @@ export default function LoginScreen() {
     try {
       await login({ email: email.trim(), password });
       toast('登录成功');
-      router.replace('/(me)/shares');
+      const target = (params.redirect as string | undefined) || '/(me)/shares';
+      // expo-router 类型限制 replace 接受字符串字面量；这里目标都是已知静态路径，强制断言
+      router.replace(target as never);
     } catch (err) {
       toast(err instanceof ApiException ? err.message : '登录失败');
     } finally {

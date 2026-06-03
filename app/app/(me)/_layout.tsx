@@ -3,9 +3,10 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/stores/auth.store';
 import { colors, radius, space } from '@/theme';
+import { stackScreenOptions } from '../_layout';
 
 /**
- * /me 这一组都需要登录；未登录推到 login
+ * /(me) 这一组都需要登录；未登录推到 login
  */
 export default function MeLayout() {
   const router = useRouter();
@@ -35,7 +36,12 @@ export default function MeLayout() {
       </View>
     );
   }
-  return <Stack screenOptions={{ headerShadowVisible: false }} />;
+  return (
+    <Stack screenOptions={stackScreenOptions}>
+      <Stack.Screen name="shares" options={{ title: '我的分享' }} />
+      <Stack.Screen name="new" options={{ title: '新建分享' }} />
+    </Stack>
+  );
 }
 
 const styles = StyleSheet.create({
