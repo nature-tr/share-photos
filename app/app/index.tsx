@@ -53,16 +53,18 @@ export default function HomeScreen() {
           </Pressable>
         ) : (
           <View style={s.guestTab}>
-            <View style={s.guestAvatar}>
-              <Text style={s.guestAvatarText}>👤</Text>
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.guestTitle}>未登录</Text>
               <Text style={s.guestSub}>登录后可创建并管理分享</Text>
             </View>
             <Link href="/(auth)/login" asChild>
               <Pressable style={({ pressed }) => [s.topBtnPrimary, pressed && s.pressed]}>
-                <Text style={s.topBtnPrimaryText}>登录 / 注册</Text>
+                <Text style={s.topBtnPrimaryText}>登录</Text>
+              </Pressable>
+            </Link>
+            <Link href="/(auth)/register" asChild>
+              <Pressable style={({ pressed }) => [s.topBtnGhost, pressed && s.pressed]}>
+                <Text style={s.topBtnGhostText}>注册</Text>
               </Pressable>
             </Link>
           </View>
@@ -204,26 +206,26 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  guestAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestAvatarText: { fontSize: 18 },
   guestTitle: { ...font.smallStrong, color: colors.text1 },
   guestSub: { ...font.caption, color: colors.text3, marginTop: 1 },
   topBtnPrimary: {
-    paddingHorizontal: 16,
-    height: 34,
+    paddingHorizontal: 14,
+    height: 32,
     borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topBtnPrimaryText: { ...font.smallStrong, color: '#fff' },
+  topBtnGhost: {
+    paddingHorizontal: 14,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBtnGhostText: { ...font.smallStrong, color: colors.text2 },
 
   /* 品牌 */
   brand: { alignItems: 'center', marginTop: space.lg, marginBottom: space.xl },
