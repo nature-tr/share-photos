@@ -273,7 +273,7 @@ export default function MySharesScreen() {
 
       <Pressable
         style={({ pressed }) => [s.fab, pressed && { opacity: 0.85 }]}
-        onPress={() => router.push('/(me)/new')}
+        onPress={() => router.push('/me/new')}
       >
         <Text style={s.fabIcon}>+</Text>
         <Text style={s.fabText}>新建分享</Text>

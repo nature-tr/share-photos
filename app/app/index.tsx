@@ -26,8 +26,8 @@ export default function HomeScreen() {
   }
 
   function gotoShare() {
-    if (user) router.push('/(me)/new');
-    else router.push({ pathname: '/(auth)/login', params: { redirect: '/(me)/new' } });
+    if (user) router.push('/me/new');
+    else router.push({ pathname: '/auth/login', params: { redirect: '/me/new' } });
   }
 
   return (
@@ -35,7 +35,7 @@ export default function HomeScreen() {
       {/* 顶部账户状态条 */}
       <View style={s.topBar}>
         {user ? (
-          <Pressable style={s.userTab} onPress={() => router.push('/(me)/shares')}>
+          <Pressable style={s.userTab} onPress={() => router.push('/me/shares')}>
             <View style={s.avatar}>
               <Text style={s.avatarText}>
                 {(user.displayName || user.email).slice(0, 1).toUpperCase()}
@@ -57,12 +57,12 @@ export default function HomeScreen() {
               <Text style={s.guestTitle}>未登录</Text>
               <Text style={s.guestSub}>登录后可创建并管理分享</Text>
             </View>
-            <Link href="/(auth)/login" asChild>
+            <Link href="/auth/login" asChild>
               <Pressable style={({ pressed }) => [s.topBtnPrimary, pressed && s.pressed]}>
                 <Text style={s.topBtnPrimaryText}>登录</Text>
               </Pressable>
             </Link>
-            <Link href="/(auth)/register" asChild>
+            <Link href="/auth/register" asChild>
               <Pressable style={({ pressed }) => [s.topBtnGhost, pressed && s.pressed]}>
                 <Text style={s.topBtnGhostText}>注册</Text>
               </Pressable>
@@ -149,7 +149,7 @@ export default function HomeScreen() {
           {user && (
             <Pressable
               style={({ pressed }) => [s.actionCard, pressed && s.pressed]}
-              onPress={() => router.push('/(me)/shares')}
+              onPress={() => router.push('/me/shares')}
             >
               <View style={[s.actionIconBox, { backgroundColor: colors.surfaceMuted }]}>
                 <Text style={[s.actionIcon, { color: colors.text2 }]}>≡</Text>

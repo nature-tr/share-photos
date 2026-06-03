@@ -1,4 +1,4 @@
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -15,27 +15,34 @@ import { useAuth } from '@/stores/auth.store';
 import { toast } from '@/utils/toast';
 import { colors, font, radius, shadow, space } from '@/theme';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ redirect?: string }>();
-  const login = useAuth((s) => s.login);
+  const register = useAuth((s) => s.register);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function onSubmit() {
     if (!email.trim() || !password) {
-      toast('请填写完整');
+      toast('请填写邮箱和密码');
+      return;
+    }
+    if (password.length < 8) {
+      toast('密码至少 8 位');
       return;
     }
     setLoading(true);
     try {
-      await login({ email: email.trim(), password });
-      toast('登录成功');
-      const target = (params.redirect as string | undefined) || '/(me)/shares';
-      router.replace(target as never);
+      await register({
+        email: email.trim(),
+        password,
+        displayName: displayName.trim() || undefined,
+      });
+      toast('注册成功');
+      router.replace('/me/shares');
     } catch (err) {
-      toast(err instanceof ApiException ? err.message : '登录失败');
+      toast(err instanceof ApiException ? err.message : '注册失败');
     } finally {
       setLoading(false);
     }
@@ -52,8 +59,8 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={s.heroBlock}>
-          <Text style={s.heroTitle}>欢迎回来</Text>
-          <Text style={s.heroSub}>登录后管理你的分享相册</Text>
+          <Text style={s.heroTitle}>创建账号</Text>
+          <Text style={s.heroSub}>开始你的相册分享之旅</Text>
         </View>
 
         <View style={s.card}>
@@ -72,13 +79,28 @@ export default function LoginScreen() {
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>密码</Text>
+            <Text style={s.label}>
+              密码 <Text style={s.labelHint}>至少 8 位</Text>
+            </Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
               placeholderTextColor={colors.text4}
               secureTextEntry
+              style={s.input}
+            />
+          </View>
+
+          <View style={s.field}>
+            <Text style={s.label}>
+              昵称 <Text style={s.labelHint}>可选</Text>
+            </Text>
+            <TextInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="你的称呼"
+              placeholderTextColor={colors.text4}
               style={s.input}
               onSubmitEditing={onSubmit}
               returnKeyType="go"
@@ -90,18 +112,18 @@ export default function LoginScreen() {
             style={({ pressed }) => [
               s.btn,
               (loading || pressed) && { opacity: 0.85 },
-              !email.trim() || !password ? { opacity: 0.5 } : null,
+              (!email.trim() || password.length < 8) && { opacity: 0.5 },
             ]}
             onPress={onSubmit}
           >
-            <Text style={s.btnText}>{loading ? '登录中…' : '登录'}</Text>
+            <Text style={s.btnText}>{loading ? '注册中…' : '注册'}</Text>
           </Pressable>
         </View>
 
         <View style={s.linkRow}>
-          <Text style={s.linkLabel}>没有账号？</Text>
-          <Link href="/(auth)/register" replace>
-            <Text style={s.link}>立即注册</Text>
+          <Text style={s.linkLabel}>已有账号？</Text>
+          <Link href="/auth/login" replace>
+            <Text style={s.link}>直接登录</Text>
           </Link>
         </View>
       </ScrollView>
@@ -125,6 +147,7 @@ const s = StyleSheet.create({
   },
   field: { marginBottom: space.md },
   label: { ...font.smallStrong, color: colors.text2, marginBottom: 6 },
+  labelHint: { ...font.caption, color: colors.text4, fontWeight: '400' },
   input: {
     height: 50,
     paddingHorizontal: space.md,

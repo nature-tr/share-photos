@@ -161,7 +161,7 @@ export default function NewShareScreen() {
         <View style={{ flexDirection: 'row', gap: space.md, alignSelf: 'stretch', marginTop: space.sm }}>
           <Pressable
             style={({ pressed }) => [s.btnOutline, { flex: 1 }, pressed && { opacity: 0.7 }]}
-            onPress={() => router.replace('/(me)/shares')}
+            onPress={() => router.replace('/me/shares')}
           >
             <Text style={s.btnOutlineText}>我的分享</Text>
           </Pressable>

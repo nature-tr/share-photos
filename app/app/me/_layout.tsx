@@ -5,7 +5,7 @@ import { useAuth } from '@/stores/auth.store';
 import { colors, radius, space } from '@/theme';
 
 /**
- * /(me) 分组：仅做认证守卫，header 由 root Stack 统一管理。
+ * /me 子路径：仅做认证守卫，未登录跳登录；header 由 root Stack 统一管理。
  */
 export default function MeLayout() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function MeLayout() {
 
   useEffect(() => {
     if (ready && !user) {
-      router.replace('/(auth)/login');
+      router.replace('/auth/login');
     }
   }, [ready, user, router]);
 
@@ -29,7 +29,7 @@ export default function MeLayout() {
     return (
       <View style={styles.center}>
         <Text style={{ color: colors.text3, marginBottom: space.lg }}>需要登录</Text>
-        <Pressable style={styles.btn} onPress={() => router.replace('/(auth)/login')}>
+        <Pressable style={styles.btn} onPress={() => router.replace('/auth/login')}>
           <Text style={styles.btnText}>去登录</Text>
         </Pressable>
       </View>
