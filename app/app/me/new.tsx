@@ -18,6 +18,7 @@ import {
 } from '@photo/shared';
 import { ApiException } from '@/api/client';
 import { photoApi, shareApi } from '@/api/share.api';
+import { useRequireAuth } from '@/utils/useRequireAuth';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes } from '@/utils/format';
 import { colors, font, radius, shadow, space } from '@/theme';
@@ -39,6 +40,7 @@ function genId() {
 
 export default function NewShareScreen() {
   const router = useRouter();
+  useRequireAuth();
   const [title, setTitle] = useState('');
   const [ttl, setTtl] = useState<number>(TTL_PRESETS[2]!.seconds);
   const [items, setItems] = useState<PickedItem[]>([]);

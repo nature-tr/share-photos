@@ -16,6 +16,7 @@ import { TTL_PRESETS } from '@photo/shared';
 import { ApiException } from '@/api/client';
 import { shareApi } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
+import { useRequireAuth } from '@/utils/useRequireAuth';
 import { toast } from '@/utils/toast';
 import { formatBytes, formatDateTime, formatRemaining } from '@/utils/format';
 import { colors, font, radius, shadow, space } from '@/theme';
@@ -23,6 +24,7 @@ import ShareQrSheet from '@/components/ShareQrSheet';
 
 export default function MySharesScreen() {
   const router = useRouter();
+  const authed = useRequireAuth();
   const logout = useAuth((s) => s.logout);
   const user = useAuth((s) => s.user);
 
@@ -46,8 +48,8 @@ export default function MySharesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, []),
+      if (authed) void load();
+    }, [authed]),
   );
 
   useEffect(() => {
