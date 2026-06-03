@@ -7,9 +7,11 @@
     "scheme": "dolmophoto",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "top.dolmo.photo",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "需要相机权限用于扫描分享码二维码",
         "NSPhotoLibraryUsageDescription": "需要相册权限以保存图片到您的相册",
@@ -19,7 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
       },
       "package": "top.dolmo.photo",
       "permissions": [
@@ -41,6 +44,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/with-arm64-only",
       "expo-router",
       "expo-secure-store",
       [
