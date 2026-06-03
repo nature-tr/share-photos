@@ -47,5 +47,8 @@ logs/
 .DS_Store
 Thumbs.db
 
+# 用户提供的原图素材（已复制到 app/assets，无需重复入库）
+/9c6ec2b2-6d3f-4a68-990f-5dc82ea0e264.png
+
 # Test
 coverage/

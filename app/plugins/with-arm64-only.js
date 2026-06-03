@@ -1,6 +1,6 @@
 /**
  * 限制 Android 只编 arm64-v8a 一个 ABI。
- * - apk 从 ~107MB 降到 ~55MB（减一半 native .so）
+ * - apk 从 ~107MB 降到 ~40MB（减一半 native .so）
  * - 显著降低 CMake 编译期内存占用，避免 OOM
  * - 2017 年后所有安卓手机都是 arm64-v8a，覆盖 99%+ 设备
  */

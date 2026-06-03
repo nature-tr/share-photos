@@ -1,4 +1,5 @@
 import { Link, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -83,7 +84,11 @@ export default function HomeScreen() {
           {/* 品牌 */}
           <View style={s.brand}>
             <View style={s.logo}>
-              <Text style={s.logoText}>D</Text>
+              <Image
+                source={require('../assets/icon.png')}
+                style={s.logoImg}
+                contentFit="contain"
+              />
             </View>
             <Text style={s.title}>Dolmo Photo</Text>
             <Text style={s.subtitle}>限时分享相册 · 一键存到手机相册</Text>
@@ -233,12 +238,13 @@ const s = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 22,
-    backgroundColor: colors.primary,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: space.md,
-    ...shadow.md,
+    overflow: 'hidden',
   },
+  logoImg: { width: '100%', height: '100%' },
   logoText: { color: '#fff', fontSize: 38, fontWeight: '800', letterSpacing: -1 },
   title: { ...font.display, color: colors.text1 },
   subtitle: { ...font.small, color: colors.text3, marginTop: 6 },

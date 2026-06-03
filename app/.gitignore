@@ -4,5 +4,13 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Expo 本地缓存
+.expo/
+
+# Expo prebuild 生成的原生工程（每次本地打包前 prebuild --clean 即可重新生成）
+/android/
+/ios/
+
 # 本地 build 产物（按需手动分发，不入库）
 *.apk
