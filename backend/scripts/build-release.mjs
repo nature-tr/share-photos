@@ -160,12 +160,28 @@ cd dist-release/backend
 cp .env.example .env
 vim .env                # 至少改 JWT_*、CORS_ORIGIN、COOKIE_SECURE
 
-# 3) 安装运行时依赖（会自动拉对应平台的 better-sqlite3 / sharp / argon2 prebuild）
-npm install --omit=dev
+# 3) 安装运行时依赖
+#    \\\`--include=optional --os=linux --cpu=x64\\\` 必须带上：sharp 把平台二进制
+#    放在 optional dependencies 里，npm 默认会跳过当前主机外的平台。
+npm install --omit=dev --include=optional --os=linux --cpu=x64
 
-# 4) 用 pm2 守护
+# 4) 用 pm2 守护（推荐 ecosystem.config.cjs 锁定 cwd，防止 cwd 漂移）
+cat > ecosystem.config.cjs <<EOFCJS
+module.exports = {
+  apps: [{
+    name: 'photo-backend',
+    script: './server.js',
+    cwd: '/opt/photo/backend',     // 改成实际绝对路径
+    exec_mode: 'fork',
+    autorestart: true,
+    max_memory_restart: '1G',
+    node_args: '--env-file=.env',
+  }]
+};
+EOFCJS
+
 npm i -g pm2            # 已装可跳过
-pm2 start server.js --name photo-backend --update-env
+pm2 start ecosystem.config.cjs
 pm2 save                # 持久化进程列表
 pm2 startup             # 按提示执行命令开机自启
 \`\`\`

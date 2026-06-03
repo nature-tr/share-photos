@@ -44,14 +44,21 @@ sync_backend() {
     --exclude 'node_modules' \
     --exclude 'data' \
     --exclude 'storage' \
+    --exclude 'storage.orphan.*' \
     --exclude '.env' \
     --exclude '.npm-cache' \
+    --exclude 'ecosystem.config.cjs' \
     -e ssh \
     "$LOCAL_DIST/backend/" \
     "$HOST:$REMOTE_PATH/backend/"
   echo ""
-  echo "ℹ 后端代码已更新。如需生效，请在服务器执行："
-  echo "   ssh $HOST 'cd $REMOTE_PATH/backend && npm install --omit=dev && pm2 reload photo-backend'"
+  echo "ℹ 后端代码已更新。如有依赖变化，请在服务器执行："
+  echo "   ssh $HOST 'cd $REMOTE_PATH/backend && \\"
+  echo "     npm install --omit=dev --include=optional --os=linux --cpu=x64 && \\"
+  echo "     pm2 reload photo-backend'"
+  echo ""
+  echo "ℹ 仅代码变化（无依赖变化）只需："
+  echo "   ssh $HOST 'pm2 reload photo-backend'"
 }
 
 case "$WHAT" in
