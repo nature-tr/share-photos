@@ -12,6 +12,11 @@ frontend/vite.config.js
 frontend/uno.config.d.ts
 frontend/uno.config.js
 
+# 但是！shared 是 workspace lib，dist 是各端运行时实际 import 的产物，
+# 必须入 git，否则 EAS local build / 部署时 metro 找不到。
+!shared/dist/
+!shared/dist/**
+
 # Release products（本地打包出的部署产物，按需手动上传到服务器，不入库）
 /dist-release/
 
