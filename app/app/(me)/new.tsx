@@ -20,7 +20,7 @@ import { ApiException } from '@/api/client';
 import { photoApi, shareApi } from '@/api/share.api';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes } from '@/utils/format';
-import { colors, radius, space } from '@/theme';
+import { colors, font, radius, shadow, space } from '@/theme';
 
 interface PickedItem {
   id: string;
@@ -101,7 +101,6 @@ export default function NewShareScreen() {
       const share = await shareApi.create({ ttlSeconds: ttl, title: title.trim() || undefined });
       setCreated({ id: share.id, code: share.code });
 
-      // 串行上传（移动端并发上传容易触发限流和网络抖动）
       for (const it of items) {
         if (it.status === 'done') continue;
         setItems((arr) =>
@@ -134,32 +133,37 @@ export default function NewShareScreen() {
     }
   }
 
-  // 创建成功展示
+  // 创建成功页
   if (created && stats.done === stats.total && stats.error === 0) {
     return (
       <View style={s.successWrap}>
-        <Stack.Screen options={{ title: '已创建' }} />
-        <Text style={s.successIcon}>✓</Text>
+        <Stack.Screen options={{ title: '分享已创建' }} />
+        <View style={s.successIconBox}>
+          <Text style={s.successIcon}>✓</Text>
+        </View>
         <Text style={s.successTitle}>上传完成！</Text>
-        <Text style={s.successDesc}>分享码已生成，对方扫码或输入即可访问</Text>
+        <Text style={s.successDesc}>把分享码或链接发给朋友</Text>
         <View style={s.codeBox}>
+          <Text style={s.codeBoxLabel}>分享码</Text>
           <Text style={s.codeBig}>{created.code}</Text>
           <Text style={s.codeMeta}>
             {stats.done} 张 · {formatBytes(stats.totalBytes)}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: space.md }}>
+        <View style={{ flexDirection: 'row', gap: space.md, alignSelf: 'stretch' }}>
           <Pressable
-            style={[s.btn, { flex: 1 }]}
-            onPress={() => router.replace({ pathname: '/viewer/[code]', params: { code: created.code } })}
-          >
-            <Text style={s.btnText}>查看相册</Text>
-          </Pressable>
-          <Pressable
-            style={[s.btnOutline, { flex: 1 }]}
+            style={({ pressed }) => [s.btnOutline, { flex: 1 }, pressed && { opacity: 0.7 }]}
             onPress={() => router.replace('/(me)/shares')}
           >
             <Text style={s.btnOutlineText}>我的分享</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [s.btn, { flex: 1 }, pressed && { opacity: 0.85 }]}
+            onPress={() =>
+              router.replace({ pathname: '/viewer/[code]', params: { code: created.code } })
+            }
+          >
+            <Text style={s.btnText}>查看相册</Text>
           </Pressable>
         </View>
       </View>
@@ -170,18 +174,19 @@ export default function NewShareScreen() {
     <View style={s.root}>
       <Stack.Screen options={{ title: '新建分享' }} />
 
+      {/* 表单卡片 */}
       <View style={s.card}>
-        <Text style={s.label}>相册标题（可选）</Text>
+        <Text style={s.label}>相册标题</Text>
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="例如：周末聚会"
-          placeholderTextColor={colors.text3}
+          placeholder="例如：周末聚会（可选）"
+          placeholderTextColor={colors.text4}
           style={s.input}
           editable={!submitting}
         />
 
-        <Text style={[s.label, { marginTop: space.md }]}>有效期</Text>
+        <Text style={[s.label, { marginTop: space.lg }]}>有效期</Text>
         <View style={s.ttlRow}>
           {TTL_PRESETS.map((p) => (
             <Pressable
@@ -191,7 +196,10 @@ export default function NewShareScreen() {
               onPress={() => setTtl(p.seconds)}
             >
               <Text
-                style={[s.ttlChipText, ttl === p.seconds && { color: '#fff' }]}
+                style={[
+                  s.ttlChipText,
+                  ttl === p.seconds && { color: '#fff', fontWeight: '700' },
+                ]}
               >
                 {p.label}
               </Text>
@@ -200,15 +208,16 @@ export default function NewShareScreen() {
         </View>
       </View>
 
+      {/* 图片选择 */}
       <View style={[s.card, { flex: 1 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: space.sm }}>
+        <View style={s.imgHeader}>
           <Text style={s.label}>
-            图片 ({items.length}/{MAX_PHOTOS_PER_SHARE})
+            图片 <Text style={s.labelHint}>{items.length}/{MAX_PHOTOS_PER_SHARE}</Text>
           </Text>
           <View style={{ flex: 1 }} />
           {items.length > 0 && !submitting && (
             <Pressable onPress={() => setItems([])} hitSlop={10}>
-              <Text style={{ color: colors.danger, fontSize: 13 }}>清空</Text>
+              <Text style={{ color: colors.danger, ...font.small }}>清空</Text>
             </Pressable>
           )}
         </View>
@@ -218,7 +227,7 @@ export default function NewShareScreen() {
             <Text style={s.dzIcon}>＋</Text>
             <Text style={s.dzTitle}>从相册选择图片</Text>
             <Text style={s.dzHint}>
-              JPEG / PNG / WebP / HEIC · 单文件 ≤ {formatBytes(MAX_FILE_SIZE)}
+              JPEG / PNG / WebP / HEIC · 单张 ≤ {formatBytes(MAX_FILE_SIZE)}
             </Text>
           </Pressable>
         ) : (
@@ -226,12 +235,12 @@ export default function NewShareScreen() {
             data={items}
             keyExtractor={(it) => it.id}
             numColumns={3}
-            columnWrapperStyle={{ gap: 4 }}
-            ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
+            columnWrapperStyle={{ gap: 6 }}
+            ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
             ListFooterComponent={
               !submitting && items.length < MAX_PHOTOS_PER_SHARE ? (
                 <Pressable style={s.addThumb} onPress={pickImages}>
-                  <Text style={{ fontSize: 32, color: colors.text3 }}>＋</Text>
+                  <Text style={{ fontSize: 28, color: colors.text3, fontWeight: '300' }}>＋</Text>
                 </Pressable>
               ) : null
             }
@@ -244,13 +253,13 @@ export default function NewShareScreen() {
                   </View>
                 )}
                 {item.status === 'done' && (
-                  <View style={[s.thumbOverlay, { backgroundColor: 'rgba(16,185,129,0.65)' }]}>
-                    <Text style={{ color: '#fff', fontSize: 22 }}>✓</Text>
+                  <View style={[s.thumbOverlay, { backgroundColor: 'rgba(16,185,129,0.7)' }]}>
+                    <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700' }}>✓</Text>
                   </View>
                 )}
                 {item.status === 'error' && (
-                  <View style={[s.thumbOverlay, { backgroundColor: 'rgba(239,68,68,0.7)' }]}>
-                    <Text style={{ color: '#fff', fontSize: 11 }} numberOfLines={2}>
+                  <View style={[s.thumbOverlay, { backgroundColor: 'rgba(239,68,68,0.75)' }]}>
+                    <Text style={{ color: '#fff', fontSize: 11, textAlign: 'center', padding: 4 }} numberOfLines={3}>
                       {item.error || '失败'}
                     </Text>
                   </View>
@@ -261,7 +270,7 @@ export default function NewShareScreen() {
                     style={s.thumbClose}
                     hitSlop={6}
                   >
-                    <Text style={{ color: '#fff', fontSize: 12 }}>×</Text>
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>×</Text>
                   </Pressable>
                 )}
               </View>
@@ -270,14 +279,27 @@ export default function NewShareScreen() {
         )}
       </View>
 
+      {/* 底部行动条 */}
       <View style={s.bottomBar}>
-        <Text style={s.bbInfo}>
-          {submitting
-            ? `上传中 · ${stats.done}/${stats.total}${stats.error ? ` · 失败 ${stats.error}` : ''}`
-            : `${items.length} 张 · ${formatBytes(stats.totalBytes)}`}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.bbInfo}>
+            {submitting
+              ? `上传中 · ${stats.done}/${stats.total}${stats.error ? ` · 失败 ${stats.error}` : ''}`
+              : `${items.length} 张 · ${formatBytes(stats.totalBytes)}`}
+          </Text>
+          {submitting && stats.total > 0 && (
+            <View style={s.bbProgressTrack}>
+              <View
+                style={[
+                  s.bbProgressFill,
+                  { width: `${Math.round((stats.done / stats.total) * 100)}%` },
+                ]}
+              />
+            </View>
+          )}
+        </View>
         <Pressable
-          style={[s.btn, items.length === 0 && { opacity: 0.4 }]}
+          style={[s.btn, (items.length === 0 || submitting) && { opacity: 0.5 }]}
           disabled={items.length === 0 || submitting}
           onPress={start}
         >
@@ -296,21 +318,22 @@ const TILE_SIZE = 100;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfaceSoft },
+
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: space.md,
+    borderRadius: radius.xl,
+    padding: space.lg,
     margin: space.md,
     marginBottom: 0,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    ...shadow.sm,
   },
-  label: { fontSize: 13, color: colors.text2, fontWeight: '500', marginBottom: 6 },
+  label: { ...font.smallStrong, color: colors.text2, marginBottom: 6 },
+  labelHint: { ...font.caption, color: colors.text4, fontWeight: '400' },
   input: {
-    height: 44,
+    height: 48,
     paddingHorizontal: space.md,
     backgroundColor: colors.surfaceSoft,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     fontSize: 15,
@@ -319,36 +342,38 @@ const s = StyleSheet.create({
   ttlRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   ttlChip: {
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
   ttlChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ttlChipText: { fontSize: 13, color: colors.text2 },
+  ttlChipText: { ...font.small, color: colors.text2 },
+
+  imgHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: space.sm },
 
   dz: {
     minHeight: 200,
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radius.md,
+    backgroundColor: colors.primarySofter,
+    borderRadius: radius.lg,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     padding: space.lg,
   },
-  dzIcon: { fontSize: 36, color: colors.primary, fontWeight: '300' },
-  dzTitle: { fontSize: 15, fontWeight: '600', color: colors.text1 },
-  dzHint: { fontSize: 12, color: colors.text3, textAlign: 'center' },
+  dzIcon: { fontSize: 40, color: colors.primary, fontWeight: '300' },
+  dzTitle: { ...font.bodyStrong, color: colors.text1 },
+  dzHint: { ...font.caption, color: colors.text3, textAlign: 'center' },
 
   thumb: {
     width: TILE_SIZE,
     height: TILE_SIZE,
     backgroundColor: colors.surfaceHover,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     overflow: 'hidden',
   },
   thumbOverlay: {
@@ -356,7 +381,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
   },
   thumbClose: {
     position: 'absolute',
@@ -365,19 +389,20 @@ const s = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addThumb: {
     width: TILE_SIZE,
     height: TILE_SIZE,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceSoft,
   },
 
   bottomBar: {
@@ -386,66 +411,77 @@ const s = StyleSheet.create({
     gap: space.md,
     padding: space.md,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
-  bbInfo: { flex: 1, fontSize: 13, color: colors.text2 },
+  bbInfo: { ...font.small, color: colors.text2 },
+  bbProgressTrack: {
+    height: 3,
+    backgroundColor: colors.surfaceHover,
+    borderRadius: 2,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  bbProgressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+
   btn: {
-    paddingHorizontal: space.xl,
-    height: 44,
-    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    height: 46,
+    borderRadius: radius.lg,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnText: { color: '#fff', fontWeight: '600' },
+  btnText: { ...font.bodyStrong, color: '#fff' },
   btnOutline: {
-    paddingHorizontal: space.xl,
-    height: 44,
-    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    height: 46,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnOutlineText: { color: colors.text1, fontWeight: '600' },
+  btnOutlineText: { ...font.bodyStrong, color: colors.text1 },
 
+  /* 成功页 */
   successWrap: {
     flex: 1,
     backgroundColor: colors.surfaceSoft,
     padding: space.xl,
-    paddingTop: space.xxl + 12,
+    paddingTop: space.xxl,
     alignItems: 'center',
   },
-  successIcon: {
-    fontSize: 36,
-    color: '#fff',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  successIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.success,
-    textAlign: 'center',
-    lineHeight: 64,
-    marginBottom: space.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.lg,
+    ...shadow.md,
   },
-  successTitle: { fontSize: 22, fontWeight: '700', color: colors.text1 },
-  successDesc: { fontSize: 13, color: colors.text3, marginTop: 4, marginBottom: space.xl },
+  successIcon: { fontSize: 36, color: '#fff', fontWeight: '700' },
+  successTitle: { ...font.h1, color: colors.text1 },
+  successDesc: { ...font.small, color: colors.text3, marginTop: 6, marginBottom: space.xl },
   codeBox: {
+    alignSelf: 'stretch',
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.xl,
-    paddingVertical: space.lg,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderRadius: radius.xl,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
     alignItems: 'center',
     marginBottom: space.xl,
+    ...shadow.sm,
   },
+  codeBoxLabel: { ...font.eyebrow, color: colors.text3, textTransform: 'uppercase', marginBottom: 6 },
   codeBig: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: colors.primary,
     letterSpacing: 8,
   },
-  codeMeta: { fontSize: 12, color: colors.text3, marginTop: 4 },
+  codeMeta: { ...font.caption, color: colors.text3, marginTop: 8 },
 });

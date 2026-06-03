@@ -18,12 +18,11 @@ import { shareApi } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
 import { toast } from '@/utils/toast';
 import { formatBytes, formatDateTime, formatRemaining } from '@/utils/format';
-import { colors, radius, space } from '@/theme';
+import { colors, font, radius, shadow, space } from '@/theme';
 
 export default function MySharesScreen() {
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
-  const user = useAuth((s) => s.user);
 
   const [items, setItems] = useState<ShareSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,11 +52,11 @@ export default function MySharesScreen() {
     return () => clearInterval(t);
   }, []);
 
-  function statusInfo(s: ShareSummary) {
-    if (s.status === 'cleaned') return { text: '已清理', color: colors.text3 };
-    if (s.status === 'ended') return { text: '已结束', color: colors.warning };
-    if (s.expiresAt <= now) return { text: '已过期', color: colors.danger };
-    return { text: '生效中', color: colors.success };
+  function statusInfo(item: ShareSummary) {
+    if (item.status === 'cleaned') return { text: '已清理', color: colors.text3, bg: colors.surfaceMuted };
+    if (item.status === 'ended') return { text: '已结束', color: colors.warning, bg: colors.warningSoft };
+    if (item.expiresAt <= now) return { text: '已过期', color: colors.danger, bg: colors.dangerSoft };
+    return { text: '生效中', color: colors.success, bg: colors.successSoft };
   }
 
   async function copyCode(code: string) {
@@ -117,14 +116,21 @@ export default function MySharesScreen() {
     );
   }
 
+  function confirmLogout() {
+    Alert.alert('退出登录', '确认登出当前账号？', [
+      { text: '取消', style: 'cancel' },
+      { text: '退出', style: 'destructive', onPress: () => void logout() },
+    ]);
+  }
+
   return (
     <View style={s.root}>
       <Stack.Screen
         options={{
           title: '我的分享',
           headerRight: () => (
-            <Pressable onPress={logout} hitSlop={10}>
-              <Text style={{ color: colors.text3, fontSize: 13 }}>登出</Text>
+            <Pressable onPress={confirmLogout} hitSlop={10}>
+              <Text style={s.logoutText}>登出</Text>
             </Pressable>
           ),
         }}
@@ -138,7 +144,8 @@ export default function MySharesScreen() {
         <FlatList
           data={items}
           keyExtractor={(it) => it.id}
-          contentContainerStyle={{ padding: space.md, paddingBottom: 100 }}
+          contentContainerStyle={{ padding: space.md, paddingBottom: 110 }}
+          ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -149,62 +156,58 @@ export default function MySharesScreen() {
               tintColor={colors.primary}
             />
           }
-          ListHeaderComponent={
-            user ? (
-              <View style={s.userHeader}>
-                <Text style={s.userTitle}>{user.displayName}</Text>
-                <Text style={s.userSub}>{items.length} 个分享 · {user.email}</Text>
-              </View>
-            ) : null
-          }
           ListEmptyComponent={
             <View style={s.empty}>
+              <Text style={s.emptyEmoji}>📂</Text>
               <Text style={s.emptyTitle}>还没有分享</Text>
-              <Text style={s.emptyDesc}>创建你的第一个分享相册</Text>
+              <Text style={s.emptyDesc}>点击下方「+ 新建分享」开始</Text>
             </View>
           }
           renderItem={({ item }) => {
             const st = statusInfo(item);
-            const remaining =
-              item.status === 'active' ? formatRemaining(item.expiresAt - now) : '—';
+            const active = item.status === 'active' && item.expiresAt > now;
+            const remaining = active ? formatRemaining(item.expiresAt - now) : '—';
+            const lowTime = active && item.expiresAt - now < 3600_000;
             return (
               <View style={s.card}>
-                <View style={s.row}>
+                <View style={s.cardRow}>
                   <Text style={s.cardTitle} numberOfLines={1}>
                     {item.title || '未命名相册'}
                   </Text>
-                  <View style={[s.pill, { backgroundColor: st.color + '22' }]}>
+                  <View style={[s.pill, { backgroundColor: st.bg }]}>
                     <Text style={[s.pillText, { color: st.color }]}>{st.text}</Text>
                   </View>
                 </View>
 
                 <View style={s.codeRow}>
-                  <Text style={s.code}>{item.code}</Text>
-                  <Pressable style={s.iconBtn} onPress={() => copyCode(item.code)}>
-                    <Text style={s.iconBtnText}>复制码</Text>
+                  <Text style={s.codeText}>{item.code}</Text>
+                  <Pressable
+                    style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => copyCode(item.code)}
+                  >
+                    <Text style={s.iconBtnText}>码</Text>
                   </Pressable>
-                  <Pressable style={s.iconBtn} onPress={() => copyLink(item.code)}>
-                    <Text style={s.iconBtnText}>复制链接</Text>
+                  <Pressable
+                    style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => copyLink(item.code)}
+                  >
+                    <Text style={s.iconBtnText}>链</Text>
                   </Pressable>
                 </View>
 
-                <Text style={s.meta}>
-                  {item.photoCount} 张 · {formatBytes(item.totalBytes)} ·{' '}
-                  {formatDateTime(item.createdAt)}
-                </Text>
-                <Text
-                  style={[
-                    s.meta,
-                    item.status === 'active' &&
-                    item.expiresAt - now < 3600_000 && { color: colors.warning },
-                  ]}
-                >
-                  {item.status === 'active' ? `剩余 ${remaining}` : st.text}
-                </Text>
+                <View style={s.metaRow}>
+                  <Text style={s.meta}>
+                    {item.photoCount} 张 · {formatBytes(item.totalBytes)}
+                  </Text>
+                  <Text style={[s.meta, lowTime && { color: colors.warning, fontWeight: '600' }]}>
+                    {active ? `剩余 ${remaining}` : st.text}
+                  </Text>
+                </View>
+                <Text style={s.metaWeak}>{formatDateTime(item.createdAt)}</Text>
 
                 <View style={s.actions}>
                   <Pressable
-                    style={s.btnSm}
+                    style={({ pressed }) => [s.btnSm, pressed && { opacity: 0.7 }]}
                     onPress={() =>
                       router.push({
                         pathname: '/viewer/[code]',
@@ -214,13 +217,20 @@ export default function MySharesScreen() {
                   >
                     <Text style={s.btnSmText}>预览</Text>
                   </Pressable>
-                  {item.status === 'active' && (
+                  {active && (
                     <>
-                      <Pressable style={s.btnSm} onPress={() => extendShare(item)}>
+                      <Pressable
+                        style={({ pressed }) => [s.btnSm, pressed && { opacity: 0.7 }]}
+                        onPress={() => extendShare(item)}
+                      >
                         <Text style={s.btnSmText}>续期</Text>
                       </Pressable>
                       <Pressable
-                        style={[s.btnSm, { borderColor: colors.danger + '66' }]}
+                        style={({ pressed }) => [
+                          s.btnSm,
+                          { borderColor: colors.dangerSoft, backgroundColor: colors.dangerSoft },
+                          pressed && { opacity: 0.7 },
+                        ]}
                         onPress={() => endShare(item)}
                       >
                         <Text style={[s.btnSmText, { color: colors.danger }]}>结束</Text>
@@ -238,7 +248,8 @@ export default function MySharesScreen() {
         style={({ pressed }) => [s.fab, pressed && { opacity: 0.85 }]}
         onPress={() => router.push('/(me)/new')}
       >
-        <Text style={s.fabText}>＋ 新建分享</Text>
+        <Text style={s.fabIcon}>+</Text>
+        <Text style={s.fabText}>新建分享</Text>
       </Pressable>
     </View>
   );
@@ -247,66 +258,71 @@ export default function MySharesScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfaceSoft },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  logoutText: { ...font.small, color: colors.text2 },
+
   empty: {
     alignItems: 'center',
     paddingVertical: 80,
-    gap: 6,
+    gap: space.xs,
   },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: colors.text2 },
-  emptyDesc: { fontSize: 13, color: colors.text3 },
-
-  userHeader: { paddingVertical: space.sm, marginBottom: space.sm },
-  userTitle: { fontSize: 17, fontWeight: '700', color: colors.text1 },
-  userSub: { fontSize: 12, color: colors.text3, marginTop: 2 },
+  emptyEmoji: { fontSize: 48, marginBottom: space.sm },
+  emptyTitle: { ...font.h2, color: colors.text2 },
+  emptyDesc: { ...font.small, color: colors.text3 },
 
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: space.md,
-    marginBottom: space.sm,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: 8,
+    padding: space.lg,
+    gap: 10,
+    ...shadow.sm,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  cardTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text1 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  cardTitle: { flex: 1, ...font.h3, color: colors.text1 },
   pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.full },
-  pillText: { fontSize: 11, fontWeight: '600' },
+  pillText: { ...font.captionStrong },
 
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    backgroundColor: colors.surfaceSoft,
+    gap: space.xs,
+    backgroundColor: colors.primarySofter,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: 10,
     borderRadius: radius.md,
   },
-  code: {
+  codeText: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.primary,
     letterSpacing: 4,
   },
   iconBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  iconBtnText: { fontSize: 11, color: colors.text2, fontWeight: '500' },
+  iconBtnText: { ...font.captionStrong, color: colors.text2 },
 
-  meta: { fontSize: 12, color: colors.text3 },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  meta: { ...font.caption, color: colors.text2 },
+  metaWeak: { ...font.caption, color: colors.text3, marginTop: -4 },
 
   actions: {
     flexDirection: 'row',
     gap: space.sm,
-    marginTop: 6,
+    marginTop: 4,
     paddingTop: space.sm,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderLight,
   },
   btnSm: {
@@ -316,24 +332,23 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  btnSmText: { fontSize: 13, color: colors.text1, fontWeight: '500' },
+  btnSmText: { ...font.smallStrong, color: colors.text1 },
 
   fab: {
     position: 'absolute',
-    bottom: space.lg + 16,
+    bottom: space.xl,
     right: space.lg,
-    paddingHorizontal: space.lg,
-    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    height: 52,
     backgroundColor: colors.primary,
     borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    ...shadow.lg,
   },
-  fabText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  fabIcon: { color: '#fff', fontSize: 22, fontWeight: '600', marginTop: -2 },
+  fabText: { ...font.bodyStrong, color: '#fff' },
 });

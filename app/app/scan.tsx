@@ -2,17 +2,13 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, space } from '@/theme';
+import { colors, font, radius, space } from '@/theme';
 
-/** 8 位字母数字分享码 */
 const CODE_RE = /[A-Z0-9]{8}/;
 
-/** 从扫到的字符串里抽出 8 位分享码（兼容直接二维码内容是 https://.../v/CODE） */
 function extractCode(raw: string): string | null {
-  // URL 形式
   const m = raw.match(/\/v\/([A-Z0-9]{8})/i);
   if (m) return m[1]!.toUpperCase();
-  // 纯码
   const m2 = raw.match(CODE_RE);
   if (m2) return m2[0]!.toUpperCase();
   return null;
@@ -34,7 +30,7 @@ export default function ScanScreen() {
     if (scanned || data === lastRef.current) return;
     lastRef.current = data;
     const code = extractCode(data);
-    if (!code) return; // 不是合法码，继续扫
+    if (!code) return;
     setScanned(true);
     router.replace({ pathname: '/viewer/[code]', params: { code } });
   }
@@ -49,9 +45,14 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <View style={s.center}>
-        <Text style={s.tip}>需要相机权限才能扫码</Text>
-        <Pressable style={s.btn} onPress={() => requestPermission()}>
-          <Text style={s.btnText}>授权相机</Text>
+        <Text style={s.bigEmoji}>📷</Text>
+        <Text style={s.cTitle}>需要相机权限</Text>
+        <Text style={s.cDesc}>授权后即可扫描分享码二维码</Text>
+        <Pressable
+          style={({ pressed }) => [s.btn, pressed && { opacity: 0.85 }]}
+          onPress={() => requestPermission()}
+        >
+          <Text style={s.btnText}>开启相机</Text>
         </Pressable>
       </View>
     );
@@ -65,8 +66,14 @@ export default function ScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={({ data }) => onScanned(data)}
       />
+      {/* 半透明遮罩四角 */}
       <View style={s.overlay} pointerEvents="none">
-        <View style={s.frame} />
+        <View style={s.frame}>
+          <View style={[s.corner, s.cornerTL]} />
+          <View style={[s.corner, s.cornerTR]} />
+          <View style={[s.corner, s.cornerBL]} />
+          <View style={[s.corner, s.cornerBR]} />
+        </View>
         <Text style={s.hint}>把分享码二维码放进框内</Text>
       </View>
     </View>
@@ -75,15 +82,27 @@ export default function ScanScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.lg, gap: space.lg },
-  tip: { color: colors.text2, fontSize: 14 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.xl,
+    gap: space.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
+  bigEmoji: { fontSize: 56, marginBottom: space.md },
+  cTitle: { ...font.h2, color: colors.text1 },
+  cDesc: { ...font.small, color: colors.text3, marginBottom: space.lg },
+  tip: { ...font.body, color: colors.text2 },
   btn: {
     paddingHorizontal: space.xl,
-    paddingVertical: 12,
+    height: 48,
     backgroundColor: colors.primary,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  btnText: { color: '#fff', fontWeight: '600' },
+  btnText: { ...font.bodyStrong, color: '#fff' },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -91,17 +110,24 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   frame: {
-    width: 240,
-    height: 240,
-    borderWidth: 3,
-    borderColor: '#fff',
-    borderRadius: radius.lg,
-    backgroundColor: 'transparent',
+    width: 260,
+    height: 260,
+    position: 'relative',
   },
+  corner: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderColor: '#fff',
+  },
+  cornerTL: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 4 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 4 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 4 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 4 },
   hint: {
-    marginTop: space.lg,
+    marginTop: space.xl,
     color: '#fff',
-    fontSize: 14,
+    ...font.small,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },

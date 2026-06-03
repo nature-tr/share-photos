@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ViewerAlbum } from '@photo/shared';
 import { ApiException } from '@/api/client';
 import { photoApi, shareApi } from '@/api/share.api';
@@ -24,13 +24,14 @@ import {
 } from '@/utils/saveToAlbum';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes, formatRemaining } from '@/utils/format';
-import { colors, radius, space } from '@/theme';
+import { colors, font, radius, shadow, space } from '@/theme';
 
 const { width: WIN_W, height: WIN_H } = Dimensions.get('window');
 
 export default function ViewerScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [album, setAlbum] = useState<ViewerAlbum | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +55,7 @@ export default function ViewerScreen() {
         const data = await shareApi.getByCode(codeUpper);
         if (mounted) setAlbum(data);
       } catch (err) {
-        if (mounted)
-          setError(err instanceof ApiException ? err.message : '加载失败');
+        if (mounted) setError(err instanceof ApiException ? err.message : '加载失败');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -65,7 +65,6 @@ export default function ViewerScreen() {
     };
   }, [codeUpper]);
 
-  // 倒计时刷新
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
@@ -136,76 +135,112 @@ export default function ViewerScreen() {
     }
   }
 
-  // ============ render ============
+  // 自定义顶栏：把"返回 + 标题 + 分享码 + 一键保存"集成到一条，避免与 native header 重复
+  const NavBar = (
+    <View style={[s.navBar, { paddingTop: insets.top + 6 }]}>
+      <Pressable style={s.navBack} onPress={() => router.back()} hitSlop={10}>
+        <Text style={s.navBackText}>‹</Text>
+      </Pressable>
+      <View style={{ flex: 1 }}>
+        <Text style={s.navTitle} numberOfLines={1}>
+          {album?.title || '相册'}
+        </Text>
+        {album && (
+          <Text style={s.navSub} numberOfLines={1}>
+            <Text style={s.navCode}>{album.code}</Text>
+            <Text>  ·  {album.photos.length} 张  ·  剩余 {formatRemaining(album.expiresAt - now)}</Text>
+          </Text>
+        )}
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={s.root}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {NavBar}
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
       </View>
     );
   }
 
   if (error || !album) {
     return (
-      <View style={s.center}>
-        <Text style={s.errorTitle}>{error ?? '加载失败'}</Text>
-        <Text style={s.errorDesc}>请确认分享码是否正确，或该分享是否已过期</Text>
-        <Pressable style={s.btn} onPress={() => router.replace('/')}>
-          <Text style={s.btnText}>返回首页</Text>
-        </Pressable>
+      <View style={s.root}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {NavBar}
+        <View style={s.center}>
+          <Text style={s.emptyEmoji}>🚫</Text>
+          <Text style={s.errorTitle}>{error ?? '加载失败'}</Text>
+          <Text style={s.errorDesc}>请确认分享码是否正确，或该分享是否已过期</Text>
+          <Pressable
+            style={({ pressed }) => [s.btn, pressed && { opacity: 0.85 }]}
+            onPress={() => router.replace('/')}
+          >
+            <Text style={s.btnText}>返回首页</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
-  const remaining = formatRemaining(album.expiresAt - now);
   const photos = album.photos;
   const numColumns = 3;
   const tileSize = (WIN_W - space.sm * 2 - 4 * (numColumns - 1)) / numColumns;
+  const expired = album.expiresAt - now <= 0;
 
   return (
     <SafeAreaView style={s.root} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          title: album.title || '相册',
-          headerRight: () => null,
-        }}
-      />
-      {/* meta 条 */}
-      <View style={s.metaBar}>
+      <Stack.Screen options={{ headerShown: false }} />
+      {NavBar}
+
+      {/* 行动条：一键保存到相册 */}
+      <View style={s.actionBar}>
         <View style={{ flex: 1 }}>
-          <Text style={s.metaCode}>{album.code}</Text>
-          <Text style={s.metaSub}>
-            {photos.length} 张 · {formatBytes(totalBytes)} · 剩余 {remaining}
+          <Text style={s.actionInfo}>
+            {photos.length} 张 · {formatBytes(totalBytes)}
           </Text>
+          <Text style={s.actionInfoSub}>原图已加密传输</Text>
         </View>
         <Pressable
-          style={({ pressed }) => [s.saveAllBtn, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => [
+            s.saveAllBtn,
+            pressed && { opacity: 0.85 },
+            (saving || photos.length === 0) && { opacity: 0.5 },
+          ]}
           disabled={saving || photos.length === 0}
           onPress={handleSaveAll}
         >
-          <Text style={s.saveAllText}>
-            {saving ? '保存中…' : '一键存到相册'}
-          </Text>
+          <Text style={s.saveAllIcon}>↓</Text>
+          <Text style={s.saveAllText}>{saving ? '保存中…' : '一键存到相册'}</Text>
         </Pressable>
       </View>
 
       {/* 网格 */}
       {photos.length === 0 ? (
         <View style={s.center}>
-          <Text style={s.errorDesc}>该分享尚未上传图片</Text>
+          <Text style={s.emptyEmoji}>🖼️</Text>
+          <Text style={s.errorTitle}>暂无图片</Text>
+          <Text style={s.errorDesc}>该分享尚未上传任何图片</Text>
         </View>
       ) : (
         <FlatList
           data={photos}
           keyExtractor={(p) => p.id}
           numColumns={numColumns}
-          contentContainerStyle={{ padding: space.sm, paddingBottom: 80 }}
+          contentContainerStyle={{ padding: space.sm, paddingBottom: 100 }}
           columnWrapperStyle={{ gap: 4 }}
           ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
           renderItem={({ item, index }) => (
             <Pressable
-              style={[s.tile, { width: tileSize, height: tileSize }]}
+              style={({ pressed }) => [
+                s.tile,
+                { width: tileSize, height: tileSize },
+                pressed && { opacity: 0.85 },
+              ]}
               onPress={() => setPreviewIdx(index)}
             >
               <Image
@@ -244,6 +279,13 @@ export default function ViewerScreen() {
         </View>
       )}
 
+      {/* 过期红条 */}
+      {expired && (
+        <View style={s.expiredBar}>
+          <Text style={s.expiredText}>该分享已过期，图片已不可下载</Text>
+        </View>
+      )}
+
       {/* 大图预览 */}
       {previewIdx !== null && (
         <PreviewModal
@@ -258,8 +300,6 @@ export default function ViewerScreen() {
   );
 }
 
-// ============ 大图预览 ============
-
 interface PreviewModalProps {
   album: ViewerAlbum;
   codeUpper: string;
@@ -270,14 +310,15 @@ interface PreviewModalProps {
 
 function PreviewModal({ album, codeUpper, startIdx, onClose, onSave }: PreviewModalProps) {
   const [idx, setIdx] = useState(startIdx);
+  const insets = useSafeAreaInsets();
   const photo = album.photos[idx];
   if (!photo) return null;
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} transparent={false}>
-      <SafeAreaView style={pmS.root} edges={['top', 'bottom']}>
-        <View style={pmS.header}>
-          <Pressable onPress={onClose} style={pmS.headerBtn}>
+      <View style={pmS.root}>
+        <View style={[pmS.header, { paddingTop: insets.top + 6 }]}>
+          <Pressable onPress={onClose} style={pmS.headerBtn} hitSlop={10}>
             <Text style={pmS.headerBtnText}>关闭</Text>
           </Pressable>
           <Text style={pmS.headerTitle}>
@@ -286,8 +327,11 @@ function PreviewModal({ album, codeUpper, startIdx, onClose, onSave }: PreviewMo
           <Pressable
             onPress={() => onSave(photo.id, photo.originalName)}
             style={pmS.headerBtn}
+            hitSlop={10}
           >
-            <Text style={[pmS.headerBtnText, { color: colors.primary }]}>保存到相册</Text>
+            <Text style={[pmS.headerBtnText, { color: '#60a5fa', fontWeight: '600' }]}>
+              保存
+            </Text>
           </Pressable>
         </View>
 
@@ -307,14 +351,14 @@ function PreviewModal({ album, codeUpper, startIdx, onClose, onSave }: PreviewMo
             <View style={[pmS.page, { width: WIN_W }]}>
               <Image
                 source={{ uri: photoApi.mediumUrl(codeUpper, item.id) }}
-                style={{ width: WIN_W, height: WIN_H - 120 }}
+                style={{ width: WIN_W, height: WIN_H - 140 - insets.top - insets.bottom }}
                 contentFit="contain"
                 transition={200}
               />
             </View>
           )}
         />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -326,46 +370,71 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: space.xl,
-    gap: space.md,
+    gap: space.sm,
   },
-  errorTitle: { fontSize: 18, fontWeight: '600', color: colors.text1 },
-  errorDesc: { fontSize: 14, color: colors.text3, textAlign: 'center' },
+  emptyEmoji: { fontSize: 48, marginBottom: space.sm },
+  errorTitle: { ...font.h2, color: colors.text1 },
+  errorDesc: { ...font.small, color: colors.text3, textAlign: 'center', marginBottom: space.md },
   btn: {
     paddingHorizontal: space.xl,
-    paddingVertical: 12,
+    height: 46,
     backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    marginTop: space.lg,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.md,
   },
-  btnText: { color: '#fff', fontWeight: '600' },
+  btnText: { ...font.bodyStrong, color: '#fff' },
 
-  metaBar: {
+  /* 自定义顶栏 */
+  navBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: space.md,
+    paddingBottom: 10,
+    gap: space.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  navBack: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  navBackText: { fontSize: 26, color: colors.text1, lineHeight: 28, fontWeight: '300', marginLeft: -2 },
+  navTitle: { ...font.h3, color: colors.text1 },
+  navSub: { ...font.caption, color: colors.text3, marginTop: 1 },
+  navCode: { color: colors.primary, fontWeight: '700', letterSpacing: 1 },
+
+  /* 行动条 */
+  actionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderLight,
   },
-  metaCode: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 4,
-    fontVariant: ['tabular-nums'],
-  },
-  metaSub: { fontSize: 12, color: colors.text3, marginTop: 2 },
+  actionInfo: { ...font.bodyStrong, color: colors.text1 },
+  actionInfoSub: { ...font.caption, color: colors.text3, marginTop: 2 },
   saveAllBtn: {
-    paddingHorizontal: space.lg,
-    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    height: 42,
     backgroundColor: colors.primary,
     borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...shadow.sm,
   },
-  saveAllText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  saveAllIcon: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveAllText: { ...font.smallStrong, color: '#fff' },
 
   tile: {
     backgroundColor: colors.surfaceHover,
@@ -381,15 +450,9 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: space.md,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    ...shadow.lg,
   },
-  progressText: { fontSize: 12, color: colors.text2, marginBottom: 6 },
+  progressText: { ...font.caption, color: colors.text2, marginBottom: 6 },
   progressTrack: {
     height: 4,
     backgroundColor: colors.surfaceHover,
@@ -397,6 +460,13 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.primary },
+
+  expiredBar: {
+    backgroundColor: colors.dangerSoft,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  expiredText: { ...font.caption, color: colors.danger, fontWeight: '600' },
 });
 
 const pmS = StyleSheet.create({
@@ -405,11 +475,11 @@ const pmS = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingBottom: space.sm,
     backgroundColor: '#000',
   },
-  headerBtn: { paddingHorizontal: space.md, paddingVertical: 6 },
-  headerBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  headerTitle: { flex: 1, color: '#fff', textAlign: 'center', fontSize: 14 },
+  headerBtn: { paddingHorizontal: space.md, paddingVertical: 8 },
+  headerBtnText: { color: '#fff', fontSize: 14 },
+  headerTitle: { flex: 1, color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' },
   page: { alignItems: 'center', justifyContent: 'center' },
 });

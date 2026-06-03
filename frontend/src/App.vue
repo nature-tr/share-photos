@@ -29,7 +29,7 @@ async function handleLogout() {
           <span class="logo-icon">
             <span class="i-tdesign:image-1 text-22px"></span>
           </span>
-          <span class="logo-text">在线共享相册</span>
+          <span class="logo-text">Dolmo Photo</span>
         </RouterLink>
         <nav class="nav">
           <template v-if="isAuthenticated && user">
