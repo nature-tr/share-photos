@@ -57,21 +57,21 @@ async function onSubmit() {
       <div class="form">
         <div class="field">
           <label>邮箱</label>
-          <t-input v-model="email" placeholder="you@example.com" size="large" />
+          <t-input v-model="email" placeholder="you@example.com" size="large" @enter="onSubmit" />
         </div>
         <div class="field">
           <label>
             密码
             <span class="hint-inline">至少 8 位，含字母与数字</span>
           </label>
-          <t-input v-model="password" placeholder="••••••••" type="password" size="large" />
+          <t-input v-model="password" placeholder="••••••••" type="password" size="large" @enter="onSubmit" />
         </div>
         <div class="field">
           <label>
             昵称
             <span class="hint-inline">可选</span>
           </label>
-          <t-input v-model="displayName" placeholder="你的称呼" size="large" />
+          <t-input v-model="displayName" placeholder="你的称呼" size="large" @enter="onSubmit" />
         </div>
         <t-button theme="primary" size="large" block :loading="submitting" @click="onSubmit">
           注册

@@ -54,7 +54,7 @@ async function onSubmit() {
             v-model="email"
             placeholder="you@example.com"
             size="large"
-            @keyup.enter="onSubmit"
+            @enter="onSubmit"
           />
         </div>
         <div class="field">
@@ -64,7 +64,7 @@ async function onSubmit() {
             placeholder="••••••••"
             type="password"
             size="large"
-            @keyup.enter="onSubmit"
+            @enter="onSubmit"
           />
         </div>
         <t-button theme="primary" size="large" block :loading="submitting" @click="onSubmit">

@@ -67,7 +67,7 @@ const features = [
             size="large"
             maxlength="8"
             class="code-input"
-            @keyup.enter="onSubmit"
+            @enter="onSubmit"
           />
           <t-button theme="primary" size="large" :loading="submitting" @click="onSubmit">
             查看相册
