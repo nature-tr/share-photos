@@ -4,3 +4,5 @@
 
 expo-env.d.ts
 # @end expo-cli
+# 本地 build 产物（按需手动分发，不入库）
+*.apk
