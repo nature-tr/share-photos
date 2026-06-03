@@ -6,9 +6,8 @@ import { useEffect } from 'react';
 import { useAuth } from '@/stores/auth.store';
 
 /**
- * 全局 Stack 屏幕选项：
- * - headerBackTitle/headerBackButtonDisplayMode：去掉 iOS 上返回按钮旁的「上一页标题」，
- *   避免与当前页标题挤在一起（用户反馈的"返回按钮和标题小冲突"）
+ * 子 layout 用的 Stack 公共选项：
+ * - headerBackTitle/headerBackButtonDisplayMode：去掉 iOS 上返回按钮旁的「上一页标题」
  */
 export const stackScreenOptions = {
   headerStyle: { backgroundColor: '#ffffff' },
@@ -20,6 +19,11 @@ export const stackScreenOptions = {
   contentStyle: { backgroundColor: '#f8fafc' },
 };
 
+/**
+ * Root Stack：默认所有页面都不显示 header，由各页 / 各分组 layout 自己负责。
+ * 这样可以彻底避免「root 给分组 (me)/(auth) 显示一条 header + 子 Stack 又显示一条」
+ * 的双 top bar 问题。
+ */
 export default function RootLayout() {
   const bootstrap = useAuth((s) => s.bootstrap);
 
@@ -31,14 +35,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        <Stack screenOptions={stackScreenOptions}>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="scan" options={{ title: '扫码', presentation: 'modal' }} />
-          <Stack.Screen name="viewer/[code]" options={{ title: '相册' }} />
-          {/* 分组路由：子 layout 自己负责注册页面与标题 */}
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(me)" options={{ headerShown: false }} />
-        </Stack>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }} />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

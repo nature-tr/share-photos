@@ -19,6 +19,7 @@ import { useAuth } from '@/stores/auth.store';
 import { toast } from '@/utils/toast';
 import { formatBytes, formatDateTime, formatRemaining } from '@/utils/format';
 import { colors, font, radius, shadow, space } from '@/theme';
+import ShareQrSheet from '@/components/ShareQrSheet';
 
 export default function MySharesScreen() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function MySharesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
 
   async function load() {
     try {
@@ -183,15 +185,21 @@ export default function MySharesScreen() {
                   <Text style={s.codeText}>{item.code}</Text>
                   <Pressable
                     style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => setQrItem(item)}
+                  >
+                    <Text style={s.iconBtnText}>码图</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
                     onPress={() => copyCode(item.code)}
                   >
-                    <Text style={s.iconBtnText}>码</Text>
+                    <Text style={s.iconBtnText}>复制</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
                     onPress={() => copyLink(item.code)}
                   >
-                    <Text style={s.iconBtnText}>链</Text>
+                    <Text style={s.iconBtnText}>链接</Text>
                   </Pressable>
                 </View>
 
@@ -251,6 +259,13 @@ export default function MySharesScreen() {
         <Text style={s.fabIcon}>+</Text>
         <Text style={s.fabText}>新建分享</Text>
       </Pressable>
+
+      <ShareQrSheet
+        visible={!!qrItem}
+        code={qrItem?.code ?? ''}
+        title={qrItem?.title || '未命名相册'}
+        onClose={() => setQrItem(null)}
+      />
     </View>
   );
 }
@@ -298,8 +313,8 @@ const s = StyleSheet.create({
     letterSpacing: 4,
   },
   iconBtn: {
-    width: 32,
-    height: 32,
+    paddingHorizontal: 10,
+    height: 30,
     borderRadius: 8,
     backgroundColor: colors.surface,
     borderWidth: 1,

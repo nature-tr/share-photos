@@ -21,6 +21,7 @@ import { photoApi, shareApi } from '@/api/share.api';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes } from '@/utils/format';
 import { colors, font, radius, shadow, space } from '@/theme';
+import ShareQrSheet from '@/components/ShareQrSheet';
 
 interface PickedItem {
   id: string;
@@ -43,6 +44,7 @@ export default function NewShareScreen() {
   const [items, setItems] = useState<PickedItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
+  const [qrVisible, setQrVisible] = useState(false);
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -142,7 +144,7 @@ export default function NewShareScreen() {
           <Text style={s.successIcon}>✓</Text>
         </View>
         <Text style={s.successTitle}>上传完成！</Text>
-        <Text style={s.successDesc}>把分享码或链接发给朋友</Text>
+        <Text style={s.successDesc}>把分享码或二维码发给朋友</Text>
         <View style={s.codeBox}>
           <Text style={s.codeBoxLabel}>分享码</Text>
           <Text style={s.codeBig}>{created.code}</Text>
@@ -150,7 +152,13 @@ export default function NewShareScreen() {
             {stats.done} 张 · {formatBytes(stats.totalBytes)}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: space.md, alignSelf: 'stretch' }}>
+        <Pressable
+          style={({ pressed }) => [s.btn, { alignSelf: 'stretch' }, pressed && { opacity: 0.85 }]}
+          onPress={() => setQrVisible(true)}
+        >
+          <Text style={s.btnText}>展示二维码</Text>
+        </Pressable>
+        <View style={{ flexDirection: 'row', gap: space.md, alignSelf: 'stretch', marginTop: space.sm }}>
           <Pressable
             style={({ pressed }) => [s.btnOutline, { flex: 1 }, pressed && { opacity: 0.7 }]}
             onPress={() => router.replace('/(me)/shares')}
@@ -158,14 +166,21 @@ export default function NewShareScreen() {
             <Text style={s.btnOutlineText}>我的分享</Text>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [s.btn, { flex: 1 }, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [s.btnOutline, { flex: 1 }, pressed && { opacity: 0.7 }]}
             onPress={() =>
               router.replace({ pathname: '/viewer/[code]', params: { code: created.code } })
             }
           >
-            <Text style={s.btnText}>查看相册</Text>
+            <Text style={s.btnOutlineText}>查看相册</Text>
           </Pressable>
         </View>
+
+        <ShareQrSheet
+          visible={qrVisible}
+          code={created.code}
+          title={title.trim() || '未命名相册'}
+          onClose={() => setQrVisible(false)}
+        />
       </View>
     );
   }

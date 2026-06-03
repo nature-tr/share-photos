@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, font, radius, space } from '@/theme';
 
 const CODE_RE = /[A-Z0-9]{8}/;
@@ -44,7 +45,10 @@ export default function ScanScreen() {
   }
   if (!permission.granted) {
     return (
-      <View style={s.center}>
+      <SafeAreaView style={s.center} edges={['top', 'bottom']}>
+        <Pressable style={s.closeBtn} onPress={() => router.back()} hitSlop={10}>
+          <Text style={s.closeText}>取消</Text>
+        </Pressable>
         <Text style={s.bigEmoji}>📷</Text>
         <Text style={s.cTitle}>需要相机权限</Text>
         <Text style={s.cDesc}>授权后即可扫描分享码二维码</Text>
@@ -54,7 +58,7 @@ export default function ScanScreen() {
         >
           <Text style={s.btnText}>开启相机</Text>
         </Pressable>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -66,16 +70,25 @@ export default function ScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={({ data }) => onScanned(data)}
       />
-      {/* 半透明遮罩四角 */}
-      <View style={s.overlay} pointerEvents="none">
-        <View style={s.frame}>
-          <View style={[s.corner, s.cornerTL]} />
-          <View style={[s.corner, s.cornerTR]} />
-          <View style={[s.corner, s.cornerBL]} />
-          <View style={[s.corner, s.cornerBR]} />
+      <SafeAreaView style={s.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
+        <View style={s.topBar} pointerEvents="box-none">
+          <Pressable style={s.closeBtnDark} onPress={() => router.back()} hitSlop={10}>
+            <Text style={s.closeTextLight}>关闭</Text>
+          </Pressable>
+          <Text style={s.topTitle}>扫一扫</Text>
+          <View style={{ width: 60 }} />
         </View>
-        <Text style={s.hint}>把分享码二维码放进框内</Text>
-      </View>
+
+        <View style={s.frameWrap} pointerEvents="none">
+          <View style={s.frame}>
+            <View style={[s.corner, s.cornerTL]} />
+            <View style={[s.corner, s.cornerTR]} />
+            <View style={[s.corner, s.cornerBL]} />
+            <View style={[s.corner, s.cornerBR]} />
+          </View>
+          <Text style={s.hint}>把分享码二维码放进框内</Text>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -103,12 +116,35 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   btnText: { ...font.bodyStrong, color: '#fff' },
+  closeBtn: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  closeText: { ...font.smallStrong, color: colors.text2 },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  closeBtnDark: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: radius.full,
+  },
+  closeTextLight: { ...font.smallStrong, color: '#fff' },
+  topTitle: { ...font.bodyStrong, color: '#fff' },
+
+  frameWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: {
     width: 260,
     height: 260,
