@@ -24,6 +24,7 @@ import ShareQrSheet from '@/components/ShareQrSheet';
 export default function MySharesScreen() {
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
+  const user = useAuth((s) => s.user);
 
   const [items, setItems] = useState<ShareSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,16 +128,7 @@ export default function MySharesScreen() {
 
   return (
     <View style={s.root}>
-      <Stack.Screen
-        options={{
-          title: '我的分享',
-          headerRight: () => (
-            <Pressable onPress={confirmLogout} hitSlop={10}>
-              <Text style={s.logoutText}>登出</Text>
-            </Pressable>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: '我的分享' }} />
 
       {loading ? (
         <View style={s.center}>
@@ -146,7 +138,7 @@ export default function MySharesScreen() {
         <FlatList
           data={items}
           keyExtractor={(it) => it.id}
-          contentContainerStyle={{ padding: space.md, paddingBottom: 110 }}
+          contentContainerStyle={{ padding: space.md, paddingBottom: 120 }}
           ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
           refreshControl={
             <RefreshControl
@@ -162,8 +154,35 @@ export default function MySharesScreen() {
             <View style={s.empty}>
               <Text style={s.emptyEmoji}>📂</Text>
               <Text style={s.emptyTitle}>还没有分享</Text>
-              <Text style={s.emptyDesc}>点击下方「+ 新建分享」开始</Text>
+              <Text style={s.emptyDesc}>点击右下角「+ 新建分享」开始</Text>
             </View>
+          }
+          ListFooterComponent={
+            user ? (
+              <View style={s.footer}>
+                <View style={s.userRow}>
+                  <View style={s.footerAvatar}>
+                    <Text style={s.footerAvatarText}>
+                      {(user.displayName || user.email).slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.footerName} numberOfLines={1}>
+                      {user.displayName || '我的'}
+                    </Text>
+                    <Text style={s.footerEmail} numberOfLines={1}>
+                      {user.email}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [s.logoutBtn, pressed && { opacity: 0.7 }]}
+                  onPress={confirmLogout}
+                >
+                  <Text style={s.logoutBtnText}>退出登录</Text>
+                </Pressable>
+              </View>
+            ) : null
           }
           renderItem={({ item }) => {
             const st = statusInfo(item);
@@ -273,7 +292,6 @@ export default function MySharesScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfaceSoft },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  logoutText: { ...font.small, color: colors.text2 },
 
   empty: {
     alignItems: 'center',
@@ -366,4 +384,40 @@ const s = StyleSheet.create({
   },
   fabIcon: { color: '#fff', fontSize: 22, fontWeight: '600', marginTop: -2 },
   fabText: { ...font.bodyStrong, color: '#fff' },
+
+  /* 列表底部：用户信息 + 退出 */
+  footer: {
+    marginTop: space.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space.md,
+    ...shadow.sm,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    marginBottom: space.sm,
+  },
+  footerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerAvatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  footerName: { ...font.bodyStrong, color: colors.text1 },
+  footerEmail: { ...font.caption, color: colors.text3, marginTop: 2 },
+  logoutBtn: {
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutBtnText: { ...font.smallStrong, color: colors.danger },
 });
