@@ -245,45 +245,10 @@ function onDownload() {
   flex: 1;
 }
 
-/* 移动端：让 t-dialog 变成贴底 sheet */
+/* 移动端：global.css 已经把 t-dialog 做成贴底 sheet（圆角顶 + transform:none），
+   这里只调内部内容尺寸，不要再覆盖 dialog 容器的 transform / position，
+   否则会与 global 样式冲突导致弹窗飘到屏外。 */
 @media (max-width: 640px) {
-  /* 全局穿透：t-dialog 的 wrapper 与 dialog 容器 */
-  :global(.qr-dialog .t-dialog__wrap) {
-    align-items: flex-end !important;
-    justify-content: stretch !important;
-    padding: 0 !important;
-  }
-  :global(.qr-dialog .t-dialog) {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    border-radius: 24px 24px 0 0 !important;
-    max-height: 92vh;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-    animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  :global(.qr-dialog .t-dialog__header) {
-    padding: 18px 20px 0 !important;
-  }
-  :global(.qr-dialog .t-dialog__body) {
-    padding: 12px 20px 8px !important;
-  }
-  /* 顶部加一条 handle */
-  :global(.qr-dialog .t-dialog)::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 38px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--border);
-  }
-  @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-  }
   .qr-frame {
     width: 200px;
     height: 200px;
