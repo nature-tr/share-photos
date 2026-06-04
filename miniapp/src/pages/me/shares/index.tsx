@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Button } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { getMyShares, endShare, extendShare } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
@@ -151,8 +151,12 @@ export default function MySharesPage() {
 
                 <View className="code-row">
                   <Text className="code-text">{item.code}</Text>
-                  <Button className="icon-btn" size="mini" onClick={() => copyCode(item.code)}>复制</Button>
-                  <Button className="icon-btn" size="mini" onClick={() => copyLink(item.code)}>链接</Button>
+                  <View className="icon-btn" onClick={() => copyCode(item.code)}>
+                    <Text className="icon-btn-text">复制</Text>
+                  </View>
+                  <View className="icon-btn" onClick={() => copyLink(item.code)}>
+                    <Text className="icon-btn-text">链接</Text>
+                  </View>
                 </View>
 
                 <View className="meta-row">
@@ -164,15 +168,20 @@ export default function MySharesPage() {
                 <Text className="meta-weak">{formatDate(item.createdAt)}</Text>
 
                 <View className="actions">
-                  <Button
+                  <View
                     className="action-btn"
-                    size="mini"
                     onClick={() => Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${item.code}` })}
-                  >预览</Button>
+                  >
+                    <Text className="action-btn-text">预览</Text>
+                  </View>
                   {active && (
                     <>
-                      <Button className="action-btn" size="mini" onClick={() => onExtend(item)}>续期</Button>
-                      <Button className="action-btn action-btn-danger" size="mini" onClick={() => onEnd(item)}>结束</Button>
+                      <View className="action-btn" onClick={() => onExtend(item)}>
+                        <Text className="action-btn-text">续期</Text>
+                      </View>
+                      <View className="action-btn action-btn-danger" onClick={() => onEnd(item)}>
+                        <Text className="action-btn-text-danger">结束</Text>
+                      </View>
                     </>
                   )}
                 </View>
@@ -194,7 +203,9 @@ export default function MySharesPage() {
               <Text className="user-email">{user.email}</Text>
             </View>
           </View>
-          <Button className="logout-btn" onClick={confirmLogout}>退出登录</Button>
+          <View className="logout-btn" onClick={confirmLogout}>
+            <Text className="logout-btn-text">退出登录</Text>
+          </View>
         </View>
       )}
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, Input, Button, Image } from '@tarojs/components';
+import { View, Text, Input, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare, uploadPhoto } from '@/api/share.api';
@@ -122,15 +122,15 @@ export default function NewSharePage() {
           <Text className="code-meta">{stats.done} 张 · {formatBytes(stats.totalBytes)}</Text>
         </View>
         <View className="success-actions">
-          <Button className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
-            我的分享
-          </Button>
-          <Button
+          <View className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
+            <Text className="btn-outline-text">我的分享</Text>
+          </View>
+          <View
             className="btn-outline"
             onClick={() => Taro.redirectTo({ url: `/pages/viewer/detail/index?code=${created.code}` })}
           >
-            查看相册
-          </Button>
+            <Text className="btn-outline-text">查看相册</Text>
+          </View>
         </View>
       </View>
     );
@@ -229,14 +229,12 @@ export default function NewSharePage() {
             </View>
           )}
         </View>
-        <Button
+        <View
           className={`btn ${(items.length === 0 || submitting) ? 'btn-disabled' : ''}`}
-          onClick={start}
-          disabled={items.length === 0 || submitting}
-          loading={submitting}
+          onClick={() => !submitting && items.length > 0 && start()}
         >
-          {submitting ? '上传中' : '创建并上传'}
-        </Button>
+          <Text className="btn-text">{submitting ? '上传中' : '创建并上传'}</Text>
+        </View>
       </View>
     </View>
   );

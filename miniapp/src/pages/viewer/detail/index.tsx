@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, Button } from '@tarojs/components';
+import { View, Text, Image } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getOriginalUrl } from '@/api/share.api';
 import type { ShareDetail } from '@photo/shared/dto';
@@ -100,7 +100,9 @@ export default function ViewerPage() {
           <Text style={{ fontSize: '24rpx', color: '#9ca3af', marginTop: '8rpx', textAlign: 'center', padding: '0 48rpx' }}>
             请确认分享码是否正确，或该分享是否已过期
           </Text>
-          <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回首页</Button>
+          <View className="back-btn" onClick={() => Taro.navigateBack()}>
+            <Text className="back-btn-text">返回首页</Text>
+          </View>
         </View>
       </View>
     );
@@ -126,13 +128,12 @@ export default function ViewerPage() {
       {/* 操作条 */}
       <View className="action-bar">
         <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
-        <Button
+        <View
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
-          onClick={saveAll}
-          disabled={saving || photos.length === 0}
+          onClick={() => !saving && photos.length > 0 && saveAll()}
         >
-          {saving ? '保存中…' : '↓ 一键存到相册'}
-        </Button>
+          <Text className="save-all-btn-text">{saving ? '保存中…' : '↓ 一键存到相册'}</Text>
+        </View>
       </View>
 
       {/* 网格 */}

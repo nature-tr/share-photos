@@ -7,8 +7,9 @@
 .label { font-size: 26rpx; font-weight: 600; color: var(--color-text2); margin-bottom: 12rpx; line-height: 1.4; }
 .label-hint { font-size: 24rpx; color: var(--color-text4); font-weight: 400; line-height: 1.4; }
 .input { height: 100rpx; padding: 0 24rpx; background: var(--color-surface-soft); border-radius: 28rpx; border: 2rpx solid var(--color-border); font-size: 30rpx; color: var(--color-text1); line-height: 100rpx; box-sizing: border-box; }
-.btn { height: 100rpx; background: var(--color-primary); color: #fff; font-size: 30rpx; font-weight: 600; border-radius: 28rpx; margin-top: 16rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
-.btn[disabled] { opacity: 0.5; }
+.btn { height: 100rpx; background: var(--color-primary); border-radius: 28rpx; margin-top: 16rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.btn-text { color: #fff; font-size: 30rpx; font-weight: 600; line-height: 1; }
+.btn-disabled { opacity: 0.5; }
 .link-row { display: flex; justify-content: center; margin-top: 32rpx; }
 .link-label { font-size: 26rpx; color: var(--color-text3); line-height: 1.4; }
 .link { font-size: 26rpx; font-weight: 600; color: var(--color-primary); line-height: 1.4; margin-left: 8rpx; }

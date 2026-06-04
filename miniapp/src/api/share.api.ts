@@ -59,6 +59,10 @@ export async function endShare(shareId: string) {
     header: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (res.statusCode !== 204 && res.statusCode !== 200) {
-    throw new Error('结束分享失败');
+    console.error('[endShare] failed', res.statusCode, res.data);
+    const errMsg = (res.data as any)?.error?.message
+      ?? (res.data as any)?.message
+      ?? `HTTP ${res.statusCode}`;
+    throw new Error(errMsg);
   }
 }

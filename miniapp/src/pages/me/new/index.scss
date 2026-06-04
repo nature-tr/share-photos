@@ -33,8 +33,9 @@
 .bb-info { font-size: 26rpx; color: var(--color-text2); line-height: 1.4; }
 .progress-track { height: 6rpx; background: #f1f5f9; border-radius: 3rpx; margin-top: 12rpx; overflow: hidden; }
 .progress-fill { height: 100%; background: var(--color-primary); border-radius: 3rpx; }
-.btn { padding: 0 36rpx; height: 92rpx; background: var(--color-primary); color: #fff; font-size: 30rpx; font-weight: 600; border-radius: 28rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; flex-shrink: 0; margin-left: 24rpx; }
-.btn[disabled] { opacity: 0.5; }
+.btn { padding: 0 36rpx; height: 92rpx; background: var(--color-primary); border-radius: 28rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; margin-left: 24rpx; }
+.btn-text { color: #fff; font-size: 30rpx; font-weight: 600; line-height: 1; }
+.btn-disabled { opacity: 0.5; }
 
 .success-page { min-height: 100vh; background: var(--color-surface-soft); display: flex; flex-direction: column; align-items: center; padding: 96rpx 32rpx; }
 .success-icon-box { width: 144rpx; height: 144rpx; border-radius: 72rpx; background: var(--color-success); display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; box-shadow: 0 8rpx 32rpx rgba(16,185,129,0.3); }
@@ -46,5 +47,6 @@
 .code-big { font-size: 72rpx; font-weight: 700; color: var(--color-primary); letter-spacing: 16rpx; line-height: 1.2; }
 .code-meta { font-size: 24rpx; color: var(--color-text3); margin-top: 16rpx; line-height: 1.4; }
 .success-actions { display: flex; flex-direction: row; align-self: stretch; }
-.btn-outline { flex: 1; height: 92rpx; background: var(--color-surface); color: var(--color-text1); font-size: 30rpx; font-weight: 600; border: 2rpx solid var(--color-border); border-radius: 28rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
+.btn-outline { flex: 1; height: 92rpx; background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 28rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.btn-outline-text { color: var(--color-text1); font-size: 30rpx; font-weight: 600; line-height: 1; }
 .btn-outline + .btn-outline { margin-left: 24rpx; }

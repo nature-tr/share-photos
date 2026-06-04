@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Input, Button, Image } from '@tarojs/components';
+import { View, Text, Input, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
@@ -47,20 +47,18 @@ export default function IndexPage() {
               <Text className="guest-title">未登录</Text>
               <Text className="guest-sub">登录后可创建并管理分享</Text>
             </View>
-            <Button
+            <View
               className="top-btn-primary"
-              size="mini"
               onClick={() => Taro.navigateTo({ url: '/pages/auth/login/index' })}
             >
-              登录
-            </Button>
-            <Button
+              <Text className="top-btn-primary-text">登录</Text>
+            </View>
+            <View
               className="top-btn-ghost"
-              size="mini"
               onClick={() => Taro.navigateTo({ url: '/pages/auth/register/index' })}
             >
-              注册
-            </Button>
+              <Text className="top-btn-ghost-text">注册</Text>
+            </View>
           </View>
         )}
       </View>
@@ -86,9 +84,12 @@ export default function IndexPage() {
           confirmType="go"
           onConfirm={go}
         />
-        <Button className="btn-primary" onClick={go} disabled={!code.trim()}>
-          查看相册
-        </Button>
+        <View
+          className={`btn-primary ${!code.trim() ? 'btn-primary-disabled' : ''}`}
+          onClick={() => code.trim() && go()}
+        >
+          <Text className="btn-primary-text">查看相册</Text>
+        </View>
       </View>
 
       {/* 操作入口 */}

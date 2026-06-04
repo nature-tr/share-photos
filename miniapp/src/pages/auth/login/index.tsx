@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Input, Button } from '@tarojs/components';
+import { View, Text, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { login } from '@/api/auth.api';
 import { useAuth } from '@/stores/auth.store';
@@ -63,14 +63,12 @@ export default function LoginPage() {
             onConfirm={onSubmit}
           />
         </View>
-        <Button
-          className={`btn ${(!email.trim() || !password) ? 'btn-disabled' : ''}`}
-          onClick={onSubmit}
-          loading={loading}
-          disabled={loading || !email.trim() || !password}
+        <View
+          className={`btn ${(!email.trim() || !password || loading) ? 'btn-disabled' : ''}`}
+          onClick={() => !loading && email.trim() && password && onSubmit()}
         >
-          {loading ? '登录中…' : '登录'}
-        </Button>
+          <Text className="btn-text">{loading ? '登录中…' : '登录'}</Text>
+        </View>
       </View>
 
       <View className="link-row">

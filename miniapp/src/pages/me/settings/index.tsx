@@ -1,4 +1,4 @@
-import { View, Text, Button } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
 import './index.scss';
@@ -50,7 +50,9 @@ export default function SettingsPage() {
       </View>
 
       <View className="logout-wrap">
-        <Button className="logout-btn" onClick={confirmLogout}>退出登录</Button>
+        <View className="logout-btn" onClick={confirmLogout}>
+          <Text className="logout-btn-text">退出登录</Text>
+        </View>
       </View>
     </View>
   );

@@ -11,7 +11,8 @@
 
 .code-row { display: flex; flex-direction: row; align-items: center; background: var(--color-primary-softer); padding: 20rpx 24rpx; border-radius: 20rpx; margin-bottom: 20rpx; }
 .code-text { flex: 1; font-size: 36rpx; font-weight: 700; color: var(--color-primary); letter-spacing: 8rpx; line-height: 1.2; }
-.icon-btn { height: 60rpx; padding: 0 20rpx; font-size: 24rpx; font-weight: 600; color: var(--color-text2); background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; flex-shrink: 0; margin-left: 8rpx; }
+.icon-btn { height: 60rpx; padding: 0 20rpx; background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; margin-left: 8rpx; }
+.icon-btn-text { font-size: 24rpx; font-weight: 600; color: var(--color-text2); line-height: 1; }
 
 .meta-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 6rpx; }
 .meta { font-size: 24rpx; color: var(--color-text2); line-height: 1.4; }
@@ -19,9 +20,11 @@
 .meta-weak { font-size: 24rpx; color: var(--color-text3); line-height: 1.4; margin-bottom: 20rpx; }
 
 .actions { display: flex; flex-direction: row; padding-top: 20rpx; border-top: 1rpx solid var(--color-border); }
-.action-btn { flex: 1; height: 72rpx; font-size: 26rpx; font-weight: 600; color: var(--color-text1); background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0; box-sizing: border-box; }
+.action-btn { flex: 1; height: 72rpx; background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; padding: 0; box-sizing: border-box; }
+.action-btn-text { font-size: 26rpx; font-weight: 600; color: var(--color-text1); line-height: 1; }
+.action-btn-text-danger { font-size: 26rpx; font-weight: 600; color: var(--color-danger); line-height: 1; }
 .action-btn + .action-btn { margin-left: 16rpx; }
-.action-btn-danger { border-color: #fecaca; background: var(--color-danger-soft); color: var(--color-danger); }
+.action-btn-danger { border-color: #fecaca; background: var(--color-danger-soft); }
 
 .fab { position: fixed; bottom: 64rpx; right: 32rpx; display: flex; flex-direction: row; align-items: center; padding: 0 36rpx; height: 104rpx; background: var(--color-primary); border-radius: 9999rpx; box-shadow: 0 8rpx 32rpx rgba(37,99,235,0.35); z-index: 100; }
 .fab-icon { color: #fff; font-size: 44rpx; font-weight: 600; line-height: 1; }
@@ -34,4 +37,5 @@
 .footer-user-info { flex: 1; margin-left: 16rpx; }
 .user-name { font-size: 30rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
 .user-email { font-size: 24rpx; color: var(--color-text3); margin-top: 4rpx; line-height: 1.4; }
-.logout-btn { width: 100%; height: 88rpx; background: var(--color-danger-soft); color: var(--color-danger); font-size: 26rpx; font-weight: 600; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.logout-btn { width: 100%; height: 88rpx; background: var(--color-danger-soft); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.logout-btn-text { color: var(--color-danger); font-size: 26rpx; font-weight: 600; line-height: 1; }
