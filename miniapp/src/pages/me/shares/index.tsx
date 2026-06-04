@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import { View, Text, ScrollView } from '@tarojs/components';
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
 import { getMyShares, endShare, extendShare } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
+import QrSheet from '@/components/QrSheet';
 import type { ShareSummary } from '@photo/shared/dto';
 import { TTL_PRESETS } from '@photo/shared';
 import './index.scss';
@@ -35,6 +36,7 @@ export default function MySharesPage() {
   const [items, setItems] = useState<ShareSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
+  const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
 
   async function load() {
     setLoading(true);
@@ -46,6 +48,11 @@ export default function MySharesPage() {
   }
 
   useDidShow(() => { void load(); });
+
+  usePullDownRefresh(async () => {
+    await load();
+    Taro.stopPullDownRefresh();
+  });
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -151,6 +158,9 @@ export default function MySharesPage() {
 
                 <View className="code-row">
                   <Text className="code-text">{item.code}</Text>
+                  <View className="icon-btn" onClick={() => setQrItem(item)}>
+                    <Text className="icon-btn-text">码图</Text>
+                  </View>
                   <View className="icon-btn" onClick={() => copyCode(item.code)}>
                     <Text className="icon-btn-text">复制</Text>
                   </View>
@@ -214,6 +224,14 @@ export default function MySharesPage() {
         <Text className="fab-icon">+</Text>
         <Text className="fab-text">新建分享</Text>
       </View>
+
+      {/* 二维码弹层 */}
+      <QrSheet
+        visible={!!qrItem}
+        code={qrItem?.code ?? ''}
+        title={qrItem?.title || '未命名相册'}
+        onClose={() => setQrItem(null)}
+      />
     </View>
   );
 }

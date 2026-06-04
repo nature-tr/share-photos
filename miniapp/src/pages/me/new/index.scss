@@ -50,3 +50,7 @@
 .btn-outline { flex: 1; height: 92rpx; background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 28rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .btn-outline-text { color: var(--color-text1); font-size: 30rpx; font-weight: 600; line-height: 1; }
 .btn-outline + .btn-outline { margin-left: 24rpx; }
+
+/* 成功页展示二维码大按钮 */
+.btn-primary { align-self: stretch; height: 96rpx; background: var(--color-primary); border-radius: 28rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; box-sizing: border-box; }
+.btn-primary-text { color: #fff; font-size: 30rpx; font-weight: 600; line-height: 1; }

@@ -12,7 +12,8 @@
 .nav-code { color: var(--color-primary); font-weight: 700; letter-spacing: 2rpx; }
 
 .action-bar { display: flex; flex-direction: row; align-items: center; padding: 24rpx 32rpx; background: var(--color-surface); border-bottom: 1rpx solid var(--color-border); }
-.action-info { font-size: 30rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; flex: 1; }
+.action-info { font-size: 30rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
+.action-info-sub { font-size: 24rpx; color: var(--color-text3); margin-top: 2rpx; line-height: 1.4; }
 .save-all-btn { padding: 0 32rpx; height: 84rpx; background: var(--color-primary); border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; margin-left: 24rpx; }
 .save-all-btn-text { color: #fff; font-size: 26rpx; font-weight: 600; line-height: 1; white-space: nowrap; }
 .save-all-disabled { opacity: 0.5; }

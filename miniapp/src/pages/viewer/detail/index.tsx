@@ -134,7 +134,10 @@ export default function ViewerPage() {
 
       {/* 操作条 */}
       <View className="action-bar">
-        <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
+        <View style={{ flex: 1 }}>
+          <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
+          <Text className="action-info-sub">原图已加密传输</Text>
+        </View>
         <View
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
           onClick={() => !saving && photos.length > 0 && saveAll()}

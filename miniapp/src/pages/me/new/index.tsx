@@ -3,6 +3,7 @@ import { View, Text, Input, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare, uploadPhoto } from '@/api/share.api';
+import QrSheet from '@/components/QrSheet';
 import './index.scss';
 
 interface PickedItem {
@@ -25,6 +26,7 @@ export default function NewSharePage() {
   const [items, setItems] = useState<PickedItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
+  const [qrVisible, setQrVisible] = useState(false);
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -121,6 +123,9 @@ export default function NewSharePage() {
           <Text className="code-big">{created.code}</Text>
           <Text className="code-meta">{stats.done} 张 · {formatBytes(stats.totalBytes)}</Text>
         </View>
+        <View className="btn-primary" onClick={() => setQrVisible(true)}>
+          <Text className="btn-primary-text">展示二维码</Text>
+        </View>
         <View className="success-actions">
           <View className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
             <Text className="btn-outline-text">我的分享</Text>
@@ -132,6 +137,13 @@ export default function NewSharePage() {
             <Text className="btn-outline-text">查看相册</Text>
           </View>
         </View>
+
+        <QrSheet
+          visible={qrVisible}
+          code={created.code}
+          title={title.trim() || '未命名相册'}
+          onClose={() => setQrVisible(false)}
+        />
       </View>
     );
   }

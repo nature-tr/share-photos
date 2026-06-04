@@ -1,1 +1,5 @@
-export default definePageConfig({ navigationBarTitleText: '我的分享' });
+export default {
+  navigationBarTitleText: '我的分享',
+  enablePullDownRefresh: true,
+  backgroundTextStyle: 'dark',
+};

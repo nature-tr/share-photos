@@ -1,0 +1,57 @@
+.qr-backdrop {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15,23,42,0.55); z-index: 1000;
+  display: flex; align-items: flex-end;
+}
+.qr-sheet {
+  width: 100%;
+  background: var(--color-surface);
+  border-radius: 48rpx 48rpx 0 0;
+  padding: 20rpx 32rpx 96rpx;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+.qr-handle {
+  width: 80rpx; height: 8rpx;
+  border-radius: 4rpx; background: var(--color-border);
+  margin-bottom: 32rpx;
+}
+
+.qr-title { font-size: 36rpx; font-weight: 700; color: var(--color-text1); line-height: 1.4; }
+.qr-subtitle { font-size: 24rpx; color: var(--color-text3); margin-top: 8rpx; margin-bottom: 32rpx; line-height: 1.4; }
+
+.qr-img-box {
+  padding: 24rpx; background: #fff;
+  border-radius: 28rpx; border: 1rpx solid var(--color-border);
+  box-shadow: 0 4rpx 12rpx rgba(15,23,42,0.06);
+}
+.qr-img { width: 440rpx; height: 440rpx; }
+
+.qr-code-big {
+  font-size: 48rpx; font-weight: 800; color: var(--color-primary);
+  letter-spacing: 10rpx; margin-top: 32rpx; line-height: 1.2;
+}
+.qr-link {
+  font-size: 24rpx; color: var(--color-text3); margin-top: 8rpx;
+  padding: 0 48rpx; text-align: center; line-height: 1.4;
+}
+
+.qr-btn-row { display: flex; flex-direction: row; align-self: stretch; margin-top: 32rpx; }
+.qr-btn {
+  flex: 1; height: 88rpx;
+  background: var(--color-surface-soft); border: 1rpx solid var(--color-border);
+  border-radius: 20rpx; display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+}
+.qr-btn + .qr-btn { margin-left: 16rpx; }
+.qr-btn-text { font-size: 26rpx; font-weight: 600; color: var(--color-text1); line-height: 1; }
+
+.qr-btn-primary {
+  align-self: stretch; height: 96rpx; margin-top: 16rpx;
+  background: var(--color-primary); border-radius: 24rpx;
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+}
+.qr-btn-primary-text { color: #fff; font-size: 28rpx; font-weight: 600; line-height: 1; }
+
+.qr-close { margin-top: 24rpx; padding: 8rpx 32rpx; }
+.qr-close-text { font-size: 26rpx; color: var(--color-text3); line-height: 1; }
