@@ -29,7 +29,7 @@ export default function SettingsPage() {
             <View className="avatar">
               <Text className="avatar-text">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</Text>
             </View>
-            <View>
+            <View className="user-detail">
               <Text className="user-name">{user.displayName || '未设置昵称'}</Text>
               <Text className="user-email">{user.email}</Text>
             </View>

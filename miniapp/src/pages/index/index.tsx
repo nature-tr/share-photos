@@ -31,7 +31,7 @@ export default function IndexPage() {
                 {(user.displayName || user.email).slice(0, 1).toUpperCase()}
               </Text>
             </View>
-            <View style={{ flex: 1 }}>
+            <View className="user-info">
               <Text className="user-name" numberOfLines={1}>
                 {user.displayName || '我的'}
               </Text>
@@ -43,7 +43,7 @@ export default function IndexPage() {
           </View>
         ) : (
           <View className="guest-tab">
-            <View style={{ flex: 1 }}>
+            <View className="guest-info">
               <Text className="guest-title">未登录</Text>
               <Text className="guest-sub">登录后可创建并管理分享</Text>
             </View>

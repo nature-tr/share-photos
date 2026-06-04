@@ -10,6 +10,5 @@
 .btn { height: 100rpx; background: var(--color-primary); color: #fff; font-size: 30rpx; font-weight: 600; border-radius: 28rpx; margin-top: 16rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
 .btn[disabled] { opacity: 0.5; }
 .link-row { display: flex; justify-content: center; margin-top: 32rpx; }
-.link-row > * + * { margin-left: 8rpx; }
 .link-label { font-size: 26rpx; color: var(--color-text3); line-height: 1.4; }
-.link { font-size: 26rpx; font-weight: 600; color: var(--color-primary); line-height: 1.4; }
+.link { font-size: 26rpx; font-weight: 600; color: var(--color-primary); line-height: 1.4; margin-left: 8rpx; }

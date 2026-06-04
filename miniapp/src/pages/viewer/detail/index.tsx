@@ -114,7 +114,7 @@ export default function ViewerPage() {
       {/* 顶栏 */}
       <View className="nav-bar">
         <View className="nav-back" onClick={() => Taro.navigateBack()}><Text className="nav-back-text">‹</Text></View>
-        <View style={{ flex: 1 }}>
+        <View className="nav-info">
           <Text className="nav-title" numberOfLines={1}>{album.title || '相册'}</Text>
           <Text className="nav-sub">
             <Text className="nav-code">{album.code}</Text>
@@ -125,9 +125,7 @@ export default function ViewerPage() {
 
       {/* 操作条 */}
       <View className="action-bar">
-        <View style={{ flex: 1 }}>
-          <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
-        </View>
+        <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
         <Button
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
           onClick={saveAll}

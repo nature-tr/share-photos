@@ -4,19 +4,19 @@
 .top-bar { padding: 20rpx 32rpx; background: var(--color-surface); border-bottom: 1rpx solid var(--color-border); }
 
 .user-tab { display: flex; flex-direction: row; align-items: center; }
-.user-tab > * + * { margin-left: 16rpx; }
 .avatar { width: 76rpx; height: 76rpx; border-radius: 38rpx; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .avatar-text { color: #fff; font-size: 32rpx; font-weight: 700; line-height: 1; }
+.user-info { flex: 1; margin-left: 16rpx; }
 .user-name { font-size: 26rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
 .user-email { font-size: 24rpx; color: var(--color-text3); margin-top: 4rpx; line-height: 1.4; }
-.top-arrow { font-size: 44rpx; color: var(--color-text3); font-weight: 300; line-height: 1; }
+.top-arrow { font-size: 44rpx; color: var(--color-text3); font-weight: 300; line-height: 1; margin-left: 16rpx; }
 
 .guest-tab { display: flex; flex-direction: row; align-items: center; }
-.guest-tab > * + * { margin-left: 12rpx; }
+.guest-info { flex: 1; }
 .guest-title { font-size: 26rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
 .guest-sub { font-size: 24rpx; color: var(--color-text3); margin-top: 4rpx; line-height: 1.4; }
-.top-btn-primary { padding: 0 28rpx; height: 64rpx; background: var(--color-primary); color: #fff; font-size: 26rpx; font-weight: 600; border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
-.top-btn-ghost { padding: 0 28rpx; height: 64rpx; background: var(--color-surface-muted); color: var(--color-text2); font-size: 26rpx; font-weight: 600; border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
+.top-btn-primary { margin-left: 12rpx; padding: 0 28rpx; height: 64rpx; background: var(--color-primary); color: #fff; font-size: 26rpx; font-weight: 600; border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
+.top-btn-ghost { margin-left: 12rpx; padding: 0 28rpx; height: 64rpx; background: var(--color-surface-muted); color: var(--color-text2); font-size: 26rpx; font-weight: 600; border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; }
 
 /* ─── 品牌区 ─── */
 .brand-section { display: flex; flex-direction: column; align-items: center; margin: 48rpx 0 64rpx; padding: 0 32rpx; }
@@ -37,7 +37,6 @@
 
 /* ─── 操作卡片 ─── */
 .action-card { display: flex; flex-direction: row; align-items: center; padding: 28rpx 32rpx; margin: 0 32rpx 16rpx; background: var(--color-surface); border-radius: 28rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); }
-.action-card > * + * { margin-left: 24rpx; }
 .action-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .action-icon-blue { background: var(--color-primary-soft); }
 .action-icon-green { background: var(--color-success-soft); }
@@ -46,9 +45,9 @@
 .action-icon-blue .action-icon-text { color: var(--color-primary); }
 .action-icon-green .action-icon-text { color: var(--color-success); }
 .action-icon-gray .action-icon-text { color: var(--color-text2); }
-.action-body { flex: 1; }
+.action-body { flex: 1; margin-left: 24rpx; }
 .action-title { font-size: 30rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
 .action-desc { font-size: 24rpx; color: var(--color-text3); margin-top: 4rpx; line-height: 1.4; }
-.action-arrow { font-size: 48rpx; color: var(--color-text4); font-weight: 300; line-height: 1; }
+.action-arrow { font-size: 48rpx; color: var(--color-text4); font-weight: 300; line-height: 1; margin-left: 24rpx; }
 
 .footer-text { text-align: center; font-size: 24rpx; color: var(--color-text4); line-height: 1.4; }

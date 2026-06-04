@@ -1,20 +1,17 @@
 .page { min-height: 100vh; background: var(--color-surface-soft); padding-bottom: 160rpx; }
 .center { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; }
-
 .list { padding: 24rpx; }
 
-.share-card { background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); display: flex; flex-direction: column; }
+.share-card { background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); }
 
 .card-top { display: flex; flex-direction: row; align-items: center; margin-bottom: 20rpx; }
-.card-top > * + * { margin-left: 16rpx; }
 .card-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--color-text1); line-height: 1.3; }
-.pill { padding: 6rpx 20rpx; border-radius: 9999rpx; flex-shrink: 0; }
+.pill { padding: 6rpx 20rpx; border-radius: 9999rpx; flex-shrink: 0; margin-left: 16rpx; }
 .pill-text { font-size: 24rpx; font-weight: 600; line-height: 1.2; }
 
 .code-row { display: flex; flex-direction: row; align-items: center; background: var(--color-primary-softer); padding: 20rpx 24rpx; border-radius: 20rpx; margin-bottom: 20rpx; }
-.code-row > * + * { margin-left: 8rpx; }
 .code-text { flex: 1; font-size: 36rpx; font-weight: 700; color: var(--color-primary); letter-spacing: 8rpx; line-height: 1.2; }
-.icon-btn { height: 60rpx; padding: 0 20rpx; font-size: 24rpx; font-weight: 600; color: var(--color-text2); background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; flex-shrink: 0; }
+.icon-btn { height: 60rpx; padding: 0 20rpx; font-size: 24rpx; font-weight: 600; color: var(--color-text2); background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; line-height: 1; box-sizing: border-box; flex-shrink: 0; margin-left: 8rpx; }
 
 .meta-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 6rpx; }
 .meta { font-size: 24rpx; color: var(--color-text2); line-height: 1.4; }
@@ -22,20 +19,19 @@
 .meta-weak { font-size: 24rpx; color: var(--color-text3); line-height: 1.4; margin-bottom: 20rpx; }
 
 .actions { display: flex; flex-direction: row; padding-top: 20rpx; border-top: 1rpx solid var(--color-border); }
-.actions > * + * { margin-left: 16rpx; }
 .action-btn { flex: 1; height: 72rpx; font-size: 26rpx; font-weight: 600; color: var(--color-text1); background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 20rpx; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0; box-sizing: border-box; }
+.action-btn + .action-btn { margin-left: 16rpx; }
 .action-btn-danger { border-color: #fecaca; background: var(--color-danger-soft); color: var(--color-danger); }
 
 .fab { position: fixed; bottom: 64rpx; right: 32rpx; display: flex; flex-direction: row; align-items: center; padding: 0 36rpx; height: 104rpx; background: var(--color-primary); border-radius: 9999rpx; box-shadow: 0 8rpx 32rpx rgba(37,99,235,0.35); z-index: 100; }
-.fab > * + * { margin-left: 12rpx; }
 .fab-icon { color: #fff; font-size: 44rpx; font-weight: 600; line-height: 1; }
-.fab-text { color: #fff; font-size: 30rpx; font-weight: 600; line-height: 1; }
+.fab-text { color: #fff; font-size: 30rpx; font-weight: 600; line-height: 1; margin-left: 12rpx; }
 
 .footer { margin: 48rpx 24rpx; background: var(--color-surface); border-radius: 28rpx; padding: 24rpx 28rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); }
 .user-row { display: flex; flex-direction: row; align-items: center; margin-bottom: 24rpx; padding: 8rpx; }
-.user-row > * + * { margin-left: 16rpx; }
 .avatar { width: 80rpx; height: 80rpx; border-radius: 40rpx; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .avatar-text { color: #fff; font-size: 32rpx; font-weight: 700; line-height: 1; }
+.footer-user-info { flex: 1; margin-left: 16rpx; }
 .user-name { font-size: 30rpx; font-weight: 600; color: var(--color-text1); line-height: 1.4; }
 .user-email { font-size: 24rpx; color: var(--color-text3); margin-top: 4rpx; line-height: 1.4; }
 .logout-btn { width: 100%; height: 88rpx; background: var(--color-danger-soft); color: var(--color-danger); font-size: 26rpx; font-weight: 600; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; line-height: 1; }

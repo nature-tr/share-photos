@@ -189,7 +189,7 @@ export default function MySharesPage() {
             <View className="avatar">
               <Text className="avatar-text">{(user.displayName || user.email).slice(0, 1).toUpperCase()}</Text>
             </View>
-            <View style={{ flex: 1 }}>
+            <View className="footer-user-info">
               <Text className="user-name">{user.displayName || '我的'}</Text>
               <Text className="user-email">{user.email}</Text>
             </View>

@@ -1,9 +1,9 @@
 .page { min-height: 100vh; background: var(--color-surface-soft); padding: 24rpx; }
 .card { background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); }
 .user-row { display: flex; flex-direction: row; align-items: center; padding: 8rpx; }
-.user-row > * + * { margin-left: 24rpx; }
 .avatar { width: 96rpx; height: 96rpx; border-radius: 48rpx; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .avatar-text { color: #fff; font-size: 40rpx; font-weight: 700; line-height: 1; }
+.user-detail { margin-left: 24rpx; }
 .user-name { font-size: 32rpx; font-weight: 700; color: var(--color-text1); line-height: 1.4; }
 .user-email { font-size: 24rpx; color: var(--color-text3); margin-top: 6rpx; line-height: 1.4; }
 .card-title { font-size: 26rpx; font-weight: 600; color: var(--color-text2); margin-bottom: 16rpx; line-height: 1.4; }
