@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@photo/shared": ["../shared/src/index.ts"],
+      "@photo/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src/**/*", "config/**/*", "*.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
