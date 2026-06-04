@@ -40,7 +40,7 @@ export default function MySharesPage() {
     setLoading(true);
     try {
       const res = await getMyShares();
-      if (res.data) setItems(res.data);
+      if (res.data?.items) setItems(res.data.items);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }

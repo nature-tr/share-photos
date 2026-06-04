@@ -20,7 +20,7 @@ export async function getViewerShare(code: string) {
 
 /** 我的分享列表 */
 export async function getMyShares() {
-  return api<ShareSummary[]>('/api/shares');
+  return api<{ items: ShareSummary[]; total: number }>('/api/shares');
 }
 
 /** 创建分享 */
