@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "dolmo-photo-miniapp",
   "description": "Dolmo Photo - 限时分享相册",
-  "appid": "请替换为你的小程序AppID",
+  "appid": "wx053fa37a9b4f09ad",
   "setting": {
     "urlCheck": true,
     "es6": false,
