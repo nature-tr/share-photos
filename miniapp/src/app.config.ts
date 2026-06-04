@@ -10,10 +10,10 @@ export default defineAppConfig({
     'pages/viewer/detail/index',
   ],
   window: {
-    backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#2563eb',
+    backgroundTextStyle: 'dark',
+    navigationBarBackgroundColor: '#ffffff',
     navigationBarTitleText: 'Dolmo Photo',
-    navigationBarTextStyle: 'white',
+    navigationBarTextStyle: 'black',
     backgroundColor: '#f5f7fa',
   },
 });
