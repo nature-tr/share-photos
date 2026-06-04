@@ -1,21 +1,25 @@
+/** 设计 token — 与 Expo App 完全对齐 */
 page {
   --color-primary: #2563eb;
-  --color-primary-soft: #dbeafe;
-  --color-primary-softer: #eff6ff;
-  --color-text1: #1f2937;
-  --color-text2: #4b5563;
-  --color-text3: #9ca3af;
-  --color-text4: #d1d5db;
-  --color-surface: #ffffff;
-  --color-surface-soft: #f5f7fa;
-  --color-surface-muted: #f3f4f6;
-  --color-border: #e5e7eb;
+  --color-primary-soft: #eff6ff;
+  --color-primary-softer: #f8faff;
   --color-success: #10b981;
-  --color-success-soft: #d1fae5;
+  --color-success-soft: #ecfdf5;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #ef4444;
+  --color-danger-soft: #fef2f2;
+  --color-text1: #0f172a;
+  --color-text2: #475569;
+  --color-text3: #94a3b8;
+  --color-text4: #cbd5e1;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f8fafc;
+  --color-surface-muted: #eef2f7;
+  --color-border: #e2e8f0;
 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
-  font-size: 28rpx;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 30rpx;
   color: var(--color-text1);
   background-color: var(--color-surface-soft);
   box-sizing: border-box;
