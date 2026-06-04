@@ -122,7 +122,7 @@ export default function NewSharePage() {
           <Text className="code-meta">{stats.done} 张 · {formatBytes(stats.totalBytes)}</Text>
         </View>
         <View className="success-actions">
-          <Button className="btn-outline" onClick={() => Taro.switchTab({ url: '/pages/me/shares/index' })}>
+          <Button className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
             我的分享
           </Button>
           <Button

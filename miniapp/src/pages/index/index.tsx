@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, Input, Button, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
-import { colors, font, space, radius } from '@/theme';
+import { colors } from '@/theme';
 import logoImg from '../../assets/logo.png';
 import './index.scss';
 
@@ -22,6 +22,49 @@ export default function IndexPage() {
 
   return (
     <View className="page-root">
+      {/* ─── 顶部账户状态栏（对齐 Expo App）─── */}
+      <View className="top-bar">
+        {user ? (
+          <View className="user-tab" onClick={() => Taro.navigateTo({ url: '/pages/me/shares/index' })}>
+            <View className="avatar">
+              <Text className="avatar-text">
+                {(user.displayName || user.email).slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text className="user-name" numberOfLines={1}>
+                {user.displayName || '我的'}
+              </Text>
+              <Text className="user-email" numberOfLines={1}>
+                {user.email}
+              </Text>
+            </View>
+            <Text className="top-arrow">›</Text>
+          </View>
+        ) : (
+          <View className="guest-tab">
+            <View style={{ flex: 1 }}>
+              <Text className="guest-title">未登录</Text>
+              <Text className="guest-sub">登录后可创建并管理分享</Text>
+            </View>
+            <Button
+              className="top-btn-primary"
+              size="mini"
+              onClick={() => Taro.navigateTo({ url: '/pages/auth/login/index' })}
+            >
+              登录
+            </Button>
+            <Button
+              className="top-btn-ghost"
+              size="mini"
+              onClick={() => Taro.navigateTo({ url: '/pages/auth/register/index' })}
+            >
+              注册
+            </Button>
+          </View>
+        )}
+      </View>
+
       {/* 品牌区 */}
       <View className="brand-section">
         <View className="logo-box">
@@ -79,7 +122,7 @@ export default function IndexPage() {
       </View>
 
       {user && (
-        <View className="action-card" onClick={() => Taro.switchTab({ url: '/pages/me/shares/index' })}>
+        <View className="action-card" onClick={() => Taro.navigateTo({ url: '/pages/me/shares/index' })}>
           <View className="action-icon action-icon-gray">
             <Text className="action-icon-text">≡</Text>
           </View>
@@ -92,9 +135,7 @@ export default function IndexPage() {
       )}
 
       <View style={{ height: '64rpx' }} />
-      <Text style={{ textAlign: 'center', fontSize: '20rpx', color: colors.text4 }}>
-        Dolmo Photo · v0.1
-      </Text>
+      <Text className="footer-text">Dolmo Photo · v0.1</Text>
     </View>
   );
 }

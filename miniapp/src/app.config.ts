@@ -16,24 +16,4 @@ export default defineAppConfig({
     navigationBarTextStyle: 'white',
     backgroundColor: '#f5f7fa',
   },
-  tabBar: {
-    color: '#999',
-    selectedColor: '#2563eb',
-    backgroundColor: '#fff',
-    borderStyle: 'black',
-    list: [
-      {
-        pagePath: 'pages/index/index',
-        text: '首页',
-        iconPath: '',
-        selectedIconPath: '',
-      },
-      {
-        pagePath: 'pages/me/shares/index',
-        text: '我的',
-        iconPath: '',
-        selectedIconPath: '',
-      },
-    ],
-  },
 });

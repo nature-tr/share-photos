@@ -15,7 +15,7 @@ export default function SettingsPage() {
       success: (res) => {
         if (res.confirm) {
           void logout();
-          Taro.switchTab({ url: '/pages/index/index' });
+          Taro.redirectTo({ url: '/pages/index/index' });
         }
       },
     });
