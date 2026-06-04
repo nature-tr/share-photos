@@ -25,8 +25,18 @@ export async function api<T = any>(
   if (token) {
     header['Authorization'] = `Bearer ${token}`;
   }
+
+  // 关键：微信 wx.request 默认 Content-Type = application/json。
+  // 若 body 为空 / 无 body，但 Content-Type 仍是 application/json，
+  // Fastify 解析空 body 会抛 400，所以这里：
+  //   - 有 body → 正常 application/json
+  //   - 无 body → 显式发 {} 避免空 body 触发解析失败
+  let dataToSend: any = body;
   if (!formData) {
     header['Content-Type'] = 'application/json';
+    if (body === undefined || body === null) {
+      dataToSend = {};
+    }
   }
 
   try {
@@ -34,7 +44,7 @@ export async function api<T = any>(
       url: `${API_BASE}${path}`,
       method,
       header,
-      data: body,
+      data: dataToSend,
     });
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -59,7 +69,7 @@ export async function api<T = any>(
               url: `${API_BASE}${path}`,
               method,
               header,
-              data: body,
+              data: dataToSend,
             });
             if (retryRes.statusCode >= 200 && retryRes.statusCode < 300) {
               const payload = retryRes.data as any;
