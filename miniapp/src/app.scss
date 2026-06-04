@@ -24,3 +24,22 @@ page {
   background-color: var(--color-surface-soft);
   box-sizing: border-box;
 }
+
+/* 全局 Button reset：微信 Button 默认有 padding/line-height 导致文字不居中 */
+button {
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: normal;
+  font-size: inherit;
+  background: none;
+}
+
+button::after {
+  display: none;
+}

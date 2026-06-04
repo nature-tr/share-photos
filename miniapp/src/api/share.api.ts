@@ -52,5 +52,13 @@ export async function extendShare(shareId: string, extendSeconds: number) {
 
 /** 结束分享 */
 export async function endShare(shareId: string) {
-  return api(`/api/shares/${shareId}`, { method: 'DELETE' });
+  const token = await useAuth.getState().getAccessToken();
+  const res = await Taro.request({
+    url: `${API_BASE}/api/shares/${shareId}`,
+    method: 'DELETE',
+    header: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.statusCode !== 204 && res.statusCode !== 200) {
+    throw new Error('结束分享失败');
+  }
 }
