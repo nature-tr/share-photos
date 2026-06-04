@@ -3,12 +3,17 @@ import { api } from './client';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import type { ShareSummary, ShareDetail } from '@photo/shared/dto';
 
-/** 缩略图 URL */
+/** 缩略图 URL（网格用，400px 短边 JPEG） */
 export function getThumbUrl(code: string, photoId: string) {
   return `${API_BASE}/api/v/${code}/photos/${photoId}/thumb`;
 }
 
-/** 原图 URL */
+/** 中等尺寸 URL（预览大图用，1600px 长边 JPEG） */
+export function getMediumUrl(code: string, photoId: string) {
+  return `${API_BASE}/api/v/${code}/photos/${photoId}/medium`;
+}
+
+/** 原图 URL（下载保存用） */
 export function getOriginalUrl(code: string, photoId: string) {
   return `${API_BASE}/api/v/${code}/photos/${photoId}/original`;
 }

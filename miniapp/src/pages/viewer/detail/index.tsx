@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Image } from '@tarojs/components';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
-import { getViewerShare, getThumbUrl, getOriginalUrl } from '@/api/share.api';
+import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl } from '@/api/share.api';
 import type { ShareDetail } from '@photo/shared/dto';
 import './index.scss';
 
@@ -27,6 +27,7 @@ export default function ViewerPage() {
   const [now, setNow] = useState(Date.now());
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ done: 0, total: 0 });
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
 
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
@@ -49,7 +50,13 @@ export default function ViewerPage() {
 
   const totalBytes = useMemo(() => album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
 
-  async function saveOne(photoId: string) {
+  /** 点击网格中的图片 → 打开预览 */
+  function openPreview(index: number) {
+    setPreviewIdx(index);
+  }
+
+  /** 在预览弹窗中保存当前图片到相册 */
+  async function saveCurrent(photoId: string) {
     const url = getOriginalUrl(code, photoId);
     try {
       const downloadRes = await Taro.downloadFile({ url });
@@ -145,9 +152,15 @@ export default function ViewerPage() {
         </View>
       ) : (
         <View className="grid">
-          {photos.map((p) => (
-            <View key={p.id} className="grid-item" onClick={() => saveOne(p.id)}>
-              <Image src={getThumbUrl(code, p.id)} className="grid-img" mode="aspectFill" lazyLoad />
+          {photos.map((p, i) => (
+            <View key={p.id} className="grid-item" onClick={() => openPreview(i)}>
+              <Image
+                src={getThumbUrl(code, p.id)}
+                className="grid-img"
+                mode="aspectFill"
+                lazyLoad
+                style={{ width: '100%', height: '100%' }}
+              />
             </View>
           ))}
         </View>
@@ -169,6 +182,86 @@ export default function ViewerPage() {
           <Text className="expired-text">该分享已过期，图片已不可下载</Text>
         </View>
       )}
+
+      {/* 大图预览弹窗 */}
+      {previewIdx !== null && photos.length > 0 && (
+        <PreviewModal
+          photos={photos}
+          code={code}
+          startIdx={previewIdx}
+          onClose={() => setPreviewIdx(null)}
+          onSave={(photoId) => saveCurrent(photoId)}
+        />
+      )}
+    </View>
+  );
+}
+
+/* ---------- 全屏图片预览 ---------- */
+
+interface PhotoMeta {
+  id: string;
+  originalName: string;
+}
+
+function PreviewModal({
+  photos,
+  code,
+  startIdx,
+  onClose,
+  onSave,
+}: {
+  photos: PhotoMeta[];
+  code: string;
+  startIdx: number;
+  onClose: () => void;
+  onSave: (photoId: string) => void;
+}) {
+  const [current, setCurrent] = useState(startIdx);
+
+  const handleSwiperChange = useCallback(
+    (e: any) => {
+      setCurrent(e.detail.current);
+    },
+    [],
+  );
+
+  return (
+    <View className="preview-mask">
+      {/* 顶栏 */}
+      <View className="preview-header">
+        <View className="preview-close" onClick={onClose}>
+          <Text className="preview-close-text">关闭</Text>
+        </View>
+        <Text className="preview-count">
+          {current + 1} / {photos.length}
+        </Text>
+        <View
+          className="preview-save"
+          onClick={() => onSave(photos[current]?.id)}
+        >
+          <Text className="preview-save-text">保存</Text>
+        </View>
+      </View>
+
+      {/* 图片轮播 */}
+      <Swiper
+        className="preview-swiper"
+        current={startIdx}
+        onChange={handleSwiperChange}
+        indicatorDots={false}
+        circular
+      >
+        {photos.map((p) => (
+          <SwiperItem key={p.id} className="preview-swiper-item">
+            <Image
+              src={getMediumUrl(code, p.id)}
+              className="preview-img"
+              mode="aspectFit"
+            />
+          </SwiperItem>
+        ))}
+      </Swiper>
     </View>
   );
 }
