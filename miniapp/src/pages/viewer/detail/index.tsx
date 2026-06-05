@@ -166,10 +166,14 @@ export default function ViewerPage() {
   /** 上传新照片（owner 或 accepted 贡献者均可） */
   async function handleOwnerUpload() {
     if (!album || !user) return;
-    Taro.chooseMedia({
-      count: 9,
-      mediaType: ['image'],
-      sizeType: ['original'],
+    Taro.showActionSheet({
+      itemList: ['原图', '压缩'],
+      success: (sheet) => {
+        const compressed = sheet.tapIndex === 1;
+        Taro.chooseMedia({
+          count: 9,
+          mediaType: ['image'],
+          sizeType: compressed ? ['compressed'] : ['original'],
       success: async (chooseRes) => {
         setUploadingMore(true);
         let done = 0;
@@ -371,7 +375,7 @@ export default function ViewerPage() {
           <Text className="nav-title" numberOfLines={1}>{album.title || '相册'}</Text>
           <Text className="nav-sub">
             <Text className="nav-code">{album.code}</Text>
-            <Text> · {photos.length} 张 · 剩余 {formatRemaining(album.expiresAt - now)}</Text>
+            <Text> · {photos.length}/{((album as any)?.totalPhotos ?? photos.length)}张 · {formatBytes(totalBytes)} · {formatRemaining(album.expiresAt - now)}</Text>
           </Text>
         </View>
         <View className="nav-qr" onClick={() => setQrVisible(true)}>
@@ -381,12 +385,6 @@ export default function ViewerPage() {
 
       {/* 操作条 */}
       <View className="action-bar">
-        <View style={{ flex: 1 }}>
-          <Text className="action-info">
-            {(album as any)?.totalPhotos ?? photos.length} 张 · {formatBytes(totalBytes)}
-          </Text>
-          <Text className="action-info-sub">原图已加密传输</Text>
-        </View>
         {user && !expired && (
           <>
             <View className="add-photo-btn" onClick={handleOwnerUpload}>
