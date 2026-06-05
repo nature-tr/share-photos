@@ -30,8 +30,9 @@ export const shareApi = {
   },
 
   // 凭码访问（公开）
-  getByCode(code: string) {
-    return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}`, { auth: false });
+  getByCode(code: string, page?: number, pageSize?: number) {
+    const params = page ? `?page=${page}&pageSize=${pageSize ?? 50}` : '';
+    return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}${params}`, { auth: false });
   },
 
   // ─── 贡献者 ───

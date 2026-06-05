@@ -24,6 +24,7 @@ import {
 } from '@/utils/saveToAlbum';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes, formatRemaining } from '@/utils/format';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/stores/auth.store';
 import { colors, font, radius, shadow, space } from '@/theme';
 
@@ -44,6 +45,11 @@ export default function ViewerScreen() {
   const [saveProgress, setSaveProgress] = useState<SaveProgress | null>(null);
 
   const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
+  const [loadMore, setLoadMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [uploadingMore, setUploadingMore] = useState(false);
 
   const codeUpper = (code ?? '').toString().toUpperCase();
 
@@ -56,14 +62,15 @@ export default function ViewerScreen() {
     }
     (async () => {
       try {
-        const data = await shareApi.getByCode(codeUpper);
+        const data = await shareApi.getByCode(codeUpper, 1, 50);
         if (mounted) {
           setAlbum(data);
-          // 检查当前用户的贡献者状态
+          setHasMore((data as any).hasMore ?? false);
+          setIsOwner((data as any).isOwner ?? false);
+          setPage(1);
           if (user && data.contributors) {
             const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
-            if (me) setJoinStatus(me.status as any);
-            else setJoinStatus('none');
+            setJoinStatus(me ? (me.status as any) : 'none');
           }
         }
       } catch (err) {
@@ -72,10 +79,49 @@ export default function ViewerScreen() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [codeUpper]);
+
+  async function handleLoadMore() {
+    if (!album || loadMore || !hasMore) return;
+    setLoadMore(true);
+    const nextPg = page + 1;
+    const data = await shareApi.getByCode(codeUpper, nextPg, 50);
+    if (data.photos) {
+      setAlbum({ ...album, photos: [...album.photos, ...data.photos] } as ViewerAlbum);
+      setPage(nextPg);
+      setHasMore((data as any).hasMore ?? false);
+    }
+    setLoadMore(false);
+  }
+
+  async function handleOwnerUpload() {
+    if (!isOwner || !album) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') { toast('需要相册权限'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 1,
+      selectionLimit: 9,
+    });
+    if (result.canceled) return;
+    setUploadingMore(true);
+    const shareId = (album as any).id;
+    let done = 0, failed = 0;
+    for (const asset of result.assets) {
+      try {
+        await photoApi.upload(shareId, { uri: asset.uri, name: asset.fileName || 'photo.jpg', type: asset.mimeType || 'image/jpeg' }, 'original');
+        done++;
+      } catch { failed++; }
+    }
+    setUploadingMore(false);
+    toast(`完成 ${done}${failed ? `，失败 ${failed}` : ''}`);
+    const fresh = await shareApi.getByCode(codeUpper, 1, 50);
+    setAlbum(fresh);
+    setPage(1);
+    setHasMore((fresh as any).hasMore ?? false);
+  }
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -230,10 +276,19 @@ export default function ViewerScreen() {
       <View style={s.actionBar}>
         <View style={{ flex: 1 }}>
           <Text style={s.actionInfo}>
-            {photos.length} 张 · {formatBytes(totalBytes)}
+            {(album as any)?.totalPhotos ?? photos.length} 张 · {formatBytes(totalBytes)}
           </Text>
           <Text style={s.actionInfoSub}>原图已加密传输</Text>
         </View>
+        {isOwner && !expired && (
+          <Pressable
+            style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.7 }]}
+            onPress={handleOwnerUpload}
+            disabled={uploadingMore}
+          >
+            <Text style={s.addBtnText}>{uploadingMore ? '...' : '+ 补充'}</Text>
+          </Pressable>
+        )}
         <Pressable
           style={({ pressed }) => [
             s.saveAllBtn,
@@ -309,6 +364,17 @@ export default function ViewerScreen() {
           contentContainerStyle={{ padding: space.sm, paddingBottom: 100 }}
           columnWrapperStyle={{ gap: 4 }}
           ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
+          ListFooterComponent={hasMore ? (
+            <Pressable
+              style={({ pressed }) => [s.loadMoreBtn, pressed && { opacity: 0.7 }]}
+              onPress={handleLoadMore}
+              disabled={loadMore}
+            >
+              <Text style={s.loadMoreText}>
+                {loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? ((album as any).totalPhotos - photos.length) : '?'} 张剩余`}
+              </Text>
+            </Pressable>
+          ) : null}
           renderItem={({ item, index }) => (
             <Pressable
               style={({ pressed }) => [
@@ -484,6 +550,25 @@ const s = StyleSheet.create({
   navTitle: { ...font.h3, color: colors.text1 },
   navSub: { ...font.caption, color: colors.text3, marginTop: 1 },
   navCode: { color: colors.primary, fontWeight: '700', letterSpacing: 1 },
+
+  addBtn: {
+    paddingHorizontal: 12,
+    height: 36,
+    marginRight: 8,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnText: { ...font.caption, color: colors.text1, fontWeight: '600' },
+
+  loadMoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginTop: 4,
+  },
+  loadMoreText: { ...font.small, color: colors.text2 },
 
   /* 行动条 */
   actionBar: {

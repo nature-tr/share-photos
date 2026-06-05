@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { SHARE_CODE_REGEX } from '@photo/shared';
@@ -7,6 +7,13 @@ import { SHARE_CODE_REGEX } from '@photo/shared';
 const router = useRouter();
 const code = ref('');
 const submitting = ref(false);
+const history = ref<{ code: string; title: string; photoCount: number; time: number }[]>([]);
+
+onMounted(() => {
+  try {
+    history.value = JSON.parse(localStorage.getItem('browse_history') || '[]').slice(0, 5);
+  } catch {}
+});
 
 function onSubmit() {
   const c = code.value.trim().toUpperCase();
@@ -74,6 +81,25 @@ const features = [
           </t-button>
         </div>
         <div class="entry-hint">8 位字母数字组合，区分大小写</div>
+      </div>
+
+      <div v-if="history.length > 0" class="history-section">
+        <div class="section-label">最近浏览</div>
+        <div class="history-list">
+          <div
+            v-for="h in history"
+            :key="h.code"
+            class="history-item"
+            @click="router.push({ name: 'viewer', params: { code: h.code } })"
+          >
+            <span class="history-icon">⌘</span>
+            <div class="history-body">
+              <div class="history-title">{{ h.title || h.code }}</div>
+              <div class="history-desc">{{ h.photoCount }} 张 · {{ h.code }}</div>
+            </div>
+            <span class="arrow">›</span>
+          </div>
+        </div>
       </div>
 
       <div class="features">
@@ -332,4 +358,27 @@ const features = [
     font-size: 14px;
   }
 }
+
+/* ─── 最近浏览 ─── */
+.history-section { max-width: 640px; margin: 0 auto 40px; padding: 0 16px; }
+.section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); font-weight: 600; margin-bottom: 12px; }
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.history-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.history-item:hover { box-shadow: var(--shadow-sm); }
+.history-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-soft), rgba(37,99,235,0.1));
+  color: var(--primary); font-size: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.history-body { flex: 1; min-width: 0; }
+.history-title { font-size: 14px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-desc { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.arrow { color: var(--text-3); font-size: 18px; }
 </style>

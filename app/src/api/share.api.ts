@@ -17,8 +17,9 @@ export const shareApi = {
   end(id: string) {
     return request<void>(`/api/shares/${id}/end`, { method: 'POST' });
   },
-  getByCode(code: string) {
-    return request<ViewerAlbum>(`/api/v/${code}`, { auth: false, autoRefresh: false });
+  getByCode(code: string, page?: number, pageSize?: number) {
+    const qs = page ? `?page=${page}&pageSize=${pageSize ?? 50}` : '';
+    return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: false, autoRefresh: false });
   },
 
   // ─── 贡献者 ───

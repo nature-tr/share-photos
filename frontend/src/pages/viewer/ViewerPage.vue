@@ -23,6 +23,13 @@ const album = ref<ViewerAlbum | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const tick = ref(0);
+const loadMore = ref(false);
+const page = ref(1);
+const hasMore = ref(false);
+const isOwner = ref(false);
+const uploadingMore = ref(false);
+const savedScroll = ref(0);
+const PAGE = 50;
 let timer: number | null = null;
 let lightbox: PhotoSwipeLightbox | null = null;
 
@@ -59,20 +66,94 @@ const externalOpenHint = computed(() => {
 async function load() {
   loading.value = true;
   error.value = null;
+  page.value = 1;
+  savedScroll.value = Number(sessionStorage.getItem(`scroll_${props.code}`) ?? 0);
   try {
-    album.value = await shareApi.getByCode(props.code);
-    // 检查当前用户的贡献者状态
-    if (auth.user && album.value?.contributors) {
-      const me = album.value.contributors.find((c: ContributorInfo) => c.userId === auth.user!.id);
-      if (me) joinStatus.value = me.status as any;
-      else joinStatus.value = 'none';
-    }
+    const data = await shareApi.getByCode(props.code, 1, PAGE);
+    album.value = data;
+    hasMore.value = (data as any).hasMore ?? false;
+    isOwner.value = (data as any).isOwner ?? false;
+    saveHistory();
+    checkContributor(data);
+    // 恢复滚动 + 自动加载到上次位置
+    if (savedScroll.value > 0) restoreScrollAndPages(data);
   } catch (err) {
     if (err instanceof ApiException) error.value = err.message;
     else error.value = '加载失败';
   } finally {
     loading.value = false;
   }
+}
+
+function saveHistory() {
+  const list = JSON.parse(localStorage.getItem('browse_history') || '[]').filter((h: any) => h.code !== props.code);
+  list.unshift({ code: props.code, title: album.value?.title || '未命名相册', photoCount: (album.value as any)?.totalPhotos ?? album.value?.photos.length ?? 0, time: Date.now() });
+  if (list.length > 20) list.length = 20;
+  localStorage.setItem('browse_history', JSON.stringify(list));
+}
+
+function checkContributor(data: ViewerAlbum) {
+  if (!auth.user || !data.contributors) return;
+  const me = data.contributors.find((c: ContributorInfo) => c.userId === auth.user!.id);
+  joinStatus.value = me ? (me.status as any) : 'none';
+}
+
+async function restoreScrollAndPages(data: ViewerAlbum) {
+  const target = savedScroll.value;
+  const total = (data as any).totalPhotos ?? data.photos.length;
+  const need = Math.ceil(Math.max(target / 200, 1) * 3 / PAGE); // estimate pages needed
+  for (let pg = 2; pg <= Math.min(need, Math.ceil(total / PAGE)); pg++) {
+    const p = await shareApi.getByCode(props.code, pg, PAGE);
+    if (p.photos) {
+      album.value = { ...album.value!, photos: [...album.value!.photos, ...p.photos] };
+      hasMore.value = (p as any).hasMore ?? false;
+      page.value = pg;
+    }
+  }
+  setTimeout(() => window.scrollTo({ top: target, behavior: 'instant' as any }), 200);
+}
+
+async function handleLoadMore() {
+  if (!album.value || loadMore.value || !hasMore.value) return;
+  loadMore.value = true;
+  const nextPg = page.value + 1;
+  const data = await shareApi.getByCode(props.code, nextPg, PAGE);
+  if (data.photos) {
+    album.value = { ...album.value, photos: [...album.value.photos, ...data.photos] };
+    page.value = nextPg;
+    hasMore.value = (data as any).hasMore ?? false;
+  }
+  loadMore.value = false;
+}
+
+async function handleOwnerUpload() {
+  if (!isOwner.value || !album.value) return;
+  uploadingMore.value = true;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.accept = 'image/*';
+  input.onchange = async () => {
+    if (!input.files) return;
+    const shareId = (album.value as any).id;
+    let done = 0, failed = 0;
+    for (const f of Array.from(input.files)) {
+      try {
+        await photoApi.upload(shareId, f, 'original');
+        done++;
+      } catch { failed++; }
+    }
+    uploadingMore.value = false;
+    MessagePlugin.success(`完成 ${done}${failed ? `，失败 ${failed}` : ''}`);
+    // 重新加载首页
+    if (album.value) {
+      const fresh = await shareApi.getByCode(props.code, 1, PAGE);
+      album.value = fresh;
+      page.value = 1;
+      hasMore.value = (fresh as any).hasMore ?? false;
+    }
+  };
+  input.click();
 }
 
 async function handleJoin() {
@@ -150,6 +231,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer);
   if (lightbox) lightbox.destroy();
+  sessionStorage.setItem(`scroll_${props.code}`, String(window.scrollY));
 });
 
 /** 单张保存（缩略图右下角 + PhotoSwipe 大图按钮共用） */
@@ -220,9 +302,11 @@ async function copyShareLink() {
           <div class="sub" v-if="album">
             <code>{{ props.code }}</code>
             <span class="dot">·</span>
-            <span>{{ album.photos.length }} 张</span>
+            <span>{{ (album as any)?.totalPhotos ?? album.photos.length }} 张</span>
             <span class="dot hide-sm">·</span>
             <span class="hide-sm">{{ formatBytes(totalBytes) }}</span>
+            <span class="dot hide-sm">·</span>
+            <span class="hide-sm" style="color: var(--text-3); font-size: 11px;">原图已加密传输</span>
             <span class="dot">·</span>
             <span class="remaining-text">剩余 {{ remaining }}</span>
           </div>
@@ -240,6 +324,15 @@ async function copyShareLink() {
           >
             <template #icon><span class="i-tdesign:download"></span></template>
             <span class="download-text">下载 zip</span>
+          </t-button>
+          <t-button
+            v-if="isOwner && remaining"
+            size="small"
+            variant="outline"
+            @click="handleOwnerUpload"
+            :loading="uploadingMore"
+          >
+            + 补充
           </t-button>
         </div>
       </div>
@@ -350,6 +443,13 @@ async function copyShareLink() {
                 <span class="i-tdesign:download text-16px"></span>
               </button>
             </a>
+          </div>
+
+          <!-- 加载更多 -->
+          <div v-if="hasMore" class="loadmore-row">
+            <t-button variant="outline" :loading="loadMore" @click="handleLoadMore">
+              {{ loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? ((album as any).totalPhotos - album.photos.length) : '?'} 张剩余` }}
+            </t-button>
           </div>
         </div>
       </t-loading>
@@ -568,6 +668,8 @@ async function copyShareLink() {
   cursor: pointer;
 }
 .join-btn-sm:hover { filter: brightness(1.1); }
+
+.loadmore-row { text-align: center; padding: 24px 0; }
 
 /* —— 网格 —— */
 .gallery {
