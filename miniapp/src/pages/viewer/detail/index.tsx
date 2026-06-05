@@ -70,7 +70,6 @@ export default function ViewerPage() {
         let hasMorePages = (firstRes.data as any).hasMore ?? false;
 
         const { photoCount: lastPhotoCount, scrollTop: lastScrollTop } = getLastPosition(code);
-        console.log('[scroll] restore plan', { code, lastPhotoCount, lastScrollTop, totalPhotos });
         lastScrollTargetRef.current = lastScrollTop;
         const needPages = Math.min(
           Math.ceil(Math.max(lastPhotoCount, allPhotos.length) / PAGE_SIZE),
@@ -114,12 +113,14 @@ export default function ViewerPage() {
     if (!loading && album && lastScrollTargetRef.current > 0 && !scrolledOnceRef.current) {
       scrolledOnceRef.current = true;
       const target = lastScrollTargetRef.current;
-      console.log('[scroll] fire pageScrollTo', target);
-      [100, 300, 600, 1000, 1500].forEach((delay) => {
-        setTimeout(() => {
+      // 清理之前的定时器避免 timeout
+      const timers: number[] = [];
+      [100, 400, 800].forEach((delay) => {
+        timers.push(setTimeout(() => {
           Taro.pageScrollTo({ scrollTop: target, duration: 0 });
-        }, delay);
+        }, delay) as unknown as number);
       });
+      return () => timers.forEach(clearTimeout);
     }
   }, [loading, album]);
 
@@ -127,12 +128,10 @@ export default function ViewerPage() {
   const saveScrollTimer = useRef(0);
   usePageScroll((e) => {
     scrollTopRef.current = e.scrollTop;
-    // 滚动时立即 debounce 保存，不等到离开页面
     if (e.scrollTop > 0 && album) {
       clearTimeout(saveScrollTimer.current);
       saveScrollTimer.current = setTimeout(() => {
         updateLastPosition(code, album.photos.length, e.scrollTop);
-        console.log('[scroll] auto-save', { code, scrollTop: e.scrollTop, photos: album.photos.length });
       }, 500) as unknown as number;
     }
   });
@@ -142,10 +141,7 @@ export default function ViewerPage() {
     if (!album) return;
     clearTimeout(saveScrollTimer.current);
     const saved = scrollTopRef.current || 0;
-    if (saved > 0) {
-      updateLastPosition(code, album.photos.length, saved);
-      console.log('[scroll] didHide save', { code, scrollTop: saved, photos: album.photos.length });
-    }
+    if (saved > 0) updateLastPosition(code, album.photos.length, saved);
   });
 
   /** 加载更多照片 */
