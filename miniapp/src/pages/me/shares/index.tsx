@@ -126,7 +126,12 @@ export default function MySharesPage() {
       title: '退出登录',
       content: '确认登出当前账号？',
       confirmColor: '#ef4444',
-      success: (res) => { if (res.confirm) void logout(); },
+      success: (res) => {
+        if (res.confirm) {
+          logout();
+          Taro.redirectTo({ url: '/pages/index/index' });
+        }
+      },
     });
   }
 
@@ -145,7 +150,7 @@ export default function MySharesPage() {
     }
   }
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return <View className="page"><View className="center"><Text>加载中…</Text></View></View>;
   }
 

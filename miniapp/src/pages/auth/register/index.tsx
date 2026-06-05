@@ -25,7 +25,7 @@ export default function RegisterPage() {
     try {
       const res = await register(email.trim(), password, displayName.trim() || undefined);
       if (res.data) {
-        setAuth(res.data.user, res.data.accessToken);
+        setAuth(res.data.user, res.data.accessToken, res.data.refreshToken, res.data.refreshExpiresAt);
         Taro.showToast({ title: '注册成功', icon: 'success' });
         setTimeout(() => Taro.redirectTo({ url: '/pages/index/index' }), 800);
       } else {

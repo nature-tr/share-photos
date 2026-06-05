@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       const res = await login(email.trim(), password);
       if (res.data) {
-        setAuth(res.data.user, res.data.accessToken);
+        setAuth(res.data.user, res.data.accessToken, res.data.refreshToken, res.data.refreshExpiresAt);
         Taro.showToast({ title: '登录成功', icon: 'success' });
         setTimeout(() => Taro.redirectTo({ url: '/pages/index/index' }), 800);
       } else {

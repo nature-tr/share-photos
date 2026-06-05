@@ -404,7 +404,7 @@ export default function ViewerPage() {
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
           onClick={() => !saving && photos.length > 0 && saveAll()}
         >
-          <Text className="save-all-btn-text">{saving ? '保存中…' : '↓ 一键存到相册'}</Text>
+          <Text className="save-all-btn-text">{saving ? '保存中…' : '一键存到相册'}</Text>
         </View>
       </View>
 
