@@ -19,7 +19,7 @@ export const shareApi = {
   },
   getByCode(code: string, page?: number, pageSize?: number) {
     const qs = page ? `?page=${page}&pageSize=${pageSize ?? 50}` : '';
-    return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: false, autoRefresh: false });
+    return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: true, autoRefresh: false });
   },
 
   // ─── 贡献者 ───

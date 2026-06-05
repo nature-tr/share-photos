@@ -66,6 +66,7 @@ export default function ViewerScreen() {
         if (mounted) {
           setAlbum(data);
           setHasMore((data as any).hasMore ?? false);
+          setIsOwner((data as any).isOwner ?? false);
           setPage(1);
           if (user && data.contributors) {
             const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
@@ -317,7 +318,7 @@ export default function ViewerScreen() {
               <Text style={cs.contribLabel}>{acceptedContributors.length} 位贡献者</Text>
             </View>
           )}
-          <View style={cs.joinRow}>
+          {!isOwner && <View style={cs.joinRow}>
             {joinStatus === 'accepted' ? (
               <View style={[cs.joinBadge, cs.joinBadgeAccepted]}>
                 <Text style={cs.joinBadgeTextAccepted}>✓ 已是贡献者，可上传照片参与分享</Text>
@@ -344,7 +345,7 @@ export default function ViewerScreen() {
                 </Text>
               </Pressable>
             )}
-          </View>
+          </View>}
         </View>
       )}
 

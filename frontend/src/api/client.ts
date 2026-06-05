@@ -167,9 +167,9 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
   if (!resp.ok) {
     const exc = await toApiException(resp);
-    // 仅在「需要鉴权的接口」遇 401 时触发全局未登录处理；
-    // 对 auth=false 的接口（refresh/login/register）401 是正常业务错误，不应触发踢下线
-    if (resp.status === 401 && auth) {
+    // 仅在「需要鉴权 + 自动刷新」的接口遇 401 时触发未登录处理
+    // autoRefresh=false 的接口不应踢下线
+    if (resp.status === 401 && auth && autoRefresh) {
       tokenStore.clear();
       onUnauthorized?.();
     }

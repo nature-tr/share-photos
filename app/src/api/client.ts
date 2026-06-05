@@ -225,7 +225,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
   if (!resp.ok) {
     const exc = await toApiException(resp);
-    if (resp.status === 401 && auth) {
+    if (resp.status === 401 && auth && autoRefresh) {
       await tokenStore.clear();
       onUnauthorized?.();
     }

@@ -72,7 +72,7 @@ async function load() {
     const data = await shareApi.getByCode(props.code, 1, PAGE);
     album.value = data;
     hasMore.value = (data as any).hasMore ?? false;
-    isOwner.value = false;
+    isOwner.value = (data as any).isOwner ?? false;
     saveHistory();
     checkContributor(data);
     // 恢复滚动 + 自动加载到上次位置
@@ -391,7 +391,7 @@ async function copyShareLink() {
                 {{ acceptedContributors.length }} 位贡献者
               </span>
             </div>
-            <div class="join-row">
+            <div v-if="!isOwner" class="join-row">
               <button
                 v-if="joinStatus === 'accepted'"
                 class="join-badge join-badge-accepted"
