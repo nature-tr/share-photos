@@ -122,6 +122,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
       id: share.id,
       code: share.code,
       title: share.title,
+      totalBytes: share.totalBytes,
       expiresAt: share.expiresAt,
       photos: photoList.map((p) => ({
         id: p.id,

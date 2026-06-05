@@ -223,7 +223,7 @@ export default function ViewerPage() {
     return () => clearInterval(t);
   }, []);
 
-  const totalBytes = useMemo(() => album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
+  const totalBytes = useMemo(() => (album as any)?.totalBytes ?? album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
 
   /** 点击网格中的图片 → 打开预览 */
   function openPreview(index: number) {

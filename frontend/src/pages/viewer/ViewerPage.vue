@@ -54,7 +54,7 @@ const remaining = computed(() => {
 
 const totalBytes = computed(() => {
   if (!album.value) return 0;
-  return album.value.photos.reduce((s, p) => s + p.sizeBytes, 0);
+  return (album.value as any).totalBytes ?? album.value.photos.reduce((s, p) => s + p.sizeBytes, 0);
 });
 
 /** 浏览器外打开的提示文案 */

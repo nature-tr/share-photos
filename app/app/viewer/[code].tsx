@@ -128,7 +128,7 @@ export default function ViewerScreen() {
   }, []);
 
   const totalBytes = useMemo(
-    () => album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0,
+    () => (album as any)?.totalBytes ?? album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0,
     [album],
   );
 
