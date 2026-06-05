@@ -12,6 +12,7 @@ import ShareQrDialog from '@/components/ShareQrDialog.vue';
 const router = useRouter();
 const items = ref<ShareSummary[]>([]);
 const loading = ref(false);
+const refreshing = ref(false);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
@@ -173,10 +174,15 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
         <h2>我的分享</h2>
         <p class="page-sub">{{ total }} 个分享 · 管理你创建的所有相册</p>
       </div>
-      <t-button theme="primary" @click="gotoNew">
-        <template #icon><span class="i-tdesign:add"></span></template>
-        新建分享
-      </t-button>
+      <div class="header-btns">
+        <t-button variant="outline" :loading="refreshing" @click="load">
+          <template #icon><span class="i-tdesign:refresh"></span></template>
+        </t-button>
+        <t-button theme="primary" @click="gotoNew">
+          <template #icon><span class="i-tdesign:add"></span></template>
+          新建分享
+        </t-button>
+      </div>
     </div>
 
     <t-loading :loading="loading">
