@@ -3,6 +3,7 @@ import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
+import { addBrowsingHistory } from '@/pages/index/index';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
@@ -44,6 +45,8 @@ export default function ViewerPage() {
       if (res.data) {
         const data = res.data as ShareDetail;
         setAlbum(data);
+        // 保存浏览历史
+        addBrowsingHistory(code, data.title || '未命名相册', data.photos?.length ?? 0);
         // 检测当前用户的贡献者状态
         const contributors: ContributorInfo[] = (res.data as any).contributors ?? [];
         if (user && contributors.length > 0) {

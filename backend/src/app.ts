@@ -42,9 +42,15 @@ export async function buildApp() {
   await app.register(cookie);
 
   await app.register(rateLimit, {
-    max: 60,
+    max: 300,           // 从 60 提升到 300，避免图片加载触发限流
     timeWindow: '1 minute',
     allowList: [],
+    keyGenerator: (req) => {
+      // 按 IP + 路径前缀聚合，图片请求共享配额避免误伤
+      const path = req.raw.url ?? '/';
+      const group = path.startsWith('/api/v/') ? '/api/v/*' : path.split('?')[0] ?? '/';
+      return `${req.ip}-${group}`;
+    },
   });
 
   await app.register(multipart, {

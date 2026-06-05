@@ -5,6 +5,9 @@ import { shareCodeSchema } from '@photo/shared';
 import { shareService } from '../share/share.service.js';
 import { photoService } from '../photo/photo.service.js';
 import { contributorService } from '../share/contributor.service.js';
+import { db } from '../../db/client.js';
+import { photos } from '../../db/schema.js';
+import { eq, sql } from 'drizzle-orm';
 import {
   originalPath,
   previewPath,
@@ -12,7 +15,7 @@ import {
 } from '../../infra/storage/paths.js';
 import { createZipStream, appendFile } from '../../infra/archive/zip.js';
 import { Errors } from '../../common/errors.js';
-import type { ViewerAlbum } from '@photo/shared';
+import type { ViewerAlbum, PhotoMeta } from '@photo/shared';
 
 const codeParamSchema = z.object({ code: shareCodeSchema });
 const codePhotoParamSchema = z.object({
@@ -23,18 +26,53 @@ const codePhotoParamSchema = z.object({
 function streamFile(reply: import('fastify').FastifyReply, filePath: string, contentType: string) {
   if (!fs.existsSync(filePath)) throw Errors.photoNotFound();
   reply.header('Content-Type', contentType);
-  reply.header('Cache-Control', 'private, max-age=3600');
+  reply.header('Cache-Control', 'public, max-age=86400, immutable');  // 图片 24h 强缓存
+  reply.header('ETag', false);  // 禁用 ETag，减少协商请求
   return reply.send(fs.createReadStream(filePath));
 }
 
+/** 可选的认证：尝试解析 token，失败不报错 */
+async function tryAuth(req: import('fastify').FastifyRequest, reply: import('fastify').FastifyReply) {
+  try {
+    await req.jwtVerify();
+    (req as any).currentUser = req.user;
+  } catch {
+    // 无 token 或 token 过期都不报错，继续匿名访问
+  }
+}
+
 export async function viewerRoutes(app: FastifyInstance): Promise<void> {
-  // 凭码获取相册元数据（含已接受的贡献者列表）
-  app.get('/:code', async (req) => {
+  // 凭码获取相册元数据（含已接受的贡献者列表，支持照片分页；可选检测 owner）
+  app.get('/:code', { preHandler: [tryAuth] }, async (req) => {
     const { code } = codeParamSchema.parse(req.params);
+    const querySchema = z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).default(50),
+    });
+    const { page, pageSize } = querySchema.parse(req.query);
     const share = await shareService.getByCodeForViewer(code);
-    const photoList = await photoService.listByShare(share.id);
+    const offset = (page - 1) * pageSize;
+
+    const photoList = await db
+      .select()
+      .from(photos)
+      .where(eq(photos.shareId, share.id))
+      .orderBy(photos.sortIndex)
+      .limit(pageSize)
+      .offset(offset)
+      .all();
+
+    const countRow = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(photos)
+      .where(eq(photos.shareId, share.id))
+      .get();
+
+    const totalCount = Number(countRow?.count ?? 0);
+
     const contributorList = await contributorService.listAccepted(share.id);
-    const album: ViewerAlbum = {
+    const currentUser = (req as any).currentUser;
+    const album = {
       code: share.code,
       title: share.title,
       expiresAt: share.expiresAt,
@@ -49,6 +87,11 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
         createdAt: p.createdAt,
       })),
       contributors: contributorList,
+      totalPhotos: totalCount,
+      page,
+      pageSize,
+      hasMore: offset + pageSize < totalCount,
+      isOwner: currentUser ? currentUser.sub === share.ownerId : false,
     };
     return { data: album };
   });

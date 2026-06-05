@@ -50,6 +50,11 @@ export interface ViewerAlbum {
   expiresAt: number;
   photos: PhotoMeta[];
   contributors: ContributorInfo[];
+  totalPhotos?: number;
+  page?: number;
+  pageSize?: number;
+  hasMore?: boolean;
+  isOwner?: boolean;
 }
 
 export interface ShareListResponse {
