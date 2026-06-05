@@ -305,7 +305,7 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
       <div v-else class="manage-list">
         <div v-for="c in contributors" :key="c.userId" class="manage-item">
           <div class="manage-avatar">
-            {{ (c.displayName || c.email).slice(0, 1).toUpperCase() }}
+            {{ (c.displayName || c.email || '?').slice(0, 1).toUpperCase() }}
           </div>
           <div class="manage-info">
             <div class="manage-name">{{ c.displayName || c.email }}</div>

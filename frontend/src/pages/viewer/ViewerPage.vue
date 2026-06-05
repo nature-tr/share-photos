@@ -378,7 +378,7 @@ async function copyShareLink() {
                 class="contrib-avatar"
                 :title="c.displayName || c.email"
               >
-                {{ (c.displayName || c.email).slice(0, 1).toUpperCase() }}
+                {{ (c.displayName || c.email || '?').slice(0, 1).toUpperCase() }}
               </div>
               <span class="contrib-label">
                 {{ acceptedContributors.length }} 位贡献者
