@@ -46,45 +46,61 @@ export default function ViewerPage() {
 
   useEffect(() => {
     if (!code) return;
+    let cancelled = false;
     setLoading(true);
     setPage(1);
-    getViewerShare(code, 1, PAGE_SIZE).then((res) => {
-      if (res.data) {
-        const data = res.data as ShareDetail;
-        setAlbum(data);
-        setHasMore((res.data as any).hasMore ?? false);
-        setIsOwner((res.data as any).isOwner ?? false);
-        // 保存浏览历史
-        addBrowsingHistory(code, data.title || '未命名相册', (res.data as any).totalPhotos ?? data.photos?.length ?? 0);
-        // 检测当前用户的贡献者状态
-        const contributors: ContributorInfo[] = (res.data as any).contributors ?? [];
+    (async () => {
+      try {
+        // 1. 加载第一页
+        const firstRes = await getViewerShare(code, 1, PAGE_SIZE);
+        if (cancelled) return;
+        if (!firstRes.data) {
+          setError(firstRes.error?.message ?? '相册不存在');
+          setLoading(false);
+          return;
+        }
+        const firstData = firstRes.data as ShareDetail;
+        const totalPhotos = (firstRes.data as any).totalPhotos ?? firstData.photos?.length ?? 0;
+        let allPhotos = [...firstData.photos];
+        let currentPage = 1;
+        let hasMorePages = (firstRes.data as any).hasMore ?? false;
+
+        // 2. 恢复上次位置：自动加载到上次所在页
+        const lastPos = getLastPosition(code);
+        const needPages = Math.min(Math.ceil(Math.max(lastPos, allPhotos.length) / PAGE_SIZE), Math.ceil(totalPhotos / PAGE_SIZE));
+
+        for (let pg = 2; pg <= needPages; pg++) {
+          const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
+          if (cancelled) return;
+          if (pageRes.data) {
+            const pData = pageRes.data as ShareDetail;
+            allPhotos = [...allPhotos, ...pData.photos];
+            currentPage = pg;
+            hasMorePages = (pageRes.data as any).hasMore ?? false;
+          }
+        }
+
+        if (cancelled) return;
+        // 一次性设置完整数据
+        setAlbum({ ...firstData, photos: allPhotos } as ShareDetail);
+        setPage(currentPage);
+        setHasMore(hasMorePages);
+        setIsOwner((firstRes.data as any).isOwner ?? false);
+        addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
+
+        // 检测贡献者状态
+        const contributors: ContributorInfo[] = (firstRes.data as any).contributors ?? [];
         if (user && contributors.length > 0) {
           const me = contributors.find((c: ContributorInfo) => c.userId === user.id);
-          if (me) setJoinStatus(me.status as any);
-          else setJoinStatus('none');
+          setJoinStatus(me ? (me.status as any) : 'none');
         }
-        // 恢复上次查看位置：自动加载到上次所在页
-        const lastPos = getLastPosition(code);
-        if (lastPos > PAGE_SIZE) {
-          const needPages = Math.ceil(lastPos / PAGE_SIZE);
-          // 连续加载到目标页
-          const loadPromises: Promise<any>[] = [];
-        for (let pg = 2; pg <= needPages; pg++) {
-          loadPromises.push(
-            getViewerShare(code, pg, PAGE_SIZE).then((pageRes) => {
-              if (pageRes.data) {
-                const pData = pageRes.data as ShareDetail;
-                setAlbum((prev) => prev ? { ...prev, photos: [...prev.photos, ...pData.photos] } : pData);
-                setPage(pg);
-                setHasMore((pageRes.data as any).hasMore ?? false);
-              }
-            })
-          );
-        }
-        Promise.all(loadPromises).catch(() => {});
-        }
-      } else setError(res.error?.message ?? '相册不存在');
-    }).catch(() => setError('加载失败')).finally(() => setLoading(false));
+      } catch {
+        if (!cancelled) setError('加载失败');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [code, user]);
 
   // 离开页面时保存浏览位置
