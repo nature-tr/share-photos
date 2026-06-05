@@ -42,7 +42,7 @@ async function handleLogout() {
               <span class="nav-label">我的分享</span>
             </RouterLink>
             <div class="user-chip">
-              <span class="avatar">{{ (user.displayName || user.email || '?').charAt(0).toUpperCase() }}</span>
+              <span class="avatar">{{ user.displayName.charAt(0).toUpperCase() }}</span>
               <span class="user-name">{{ user.displayName }}</span>
               <button class="logout-btn" @click="handleLogout" title="退出登录">
                 <span class="i-tdesign:logout text-16px"></span>

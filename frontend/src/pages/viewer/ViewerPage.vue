@@ -72,8 +72,12 @@ async function load() {
     const data = await shareApi.getByCode(props.code, 1, PAGE);
     album.value = data;
     hasMore.value = (data as any).hasMore ?? false;
-    isOwner.value = (data as any).isOwner ?? false;
+    isOwner.value = false;
     saveHistory();
+    // 独立检测 owner（不触发 auth 刷新）
+    if (auth.user) {
+      shareApi.tryGetOwner(props.code).then((v) => { isOwner.value = v; });
+    }
     checkContributor(data);
     // 恢复滚动 + 自动加载到上次位置
     if (savedScroll.value > 0) restoreScrollAndPages(data);

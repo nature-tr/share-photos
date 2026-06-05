@@ -19,7 +19,15 @@ export const shareApi = {
   },
   getByCode(code: string, page?: number, pageSize?: number) {
     const qs = page ? `?page=${page}&pageSize=${pageSize ?? 50}` : '';
-    return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: true, autoRefresh: false });
+    return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: false, autoRefresh: false });
+  },
+
+  /** 安全检测 owner，失败不触发登出 */
+  async tryGetOwner(code: string): Promise<boolean> {
+    try {
+      const res = await request<any>(`/api/v/${code}?page=1&pageSize=1`, { auth: true, autoRefresh: false });
+      return res?.isOwner ?? false;
+    } catch { return false; }
   },
 
   // ─── 贡献者 ───

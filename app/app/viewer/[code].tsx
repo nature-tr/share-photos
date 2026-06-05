@@ -66,8 +66,10 @@ export default function ViewerScreen() {
         if (mounted) {
           setAlbum(data);
           setHasMore((data as any).hasMore ?? false);
-          setIsOwner((data as any).isOwner ?? false);
+          setIsOwner(false);
           setPage(1);
+          // 独立检测 owner（不触发 auth 刷新）
+          if (user) { shareApi.tryGetOwner(codeUpper).then((v) => setIsOwner(v)); }
           if (user && data.contributors) {
             const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
             setJoinStatus(me ? (me.status as any) : 'none');
