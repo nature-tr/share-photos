@@ -3,7 +3,6 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
-import compress from '@fastify/compress';
 import { config } from './config/index.js';
 import { authPlugin } from './plugins/auth.plugin.js';
 import { errorHandlerPlugin } from './plugins/error-handler.plugin.js';
@@ -27,7 +26,6 @@ export async function buildApp() {
     },
     trustProxy: true,
     bodyLimit: 2 * 1024 * 1024,
-    http2: config.isProduction,  // 生产启用 HTTP/2 多路复用
   });
 
   // 错误处理（先注册，后续抛错都能走自定义 handler）
@@ -43,23 +41,10 @@ export async function buildApp() {
 
   await app.register(cookie);
 
-  await app.register(compress, {
-    global: true,       // 全局启用 gzip/brotli 压缩
-    threshold: 1024,    // 1KB 以上才压缩
-  });
-
   await app.register(rateLimit, {
-    max: 500,           // 提高配额，图片请求分组
+    max: 60,
     timeWindow: '1 minute',
     allowList: [],
-    keyGenerator: (req) => {
-      const path = (req.raw.url ?? '/').split('?')[0] ?? '/';
-      // 缩略图/中等图请求按 code 分组避免相互影响
-      if (path.includes('/thumb')) return `${req.ip}-thumb`;
-      if (path.includes('/medium')) return `${req.ip}-medium`;
-      if (path.includes('/original')) return `${req.ip}-original`;
-      return `${req.ip}-${path}`;
-    },
   });
 
   await app.register(multipart, {
