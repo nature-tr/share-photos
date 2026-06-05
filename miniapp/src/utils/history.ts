@@ -5,6 +5,8 @@ interface HistoryItem {
   title: string;
   lastViewedAt: number;
   photoCount: number;
+  /** 上次看到的照片索引（用于恢复位置） */
+  lastPhotoIndex?: number;
 }
 
 export function getHistory(): HistoryItem[] {
@@ -24,5 +26,28 @@ function saveHistory(item: HistoryItem) {
 }
 
 export function addBrowsingHistory(code: string, title: string, photoCount: number) {
-  saveHistory({ code, title, lastViewedAt: Date.now(), photoCount });
+  const existing = getHistory().find((h) => h.code === code);
+  saveHistory({
+    code,
+    title,
+    lastViewedAt: Date.now(),
+    photoCount,
+    lastPhotoIndex: existing?.lastPhotoIndex ?? 0,
+  });
+}
+
+/** 更新最后看到的照片位置（页面离开时调用） */
+export function updateLastPosition(code: string, photoIndex: number) {
+  const list = getHistory();
+  const item = list.find((h) => h.code === code);
+  if (item) {
+    item.lastPhotoIndex = photoIndex;
+    Taro.setStorageSync('browse_history', JSON.stringify(list));
+  }
+}
+
+/** 获取某个分享上次看到的照片位置 */
+export function getLastPosition(code: string): number {
+  const item = getHistory().find((h) => h.code === code);
+  return item?.lastPhotoIndex ?? 0;
 }

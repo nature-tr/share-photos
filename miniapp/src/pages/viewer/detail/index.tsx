@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
-import Taro, { useLoad } from '@tarojs/taro';
+import Taro, { useLoad, useDidHide } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
-import { addBrowsingHistory } from '@/utils/history';
+import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
@@ -63,9 +63,36 @@ export default function ViewerPage() {
           if (me) setJoinStatus(me.status as any);
           else setJoinStatus('none');
         }
+        // 恢复上次查看位置：自动加载到上次所在页
+        const lastPos = getLastPosition(code);
+        if (lastPos > PAGE_SIZE) {
+          const needPages = Math.ceil(lastPos / PAGE_SIZE);
+          // 连续加载到目标页
+          const loadPromises: Promise<any>[] = [];
+        for (let pg = 2; pg <= needPages; pg++) {
+          loadPromises.push(
+            getViewerShare(code, pg, PAGE_SIZE).then((pageRes) => {
+              if (pageRes.data) {
+                const pData = pageRes.data as ShareDetail;
+                setAlbum((prev) => prev ? { ...prev, photos: [...prev.photos, ...pData.photos] } : pData);
+                setPage(pg);
+                setHasMore((pageRes.data as any).hasMore ?? false);
+              }
+            })
+          );
+        }
+        Promise.all(loadPromises).catch(() => {});
+        }
       } else setError(res.error?.message ?? '相册不存在');
     }).catch(() => setError('加载失败')).finally(() => setLoading(false));
   }, [code, user]);
+
+  // 离开页面时保存浏览位置
+  useDidHide(() => {
+    if (album) {
+      updateLastPosition(code, album.photos.length);
+    }
+  });
 
   /** 加载更多照片 */
   async function handleLoadMore() {
