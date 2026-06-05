@@ -11,9 +11,7 @@ import { eq, sql } from 'drizzle-orm';
 import {
   originalPath,
   previewPath,
-  previewWebpPath,
   mediumPath,
-  mediumWebpPath,
 } from '../../infra/storage/paths.js';
 import { createZipStream, appendFile } from '../../infra/archive/zip.js';
 import { Errors } from '../../common/errors.js';
@@ -25,31 +23,11 @@ const codePhotoParamSchema = z.object({
   photoId: z.string().min(1),
 });
 
-/** 带 Accept 协商 + Content-Length 的图片流式响应 */
-function streamImage(
-  reply: import('fastify').FastifyReply,
-  jpgPath: string,
-  webpPath: string,
-  req: import('fastify').FastifyRequest,
-) {
-  const accept = (req.headers['accept'] || '').toLowerCase();
-  const preferWebp = accept.includes('image/webp');
-  const chosenPath = preferWebp && fs.existsSync(webpPath) ? webpPath : jpgPath;
-
-  if (!fs.existsSync(chosenPath)) throw Errors.photoNotFound();
-
-  const isWebp = chosenPath.endsWith('.webp');
-  let stats: fs.Stats;
-  try {
-    stats = fs.statSync(chosenPath);
-  } catch { throw Errors.photoNotFound(); }
-
-  reply.header('Content-Type', isWebp ? 'image/webp' : 'image/jpeg');
-  reply.header('Content-Length', stats.size);
-  reply.header('Cache-Control', 'public, max-age=86400, immutable');
-  reply.header('Vary', 'Accept');  // 告诉 CDN/浏览器按 Accept 区分缓存
-
-  return reply.send(fs.createReadStream(chosenPath));
+function streamFile(reply: import('fastify').FastifyReply, filePath: string, contentType: string) {
+  if (!fs.existsSync(filePath)) throw Errors.photoNotFound();
+  reply.header('Content-Type', contentType);
+  reply.header('Cache-Control', 'private, max-age=3600');
+  return reply.send(fs.createReadStream(filePath));
 }
 
 /** 可选的认证：尝试解析 token，失败不报错 */
@@ -141,19 +119,20 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     return { data: album };
   });
 
-  // 缩略图（支持 Accept: image/webp 自动返回 WebP 格式）
+  // 缩略图
   app.get('/:code/photos/:photoId/thumb', async (req, reply) => {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
-    // 只查 share 存在性，跳过 photo 单条查询减少 DB 往返
     const share = await shareService.getByCodeForViewer(code);
-    return streamImage(reply, previewPath(share.id, photoId), previewWebpPath(share.id, photoId), req);
+    await photoService.getOne(share.id, photoId);
+    return streamFile(reply, previewPath(share.id, photoId), 'image/jpeg');
   });
 
-  // 中等图（同理支持 WebP 协商）
+  // 中等图
   app.get('/:code/photos/:photoId/medium', async (req, reply) => {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
-    return streamImage(reply, mediumPath(share.id, photoId), mediumWebpPath(share.id, photoId), req);
+    await photoService.getOne(share.id, photoId);
+    return streamFile(reply, mediumPath(share.id, photoId), 'image/jpeg');
   });
 
   // 原图（支持 ?download=1 强制下载）
@@ -171,8 +150,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     }
     reply.header('Content-Type', photo.mimeType);
     reply.header('Content-Length', photo.sizeBytes);
-    reply.header('Cache-Control', 'public, max-age=86400, immutable');
-    reply.header('Vary', 'Accept');
+    reply.header('Cache-Control', 'private, max-age=3600');
     return reply.send(fs.createReadStream(filePath));
   });
 
