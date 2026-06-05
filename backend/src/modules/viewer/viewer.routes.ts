@@ -43,35 +43,60 @@ async function tryAuth(req: import('fastify').FastifyRequest, reply: import('fas
 
 export async function viewerRoutes(app: FastifyInstance): Promise<void> {
   // 凭码获取相册元数据（含已接受的贡献者列表，支持照片分页；可选检测 owner）
+  // 向后兼容：不带 page 参数时返回全部照片（老客户端行为）
   app.get('/:code', { preHandler: [tryAuth] }, async (req) => {
     const { code } = codeParamSchema.parse(req.params);
-    const querySchema = z.object({
-      page: z.coerce.number().int().min(1).default(1),
-      pageSize: z.coerce.number().int().min(1).max(100).default(50),
-    });
-    const { page, pageSize } = querySchema.parse(req.query);
     const share = await shareService.getByCodeForViewer(code);
-    const offset = (page - 1) * pageSize;
-
-    const photoList = await db
-      .select()
-      .from(photos)
-      .where(eq(photos.shareId, share.id))
-      .orderBy(photos.sortIndex)
-      .limit(pageSize)
-      .offset(offset)
-      .all();
-
-    const countRow = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(photos)
-      .where(eq(photos.shareId, share.id))
-      .get();
-
-    const totalCount = Number(countRow?.count ?? 0);
-
     const contributorList = await contributorService.listAccepted(share.id);
     const currentUser = (req as any).currentUser;
+
+    // 检测分页参数
+    const q = req.query as Record<string, string>;
+    const hasPagination = q.page !== undefined || q.pageSize !== undefined;
+
+    let photoList: any[];
+    let totalCount: number;
+    let page: number;
+    let pageSize: number;
+
+    if (hasPagination) {
+      const querySchema = z.object({
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(100).default(50),
+      });
+      const parsed = querySchema.parse(req.query);
+      page = parsed.page;
+      pageSize = parsed.pageSize;
+      const offset = (page - 1) * pageSize;
+
+      photoList = await db
+        .select()
+        .from(photos)
+        .where(eq(photos.shareId, share.id))
+        .orderBy(photos.sortIndex)
+        .limit(pageSize)
+        .offset(offset)
+        .all();
+
+      const countRow = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(photos)
+        .where(eq(photos.shareId, share.id))
+        .get();
+      totalCount = Number(countRow?.count ?? 0);
+    } else {
+      // 老客户端：返回全部照片
+      photoList = await db
+        .select()
+        .from(photos)
+        .where(eq(photos.shareId, share.id))
+        .orderBy(photos.sortIndex)
+        .all();
+      totalCount = photoList.length;
+      page = 1;
+      pageSize = photoList.length;
+    }
+
     const album = {
       id: share.id,
       code: share.code,
@@ -89,9 +114,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
       })),
       contributors: contributorList,
       totalPhotos: totalCount,
-      page,
-      pageSize,
-      hasMore: offset + pageSize < totalCount,
+      ...(hasPagination ? { page, pageSize, hasMore: (page - 1) * pageSize + photoList.length < totalCount } : {}),
       isOwner: currentUser ? currentUser.sub === share.ownerId : false,
     };
     return { data: album };

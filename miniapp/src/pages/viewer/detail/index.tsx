@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
-import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
+import Taro, { useLoad, useDidHide, useDidShow, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
@@ -38,6 +38,7 @@ export default function ViewerPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
   const scrollTopRef = useRef(0);
+  const scrollTargetRef = useRef(0);
   const PAGE_SIZE = 50;
 
   useLoad((options) => {
@@ -89,13 +90,9 @@ export default function ViewerPage() {
         setIsOwner((firstRes.data as any).isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
-        // 3. 恢复滚动位置（多次重试直到页面足够高）
+        // 3. 保存目标滚动位置供 useDidShow 使用
         if (lastScrollTop > 0) {
-          [200, 400, 700, 1100, 1600].forEach((delay) => {
-            setTimeout(() => {
-              Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 300 });
-            }, delay);
-          });
+          scrollTargetRef.current = lastScrollTop;
         }
 
         // 检测贡献者状态
@@ -112,6 +109,20 @@ export default function ViewerPage() {
     })();
     return () => { cancelled = true; };
   }, [code, user]);
+
+  // 页面显示时恢复滚动位置（此时 DOM 已完全渲染）
+  useDidShow(() => {
+    if (scrollTargetRef.current > 0 && album) {
+      const target = scrollTargetRef.current;
+      // 多次尝试，确保图片加载后页面高度足够
+      [300, 600, 1000, 1500].forEach((delay) => {
+        setTimeout(() => {
+          Taro.pageScrollTo({ scrollTop: target, duration: 0 });
+        }, delay);
+      });
+      scrollTargetRef.current = 0;  // 只恢复一次
+    }
+  });
 
   // 离开页面时保存浏览位置（真实滚动高度 + 已加载照片数）
   useDidHide(() => {
@@ -233,16 +244,30 @@ export default function ViewerPage() {
 
   async function saveAll() {
     if (!album || album.photos.length === 0) return;
+    const totalCount = (album as any).totalPhotos ?? album.photos.length;
     const confirmed = await Taro.showModal({
       title: '保存全部到相册？',
-      content: `共 ${album.photos.length} 张 · ${formatBytes(totalBytes)}\n下载并写入手机相册`,
+      content: `共 ${totalCount} 张 · ${formatBytes(totalBytes)}\n下载并写入手机相册`,
     });
     if (!confirmed.confirm) return;
     setSaving(true);
-    setSaveProgress({ done: 0, total: album.photos.length });
+    setSaveProgress({ done: 0, total: totalCount });
+
+    // 如果还有未加载的照片，先后台获取全部ID（不渲染到UI）
+    let allPhotos = [...album.photos];
+    if (allPhotos.length < totalCount) {
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      for (let pg = 2; pg <= totalPages; pg++) {
+        const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
+        if (pageRes.data) {
+          allPhotos.push(...(pageRes.data as ShareDetail).photos);
+        }
+      }
+    }
+
     let done = 0;
     let failed = 0;
-    for (const p of album.photos) {
+    for (const p of allPhotos) {
       try {
         const url = getOriginalUrl(code, p.id);
         const downloadRes = await Taro.downloadFile({ url });
@@ -251,7 +276,7 @@ export default function ViewerPage() {
           done++;
         } else { failed++; }
       } catch { failed++; }
-      setSaveProgress({ done: done + failed, total: album.photos.length });
+      setSaveProgress({ done: done + failed, total: totalCount });
     }
     setSaving(false);
     if (failed === 0) Taro.showToast({ title: `已保存 ${done} 张`, icon: 'success' });
