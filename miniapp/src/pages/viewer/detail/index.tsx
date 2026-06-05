@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
-import { useAuth } from '@/stores/auth.store';
+import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory } from '@/pages/index/index';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
@@ -32,6 +32,12 @@ export default function ViewerPage() {
   const [saveProgress, setSaveProgress] = useState({ done: 0, total: 0 });
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
+  const [loadMore, setLoadMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [uploadingMore, setUploadingMore] = useState(false);
+  const PAGE_SIZE = 50;
 
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
@@ -41,12 +47,15 @@ export default function ViewerPage() {
   useEffect(() => {
     if (!code) return;
     setLoading(true);
-    getViewerShare(code).then((res) => {
+    setPage(1);
+    getViewerShare(code, 1, PAGE_SIZE).then((res) => {
       if (res.data) {
         const data = res.data as ShareDetail;
         setAlbum(data);
+        setHasMore((res.data as any).hasMore ?? false);
+        setIsOwner((res.data as any).isOwner ?? false);
         // 保存浏览历史
-        addBrowsingHistory(code, data.title || '未命名相册', data.photos?.length ?? 0);
+        addBrowsingHistory(code, data.title || '未命名相册', (res.data as any).totalPhotos ?? data.photos?.length ?? 0);
         // 检测当前用户的贡献者状态
         const contributors: ContributorInfo[] = (res.data as any).contributors ?? [];
         if (user && contributors.length > 0) {
@@ -57,6 +66,58 @@ export default function ViewerPage() {
       } else setError(res.error?.message ?? '相册不存在');
     }).catch(() => setError('加载失败')).finally(() => setLoading(false));
   }, [code, user]);
+
+  /** 加载更多照片 */
+  async function handleLoadMore() {
+    if (!album || loadMore || !hasMore) return;
+    setLoadMore(true);
+    const nextPage = page + 1;
+    getViewerShare(code, nextPage, PAGE_SIZE).then((res) => {
+      if (res.data) {
+        const data = res.data as ShareDetail;
+        setAlbum((prev) => prev ? { ...prev, photos: [...prev.photos, ...data.photos] } : data);
+        setPage(nextPage);
+        setHasMore((res.data as any).hasMore ?? false);
+      }
+    }).finally(() => setLoadMore(false));
+  }
+
+  /** 号主上传新照片 */
+  async function handleOwnerUpload() {
+    if (!album || !isOwner) return;
+    Taro.chooseMedia({
+      count: 9,
+      mediaType: ['image'],
+      sizeType: ['original'],
+      success: async (chooseRes) => {
+        setUploadingMore(true);
+        let done = 0;
+        let failed = 0;
+        for (const f of chooseRes.tempFiles) {
+          try {
+            const uploadRes = await Taro.uploadFile({
+              url: `${API_BASE}/api/shares/${album.id}/photos`,
+              filePath: f.tempFilePath,
+              name: 'file',
+              header: user ? { Authorization: `Bearer ${await useAuth.getState().getAccessToken()}` } : {},
+            });
+            if (uploadRes.statusCode === 201 || uploadRes.statusCode === 200) done++;
+            else failed++;
+          } catch { failed++; }
+        }
+        setUploadingMore(false);
+        Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success' });
+        // 重新加载首页
+        getViewerShare(code, 1, PAGE_SIZE).then((res) => {
+          if (res.data) {
+            setAlbum(res.data as ShareDetail);
+            setPage(1);
+            setHasMore((res.data as any).hasMore ?? false);
+          }
+        });
+      },
+    });
+  }
 
   /** 申请加入 */
   async function handleJoin() {
@@ -172,9 +233,16 @@ export default function ViewerPage() {
       {/* 操作条 */}
       <View className="action-bar">
         <View style={{ flex: 1 }}>
-          <Text className="action-info">{photos.length} 张 · {formatBytes(totalBytes)}</Text>
+          <Text className="action-info">
+            {(album as any)?.totalPhotos ?? photos.length} 张 · {formatBytes(totalBytes)}
+          </Text>
           <Text className="action-info-sub">原图已加密传输</Text>
         </View>
+        {isOwner && !expired && (
+          <View className="add-photo-btn" onClick={handleOwnerUpload}>
+            <Text className="add-photo-btn-text">{uploadingMore ? '上传中…' : '+ 补充'}</Text>
+          </View>
+        )}
         <View
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
           onClick={() => !saving && photos.length > 0 && saveAll()}
@@ -255,6 +323,17 @@ export default function ViewerPage() {
               />
             </View>
           ))}
+        </View>
+      )}
+
+      {/* 加载更多 */}
+      {hasMore && (
+        <View className="loadmore-row">
+          <View className="loadmore-btn" onClick={handleLoadMore}>
+            <Text className="loadmore-btn-text">
+              {loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? `${(album as any).totalPhotos - photos.length} 张剩余` : ''}`}
+            </Text>
+          </View>
         </View>
       )}
 

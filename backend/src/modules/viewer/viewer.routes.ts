@@ -73,6 +73,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     const contributorList = await contributorService.listAccepted(share.id);
     const currentUser = (req as any).currentUser;
     const album = {
+      id: share.id,
       code: share.code,
       title: share.title,
       expiresAt: share.expiresAt,

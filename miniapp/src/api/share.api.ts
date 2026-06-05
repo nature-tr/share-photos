@@ -18,9 +18,9 @@ export function getOriginalUrl(code: string, photoId: string) {
   return `${API_BASE}/api/v/${code}/photos/${photoId}/original`;
 }
 
-/** 凭码访问相册 */
-export async function getViewerShare(code: string) {
-  return api<ShareDetail>(`/api/v/${code}`);
+/** 凭码访问相册（支持分页） */
+export async function getViewerShare(code: string, page = 1, pageSize = 50) {
+  return api<ShareDetail>(`/api/v/${code}?page=${page}&pageSize=${pageSize}`);
 }
 
 /** 我的分享列表 */
