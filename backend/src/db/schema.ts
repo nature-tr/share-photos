@@ -60,6 +60,7 @@ export const photos = sqliteTable(
     shareId: text('share_id')
       .notNull()
       .references(() => shares.id, { onDelete: 'cascade' }),
+    uploadedBy: text('uploaded_by').references(() => users.id),
     originalName: text('original_name').notNull(),
     mimeType: text('mime_type').notNull(),
     ext: text('ext').notNull(),

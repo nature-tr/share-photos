@@ -89,6 +89,7 @@ export const photoService = {
       .values({
         id: photoId,
         shareId,
+        uploadedBy: userId,
         originalName: file.filename,
         mimeType: mime,
         ext,
@@ -121,8 +122,9 @@ export const photoService = {
     };
   },
 
-  async delete(shareId: string, photoId: string, ownerId: string): Promise<void> {
-    await shareService.assertOwner(shareId, ownerId);
+  async delete(shareId: string, photoId: string, userId: string): Promise<void> {
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
 
     const photo = await db
       .select()
@@ -130,6 +132,8 @@ export const photoService = {
       .where(and(eq(photos.id, photoId), eq(photos.shareId, shareId)))
       .get();
     if (!photo) throw Errors.photoNotFound();
+
+    if (share.ownerId !== userId && photo.uploadedBy !== userId) throw Errors.forbidden();
 
     await Promise.all([
       safeUnlink(originalPath(shareId, photoId, photo.ext)),
@@ -148,6 +152,30 @@ export const photoService = {
       })
       .where(eq(shares.id, shareId))
       .run();
+  },
+
+  async deleteBatch(shareId: string, photoIds: string[], userId: string): Promise<void> {
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
+
+    for (const pid of photoIds) {
+      const photo = await db.select().from(photos).where(and(eq(photos.id, pid), eq(photos.shareId, shareId))).get();
+      if (!photo) continue;
+      if (share.ownerId !== userId && photo.uploadedBy !== userId) continue;
+
+      await Promise.all([
+        safeUnlink(originalPath(shareId, pid, photo.ext)),
+        safeUnlink(previewPath(shareId, pid)),
+        safeUnlink(previewWebpPath(shareId, pid)),
+        safeUnlink(mediumPath(shareId, pid)),
+        safeUnlink(mediumWebpPath(shareId, pid)),
+      ]);
+      await db.delete(photos).where(eq(photos.id, pid)).run();
+      await db.update(shares).set({
+        photoCount: sql`${shares.photoCount} - 1`,
+        totalBytes: sql`${shares.totalBytes} - ${photo.sizeBytes}`,
+      }).where(eq(shares.id, shareId)).run();
+    }
   },
 
   async listByShare(shareId: string) {

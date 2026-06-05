@@ -12,7 +12,7 @@ const sqlite = new Database(config.dbPath);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
-// 自动创建缺失的表（供开发/升级用，不影响已有迁移）
+// 自动创建缺失的表和列（供开发/升级用）
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS contributors (
     id TEXT PRIMARY KEY,
@@ -26,6 +26,11 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_contributor_share_user ON contributors(share_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_contributor_status ON contributors(share_id, status);
 `);
+
+// 添加 uploaded_by 列（兼容老数据库）
+try {
+  sqlite.exec(`ALTER TABLE photos ADD COLUMN uploaded_by TEXT REFERENCES users(id)`);
+} catch { /* 列已存在 */ }
 
 export const db = drizzle(sqlite, { schema });
 export const rawDb = sqlite;

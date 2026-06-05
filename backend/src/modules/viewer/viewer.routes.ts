@@ -132,6 +132,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
         height: p.height,
         sizeBytes: p.sizeBytes,
         uploadedAs: p.uploadedAs,
+        uploadedBy: p.uploadedBy,
         createdAt: p.createdAt,
       })),
       contributors: contributorList,

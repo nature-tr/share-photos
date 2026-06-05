@@ -38,4 +38,13 @@ export async function photoRoutes(app: FastifyInstance): Promise<void> {
     await photoService.delete(shareId, photoId, userId);
     reply.code(204).send();
   });
+
+  // 批量删除
+  app.post('/:shareId/photos/batch-delete', async (req, reply) => {
+    const { shareId } = paramsSchema.parse(req.params);
+    const body = z.object({ photoIds: z.array(z.string().min(1)).min(1) }).parse(req.body);
+    const userId = req.currentUser!.sub;
+    await photoService.deleteBatch(shareId, body.photoIds, userId);
+    reply.code(204).send();
+  });
 }

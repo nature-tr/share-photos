@@ -11,6 +11,8 @@ export interface PhotoMeta {
   height: number;
   sizeBytes: number;
   uploadedAs: UploadedAs;
+  uploadedBy?: string | null;
+  uploadedByName?: string | null;
   createdAt: number;
 }
 
