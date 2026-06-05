@@ -75,7 +75,29 @@ export const photos = sqliteTable(
   }),
 );
 
+export const contributors = sqliteTable(
+  'contributors',
+  {
+    id: text('id').primaryKey(),
+    shareId: text('share_id')
+      .notNull()
+      .references(() => shares.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status', { enum: ['pending', 'accepted', 'rejected'] }).notNull(),
+    role: text('role', { enum: ['contributor'] }).notNull().default('contributor'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({
+    shareUserIdx: index('idx_contributor_share_user').on(t.shareId, t.userId),
+    statusIdx: index('idx_contributor_status').on(t.shareId, t.status),
+  }),
+);
+
 export type User = typeof users.$inferSelect;
 export type Share = typeof shares.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type Contributor = typeof contributors.$inferSelect;

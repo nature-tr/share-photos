@@ -22,6 +22,62 @@
 .grid-item { width: calc(33.33% - 6rpx); margin: 3rpx; aspect-ratio: 1; border-radius: 12rpx; overflow: hidden; background: #f1f5f9; }
 .grid-img { display: block; width: 100%; height: 100%; }
 
+/* ─── 贡献者区域 ─── */
+.contrib-section {
+  margin: 0 24rpx 16rpx;
+  background: var(--color-surface);
+  border-radius: 28rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04);
+}
+
+.contrib-row {
+  display: flex; flex-direction: row; align-items: center;
+  margin-bottom: 20rpx;
+}
+.contrib-avatar {
+  width: 56rpx; height: 56rpx; border-radius: 28rpx;
+  background: var(--color-primary-soft);
+  display: flex; align-items: center; justify-content: center;
+  margin-right: -12rpx;
+  border: 2rpx solid var(--color-surface);
+}
+.contrib-avatar:first-child { margin-left: 0; }
+.contrib-avatar-text {
+  color: var(--color-primary); font-size: 24rpx; font-weight: 700; line-height: 1;
+}
+.contrib-label {
+  font-size: 24rpx; color: var(--color-text3);
+  margin-left: 20rpx; line-height: 1.4;
+}
+
+.join-row { display: flex; flex-direction: row; align-items: center; }
+.join-btn {
+  flex: 1; height: 84rpx;
+  background: var(--color-success);
+  border-radius: 20rpx;
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+}
+.join-btn-text { color: #fff; font-size: 26rpx; font-weight: 600; line-height: 1; }
+
+.join-badge {
+  flex: 1; min-height: 60rpx; border-radius: 20rpx;
+  display: flex; flex-direction: row; align-items: center; justify-content: center;
+  padding: 12rpx 24rpx; box-sizing: border-box;
+}
+.join-badge-text { font-size: 24rpx; line-height: 1.4; }
+.join-badge-accepted { background: var(--color-success-soft); }
+.join-badge-accepted .join-badge-text { color: var(--color-success); font-weight: 600; }
+.join-badge-pending { background: var(--color-warning-soft, #fef3c7); }
+.join-badge-pending .join-badge-text { color: #f59e0b; }
+.join-badge-rejected { background: var(--color-danger-soft); flex-direction: row; }
+.join-badge-rejected .join-badge-text { color: var(--color-danger); font-size: 22rpx; flex: 1; }
+.join-btn-sm {
+  padding: 8rpx 24rpx; border-radius: 9999rpx;
+  background: var(--color-primary); flex-shrink: 0; margin-left: 16rpx;
+}
+.join-btn-sm-text { color: #fff; font-size: 22rpx; font-weight: 600; line-height: 1; }
+
 .progress-bar { position: fixed; left: 32rpx; right: 32rpx; bottom: 32rpx; background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; box-shadow: 0 8rpx 32rpx rgba(15,23,42,0.15); z-index: 200; }
 .progress-text { font-size: 24rpx; color: var(--color-text2); margin-bottom: 12rpx; line-height: 1.4; }
 .progress-track { height: 8rpx; background: #f1f5f9; border-radius: 4rpx; overflow: hidden; }

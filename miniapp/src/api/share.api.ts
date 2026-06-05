@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro';
 import { api } from './client';
 import { useAuth, API_BASE } from '@/stores/auth.store';
-import type { ShareSummary, ShareDetail } from '@photo/shared/dto';
+import type { ShareSummary, ShareDetail, ContributorInfo } from '@photo/shared/dto';
 
 /** 缩略图 URL（网格用，400px 短边 JPEG） */
 export function getThumbUrl(code: string, photoId: string) {
@@ -62,4 +62,29 @@ export async function endShare(shareId: string) {
     console.error('[endShare] failed', res.error);
     throw new Error(res.error.message || '结束分享失败');
   }
+}
+
+/* ─── 贡献者 ─── */
+
+/** 凭分享码申请加入 */
+export async function requestJoin(code: string) {
+  return api<ContributorInfo>(`/api/v/${code}/join`, { method: 'POST' });
+}
+
+/** 凭码获取已接受的贡献者列表 */
+export async function getViewerContributors(code: string) {
+  return api<ContributorInfo[]>(`/api/v/${code}/contributors`);
+}
+
+/** 获取分享的所有贡献者（含 pending，owner 专用） */
+export async function getShareContributors(shareId: string) {
+  return api<ContributorInfo[]>(`/api/shares/${shareId}/contributors`);
+}
+
+/** 审核贡献者申请 */
+export async function reviewContributor(shareId: string, userId: string, action: 'accepted' | 'rejected') {
+  return api<ContributorInfo>(`/api/shares/${shareId}/contributors/${userId}`, {
+    method: 'PATCH',
+    body: { action },
+  });
 }

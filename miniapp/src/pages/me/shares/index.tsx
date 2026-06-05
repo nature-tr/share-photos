@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor } from '@/api/share.api';
+import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
 import QrSheet from '@/components/QrSheet';
@@ -37,6 +38,8 @@ export default function MySharesPage() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
+  const [manageOpen, setManageOpen] = useState<{ shareId: string; code: string } | null>(null);
+  const [contributors, setContributors] = useState<ContributorInfo[]>([]);
 
   async function load() {
     setLoading(true);
@@ -126,6 +129,21 @@ export default function MySharesPage() {
     });
   }
 
+  async function openManage(shareId: string, code: string) {
+    setManageOpen({ shareId, code });
+    const res = await getShareContributors(shareId);
+    if (res.data) setContributors(res.data);
+  }
+
+  async function handleReview(shareId: string, userId: string, action: 'accepted' | 'rejected') {
+    const res = await reviewContributor(shareId, userId, action);
+    if (res.data) {
+      setContributors((arr) => arr.map((c) => (c.userId === userId ? { ...c, status: action } : c)));
+      Taro.showToast({ title: action === 'accepted' ? '已通过' : '已拒绝', icon: 'success' });
+      void load();
+    }
+  }
+
   if (loading) {
     return <View className="page"><View className="center"><Text>加载中…</Text></View></View>;
   }
@@ -194,6 +212,12 @@ export default function MySharesPage() {
                       </View>
                     </>
                   )}
+                  {/* 贡献者管理 */}
+                  <View className="action-btn" onClick={() => openManage(item.id, item.code)}>
+                    <Text className="action-btn-text">
+                      管理{(item as any).pendingContributorCount > 0 ? ` (${(item as any).pendingContributorCount})` : ''}
+                    </Text>
+                  </View>
                 </View>
               </View>
             );
@@ -215,6 +239,55 @@ export default function MySharesPage() {
           </View>
           <View className="logout-btn" onClick={confirmLogout}>
             <Text className="logout-btn-text">退出登录</Text>
+          </View>
+        </View>
+      )}
+
+      {/* 贡献者管理弹层 */}
+      {manageOpen && (
+        <View className="manage-overlay" onClick={() => setManageOpen(null)}>
+          <View className="manage-sheet" onClick={(e: any) => e.stopPropagation()}>
+            <View className="manage-handle" />
+            <Text className="manage-title">贡献者管理</Text>
+
+            {contributors.length === 0 ? (
+              <View className="manage-empty">
+                <Text style={{ fontSize: '56rpx', marginBottom: '16rpx' }}>👥</Text>
+                <Text style={{ fontSize: '26rpx', color: '#9ca3af' }}>暂无贡献者申请</Text>
+              </View>
+            ) : (
+              <View className="manage-list">
+                {contributors.map((c) => (
+                  <View key={c.userId} className="manage-item">
+                    <View className="manage-avatar">
+                      <Text className="manage-avatar-text">
+                        {(c.displayName || c.email).slice(0, 1).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View className="manage-info">
+                      <Text className="manage-name">{c.displayName || c.email}</Text>
+                      <Text className={`manage-status manage-status-${c.status}`}>
+                        {c.status === 'pending' ? '待审核' : c.status === 'accepted' ? '已通过' : '已拒绝'}
+                      </Text>
+                    </View>
+                    {c.status === 'pending' && (
+                      <View className="manage-actions">
+                        <View className="manage-accept" onClick={() => handleReview(manageOpen.shareId, c.userId, 'accepted')}>
+                          <Text className="manage-accept-text">通过</Text>
+                        </View>
+                        <View className="manage-reject" onClick={() => handleReview(manageOpen.shareId, c.userId, 'rejected')}>
+                          <Text className="manage-reject-text">拒绝</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View className="manage-close" onClick={() => setManageOpen(null)}>
+              <Text className="manage-close-text">关闭</Text>
+            </View>
           </View>
         </View>
       )}

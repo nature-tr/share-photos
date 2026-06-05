@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { shares, photos } from '../../db/schema.js';
+import { shares, photos, contributors } from '../../db/schema.js';
 import { Errors } from '../../common/errors.js';
 import { newId, newShareCode } from '../../common/id.js';
 import { now } from '../../common/time.js';
@@ -98,8 +98,21 @@ export const shareService = {
       .where(where)
       .get();
 
+    // 批量查 pending 贡献者数
+    const pendingCounts: Record<string, number> = {};
+    for (const s of items) {
+      const row = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(contributors)
+        .where(
+          and(eq(contributors.shareId, s.id), eq(contributors.status, 'pending')),
+        )
+        .get();
+      pendingCounts[s.id] = Number(row?.count ?? 0);
+    }
+
     return {
-      items: items.map(toSummary),
+      items: items.map((s) => ({ ...toSummary(s), pendingContributorCount: pendingCounts[s.id] ?? 0 })),
       total: Number(totalRow?.count ?? 0),
       page,
       pageSize,
@@ -118,9 +131,33 @@ export const shareService = {
       .orderBy(photos.sortIndex)
       .all();
 
+    // 查贡献者列表
+    const contributorList = await db
+      .select()
+      .from(contributors)
+      .where(eq(contributors.shareId, shareId))
+      .orderBy(contributors.createdAt)
+      .all();
+
     return {
       ...toSummary(share),
       photos: photoList.map(toPhotoMeta),
+      contributors: await Promise.all(
+        contributorList.map(async (c) => {
+          const { users } = await import('../../db/schema.js');
+          const user = await db.select().from(users).where(eq(users.id, c.userId)).get();
+          return {
+            id: c.id,
+            shareId: c.shareId,
+            userId: c.userId,
+            displayName: user?.displayName ?? null,
+            email: user?.email ?? '',
+            status: c.status,
+            role: c.role,
+            createdAt: c.createdAt,
+          };
+        }),
+      ),
     };
   },
 
@@ -175,6 +212,30 @@ export const shareService = {
     if (share.ownerId !== ownerId) throw Errors.forbidden();
     if (share.status === 'ended') throw Errors.shareEnded();
     if (share.status === 'cleaned') throw Errors.shareCleaned();
+    return share;
+  },
+
+  /** 上传权限：owner 或 accepted 贡献者 */
+  async assertOwnerOrContributor(shareId: string, userId: string) {
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
+    if (share.status === 'ended') throw Errors.shareEnded();
+    if (share.status === 'cleaned') throw Errors.shareCleaned();
+    // owner 直接放行
+    if (share.ownerId === userId) return share;
+    // 检查是否为 accepted 贡献者
+    const c = await db
+      .select({ id: contributors.id })
+      .from(contributors)
+      .where(
+        and(
+          eq(contributors.shareId, shareId),
+          eq(contributors.userId, userId),
+          eq(contributors.status, 'accepted'),
+        ),
+      )
+      .get();
+    if (!c) throw Errors.notShareMember();
     return share;
   },
 };

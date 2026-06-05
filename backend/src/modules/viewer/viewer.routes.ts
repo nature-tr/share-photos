@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { shareCodeSchema } from '@photo/shared';
 import { shareService } from '../share/share.service.js';
 import { photoService } from '../photo/photo.service.js';
+import { contributorService } from '../share/contributor.service.js';
 import {
   originalPath,
   previewPath,
@@ -27,11 +28,12 @@ function streamFile(reply: import('fastify').FastifyReply, filePath: string, con
 }
 
 export async function viewerRoutes(app: FastifyInstance): Promise<void> {
-  // 凭码获取相册元数据
+  // 凭码获取相册元数据（含已接受的贡献者列表）
   app.get('/:code', async (req) => {
     const { code } = codeParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
     const photoList = await photoService.listByShare(share.id);
+    const contributorList = await contributorService.listAccepted(share.id);
     const album: ViewerAlbum = {
       code: share.code,
       title: share.title,
@@ -46,6 +48,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
         uploadedAs: p.uploadedAs,
         createdAt: p.createdAt,
       })),
+      contributors: contributorList,
     };
     return { data: album };
   });
@@ -83,6 +86,25 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     reply.header('Content-Length', photo.sizeBytes);
     reply.header('Cache-Control', 'private, max-age=3600');
     return reply.send(fs.createReadStream(filePath));
+  });
+
+  // ─── 贡献者 ───
+
+  // 凭码查看已接受的贡献者列表
+  app.get('/:code/contributors', async (req) => {
+    const { code } = codeParamSchema.parse(req.params);
+    const share = await shareService.getByCodeForViewer(code);
+    const list = await contributorService.listAccepted(share.id);
+    return { data: list };
+  });
+
+  // 凭码申请加入（需登录）
+  app.post('/:code/join', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const { code } = codeParamSchema.parse(req.params);
+    const userId = req.currentUser!.sub;
+    const share = await shareService.getByCodeForViewer(code);
+    const result = await contributorService.requestJoin(share.id, userId);
+    reply.code(200).send({ data: result });
   });
 
   // 全量 zip 下载

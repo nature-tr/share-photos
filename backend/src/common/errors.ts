@@ -52,4 +52,12 @@ export const Errors = {
 
   internal: (msg = '服务器内部错误') =>
     new BizError(ErrorCode.INTERNAL_ERROR, msg, 500),
+
+  // 贡献者
+  contributorAlreadyExists: () =>
+    new BizError(ErrorCode.CONTRIBUTOR_ALREADY_EXISTS, '你已申请加入该分享，请等待创建者审核', 409),
+  contributorNotFound: () =>
+    new BizError(ErrorCode.CONTRIBUTOR_NOT_FOUND, '申请记录不存在', 404),
+  notShareMember: () =>
+    new BizError(ErrorCode.NOT_SHARE_MEMBER, '你无权上传照片，请先申请加入', 403),
 };

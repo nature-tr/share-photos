@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
-import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl } from '@/api/share.api';
-import type { ShareDetail } from '@photo/shared/dto';
+import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
+import { useAuth } from '@/stores/auth.store';
+import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
 function formatBytes(bytes: number) {
@@ -20,6 +21,7 @@ function formatRemaining(ms: number) {
 }
 
 export default function ViewerPage() {
+  const user = useAuth((s) => s.user);
   const [album, setAlbum] = useState<ShareDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ export default function ViewerPage() {
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ done: 0, total: 0 });
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
 
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
@@ -38,10 +41,41 @@ export default function ViewerPage() {
     if (!code) return;
     setLoading(true);
     getViewerShare(code).then((res) => {
-      if (res.data) setAlbum(res.data as ShareDetail);
-      else setError(res.error?.message ?? '相册不存在');
+      if (res.data) {
+        const data = res.data as ShareDetail;
+        setAlbum(data);
+        // 检测当前用户的贡献者状态
+        const contributors: ContributorInfo[] = (res.data as any).contributors ?? [];
+        if (user && contributors.length > 0) {
+          const me = contributors.find((c: ContributorInfo) => c.userId === user.id);
+          if (me) setJoinStatus(me.status as any);
+          else setJoinStatus('none');
+        }
+      } else setError(res.error?.message ?? '相册不存在');
     }).catch(() => setError('加载失败')).finally(() => setLoading(false));
-  }, [code]);
+  }, [code, user]);
+
+  /** 申请加入 */
+  async function handleJoin() {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    setJoinStatus('loading');
+    try {
+      const res = await requestJoin(code);
+      if (res.data) {
+        setJoinStatus(res.data.status as any);
+        Taro.showToast({ title: '申请已提交，等待创建者审核', icon: 'none' });
+      } else {
+        setJoinStatus('none');
+        Taro.showToast({ title: res.error?.message ?? '申请失败', icon: 'none' });
+      }
+    } catch {
+      setJoinStatus('none');
+      Taro.showToast({ title: '申请失败', icon: 'none' });
+    }
+  }
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -145,6 +179,58 @@ export default function ViewerPage() {
           <Text className="save-all-btn-text">{saving ? '保存中…' : '↓ 一键存到相册'}</Text>
         </View>
       </View>
+
+      {/* 贡献者区域 + 申请按钮 */}
+      {!expired && (
+        <View className="contrib-section">
+          {/* 已接受的贡献者头像行 */}
+          {(album as any).contributors?.length > 0 && (
+            <View className="contrib-row">
+              {(album as any).contributors
+                .filter((c: ContributorInfo) => c.status === 'accepted')
+                .slice(0, 5)
+                .map((c: ContributorInfo) => (
+                  <View key={c.userId} className="contrib-avatar" title={c.displayName || c.email}>
+                    <Text className="contrib-avatar-text">
+                      {(c.displayName || c.email).slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                ))}
+              <Text className="contrib-label">
+                {(album as any).contributors.filter((c: ContributorInfo) => c.status === 'accepted').length} 位贡献者
+              </Text>
+            </View>
+          )}
+
+          {/* 申请按钮 */}
+          {!expired && (
+            <View className="join-row">
+              {joinStatus === 'accepted' ? (
+                <View className="join-badge join-badge-accepted">
+                  <Text className="join-badge-text">✓ 已是贡献者，可上传照片参与分享</Text>
+                </View>
+              ) : joinStatus === 'pending' ? (
+                <View className="join-badge join-badge-pending">
+                  <Text className="join-badge-text">⏳ 申请审核中…</Text>
+                </View>
+              ) : joinStatus === 'rejected' ? (
+                <View className="join-badge join-badge-rejected">
+                  <Text className="join-badge-text">申请已被拒绝</Text>
+                  <View className="join-btn-sm" onClick={handleJoin}>
+                    <Text className="join-btn-sm-text">重新申请</Text>
+                  </View>
+                </View>
+              ) : (
+                <View className="join-btn" onClick={handleJoin}>
+                  <Text className="join-btn-text">
+                    {joinStatus === 'loading' ? '申请中…' : '📷 申请加入成为贡献者'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* 网格 */}
       {photos.length === 0 ? (

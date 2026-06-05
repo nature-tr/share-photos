@@ -6,8 +6,10 @@ import {
 } from '@photo/shared';
 import { z } from 'zod';
 import { shareService } from './share.service.js';
+import { contributorService } from './contributor.service.js';
 
 const shareIdParamSchema = z.object({ shareId: z.string().min(1) });
+const reviewBodySchema = z.object({ action: z.enum(['accepted', 'rejected']) });
 
 export async function shareRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', app.authenticate);
@@ -51,5 +53,27 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
     const userId = req.currentUser!.sub;
     await shareService.end(shareId, userId);
     reply.code(204).send();
+  });
+
+  // ─── 贡献者管理 ───
+
+  // 列出所有贡献者（含 pending）
+  app.get('/:shareId/contributors', async (req) => {
+    const { shareId } = shareIdParamSchema.parse(req.params);
+    const userId = req.currentUser!.sub;
+    await shareService.assertOwner(shareId, userId);
+    const list = await contributorService.listAll(shareId);
+    return { data: list };
+  });
+
+  // 审核申请
+  app.patch('/:shareId/contributors/:userId', async (req) => {
+    const { shareId, userId: targetUserId } = z
+      .object({ shareId: z.string().min(1), userId: z.string().min(1) })
+      .parse(req.params);
+    const { action } = reviewBodySchema.parse(req.body);
+    const ownerId = req.currentUser!.sub;
+    const result = await contributorService.review(shareId, targetUserId, ownerId, action);
+    return { data: result };
   });
 }

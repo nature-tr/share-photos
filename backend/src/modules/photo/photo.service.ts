@@ -19,6 +19,7 @@ import {
   type UploadPhotoResponse,
 } from '@photo/shared';
 import { shareService } from '../share/share.service.js';
+import { contributorService } from '../share/contributor.service.js';
 
 const SUPPORTED = new Set<string>(SUPPORTED_MIME_TYPES);
 
@@ -36,11 +37,12 @@ function extFromMime(mime: string, fallback: string): string {
 export const photoService = {
   async upload(
     shareId: string,
-    ownerId: string,
+    userId: string,
     file: MultipartFile,
     uploadedAs: UploadedAs,
   ): Promise<UploadPhotoResponse> {
-    const share = await shareService.assertOwner(shareId, ownerId);
+    // 检查权限：owner 或 accepted 贡献者
+    const share = await shareService.assertOwnerOrContributor(shareId, userId);
 
     if (share.photoCount >= MAX_PHOTOS_PER_SHARE) {
       throw Errors.photoLimitExceeded();
