@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
-import Taro, { useLoad, useDidHide, useDidShow, usePageScroll } from '@tarojs/taro';
+import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
@@ -38,7 +38,6 @@ export default function ViewerPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
   const scrollTopRef = useRef(0);
-  const scrollTargetRef = useRef(0);
   const PAGE_SIZE = 50;
 
   useLoad((options) => {
@@ -90,9 +89,15 @@ export default function ViewerPage() {
         setIsOwner((firstRes.data as any).isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
-        // 3. 保存目标滚动位置供 useDidShow 使用
+        // 3. 滚动恢复：nextTick 等 DOM 更新后多次重试
         if (lastScrollTop > 0) {
-          scrollTargetRef.current = lastScrollTop;
+          Taro.nextTick(() => {
+            [200, 500, 900, 1400].forEach((delay) => {
+              setTimeout(() => {
+                Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 0 });
+              }, delay);
+            });
+          });
         }
 
         // 检测贡献者状态
@@ -109,20 +114,6 @@ export default function ViewerPage() {
     })();
     return () => { cancelled = true; };
   }, [code, user]);
-
-  // 页面显示时恢复滚动位置（此时 DOM 已完全渲染）
-  useDidShow(() => {
-    if (scrollTargetRef.current > 0 && album) {
-      const target = scrollTargetRef.current;
-      // 多次尝试，确保图片加载后页面高度足够
-      [300, 600, 1000, 1500].forEach((delay) => {
-        setTimeout(() => {
-          Taro.pageScrollTo({ scrollTop: target, duration: 0 });
-        }, delay);
-      });
-      scrollTargetRef.current = 0;  // 只恢复一次
-    }
-  });
 
   // 离开页面时保存浏览位置（真实滚动高度 + 已加载照片数）
   useDidHide(() => {
