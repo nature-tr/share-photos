@@ -42,22 +42,28 @@ export default function NewSharePage() {
       Taro.showToast({ title: `最多 ${MAX_PHOTOS_PER_SHARE} 张`, icon: 'none' });
       return;
     }
-    Taro.chooseMedia({
-      count: remaining,
-      mediaType: ['image'],
-      sizeType: ['original'],
-      success: (res) => {
-        const newItems: PickedItem[] = res.tempFiles.map((f) => {
-          const name = f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`;
-          return {
-            id: Math.random().toString(36).slice(2),
-            path: f.tempFilePath,
-            name,
-            size: f.size,
-            status: 'pending',
-          };
+    Taro.showActionSheet({
+      itemList: ['原图', '压缩'],
+      success: (sheet) => {
+        const compressed = sheet.tapIndex === 1;
+        Taro.chooseMedia({
+          count: remaining,
+          mediaType: ['image'],
+          sizeType: compressed ? ['compressed'] : ['original'],
+          success: (res) => {
+            const newItems: PickedItem[] = res.tempFiles.map((f) => {
+              const name = f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`;
+              return {
+                id: Math.random().toString(36).slice(2),
+                path: f.tempFilePath,
+                name,
+                size: f.size,
+                status: 'pending',
+              };
+            });
+            setItems((arr) => [...arr, ...newItems]);
+          },
         });
-        setItems((arr) => [...arr, ...newItems]);
       },
     });
   }

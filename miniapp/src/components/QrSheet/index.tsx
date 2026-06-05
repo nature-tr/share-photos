@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
+import { iconCopy, iconLink } from '@/assets/icons';
 import './index.scss';
 
 interface Props {
@@ -58,10 +59,12 @@ export default function QrSheet({ visible, code, title, url, onClose }: Props) {
         {/* 拖拽条 */}
         <View className="qr-handle" />
 
-        <Text className="qr-title" numberOfLines={1}>
-          {title || '分享相册'}
-        </Text>
-        <Text className="qr-subtitle">对方扫码即可访问，无需手动输入</Text>
+        <View className="qr-title-row">
+          <Text className="qr-title" numberOfLines={1}>
+            {title || '分享相册'}
+          </Text>
+          <Text className="qr-subtitle">对方扫码即可访问，无需手动输入</Text>
+        </View>
 
         {/* 二维码图片 */}
         <View className="qr-img-box">
@@ -78,10 +81,12 @@ export default function QrSheet({ visible, code, title, url, onClose }: Props) {
         {/* 操作按钮 */}
         <View className="qr-btn-row">
           <View className="qr-btn" onClick={copyCode}>
-            <Text className="qr-btn-text">复制码</Text>
+            <Image src={iconCopy('#475569')} className="qr-btn-icon" />
+            <Text className="qr-btn-text">分享码</Text>
           </View>
           <View className="qr-btn" onClick={copyLink}>
-            <Text className="qr-btn-text">复制链接</Text>
+            <Image src={iconLink('#475569')} className="qr-btn-icon" />
+            <Text className="qr-btn-text">链接</Text>
           </View>
         </View>
 

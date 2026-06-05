@@ -17,8 +17,9 @@
   margin-bottom: 32rpx;
 }
 
-.qr-title { font-size: 36rpx; font-weight: 700; color: var(--color-text1); line-height: 1.4; }
-.qr-subtitle { font-size: 24rpx; color: var(--color-text3); margin-top: 8rpx; margin-bottom: 32rpx; line-height: 1.4; }
+.qr-title-row { align-self: stretch; display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 16rpx; margin-bottom: 32rpx; }
+.qr-title { font-size: 36rpx; font-weight: 700; color: var(--color-text1); line-height: 1.4; flex-shrink: 0; }
+.qr-subtitle { font-size: 24rpx; color: var(--color-text3); line-height: 1.4; text-align: right; flex: 1; min-width: 0; }
 
 .qr-img-box {
   padding: 24rpx; background: #fff;
@@ -40,10 +41,11 @@
 .qr-btn {
   flex: 1; height: 88rpx;
   background: var(--color-surface-soft); border: 1rpx solid var(--color-border);
-  border-radius: 20rpx; display: flex; align-items: center; justify-content: center;
-  box-sizing: border-box;
+  border-radius: 20rpx; display: flex; flex-direction: row; align-items: center; justify-content: center;
+  gap: 10rpx; box-sizing: border-box;
 }
 .qr-btn + .qr-btn { margin-left: 16rpx; }
+.qr-btn-icon { width: 30rpx; height: 30rpx; }
 .qr-btn-text { font-size: 26rpx; font-weight: 600; color: var(--color-text1); line-height: 1; }
 
 .qr-btn-primary {

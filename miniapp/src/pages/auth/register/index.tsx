@@ -27,7 +27,7 @@ export default function RegisterPage() {
       if (res.data) {
         setAuth(res.data.user, res.data.accessToken);
         Taro.showToast({ title: '注册成功', icon: 'success' });
-        setTimeout(() => Taro.redirectTo({ url: '/pages/me/shares/index' }), 800);
+        setTimeout(() => Taro.redirectTo({ url: '/pages/index/index' }), 800);
       } else {
         Taro.showToast({ title: res.error?.message ?? '注册失败', icon: 'none' });
       }

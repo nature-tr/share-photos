@@ -22,7 +22,7 @@ export default function LoginPage() {
       if (res.data) {
         setAuth(res.data.user, res.data.accessToken);
         Taro.showToast({ title: '登录成功', icon: 'success' });
-        setTimeout(() => Taro.redirectTo({ url: '/pages/me/shares/index' }), 800);
+        setTimeout(() => Taro.redirectTo({ url: '/pages/index/index' }), 800);
       } else {
         Taro.showToast({ title: res.error?.message ?? '登录失败', icon: 'none' });
       }

@@ -5,6 +5,7 @@ import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin,
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
+import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
@@ -49,6 +50,11 @@ export default function ViewerPage() {
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
     setCode(c.toUpperCase());
+    // 只有从最近浏览点进来才恢复滚动位置
+    if (options?.fromHistory === '1') {
+      const { scrollTop: lastScrollTop } = getLastPosition(c.toUpperCase());
+      lastScrollTargetRef.current = lastScrollTop;
+    }
   });
 
   useEffect(() => {
@@ -57,7 +63,6 @@ export default function ViewerPage() {
     setLoading(true);
     setPage(1);
     scrolledOnceRef.current = false;
-    lastScrollTargetRef.current = 0;
     (async () => {
       try {
         const firstRes = await getViewerShare(code, 1, PAGE_SIZE);
@@ -73,8 +78,7 @@ export default function ViewerPage() {
         let currentPage = 1;
         let hasMorePages = (firstRes.data as any).hasMore ?? false;
 
-        const { photoCount: lastPhotoCount, scrollTop: lastScrollTop } = getLastPosition(code);
-        lastScrollTargetRef.current = lastScrollTop;
+        const lastPhotoCount = getLastPosition(code).photoCount;
         const needPages = Math.min(
           Math.ceil(Math.max(lastPhotoCount, allPhotos.length) / PAGE_SIZE),
           Math.ceil(totalPhotos / PAGE_SIZE),
@@ -370,16 +374,17 @@ export default function ViewerPage() {
     <View className="page">
       {/* 顶栏 */}
       <View className="nav-bar">
-        <View className="nav-back" onClick={() => Taro.navigateBack()}><Text className="nav-back-text">‹</Text></View>
         <View className="nav-info">
-          <Text className="nav-title" numberOfLines={1}>{album.title || '相册'}</Text>
-          <Text className="nav-sub">
+          <View className="nav-sub">
+            <Text className="nav-title" numberOfLines={1}>{album.title || '相册'}</Text>
             <Text className="nav-code">{album.code}</Text>
-            <Text> · {photos.length}/{((album as any)?.totalPhotos ?? photos.length)}张 · {formatBytes(totalBytes)} · {formatRemaining(album.expiresAt - now)}</Text>
+          </View>
+          <Text className="nav-meta">
+            {photos.length}/{((album as any)?.totalPhotos ?? photos.length)}张 · {formatBytes(totalBytes)} · {formatRemaining(album.expiresAt - now)}
           </Text>
         </View>
         <View className="nav-qr" onClick={() => setQrVisible(true)}>
-          <Text className="nav-qr-text">QR</Text>
+          <Image src={iconQrcode('#2563eb')} className="nav-qr-img" />
         </View>
       </View>
 
@@ -388,10 +393,10 @@ export default function ViewerPage() {
         {user && !expired && (
           <>
             <View className="add-photo-btn" onClick={handleOwnerUpload}>
-              <Text className="add-photo-btn-text">{uploadingMore ? '上传中…' : '+ 补充'}</Text>
+              <Image src={iconImagePlus('#475569')} className="action-bar-icon" />
             </View>
             <View className="add-photo-btn" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}>
-              <Text className="add-photo-btn-text">{selectMode ? '取消' : '选择'}</Text>
+              <Image src={iconTrash('#ef4444')} className="action-bar-icon" />
             </View>
           </>
         )}
@@ -403,55 +408,34 @@ export default function ViewerPage() {
         </View>
       </View>
 
-      {/* 贡献者区域 + 申请按钮 */}
-      {!expired && (
+      {/* 申请按钮（非 owner 非过期） */}
+      {!expired && !isOwner && (
         <View className="contrib-section">
-          {/* 已接受的贡献者头像行 */}
-          {(album as any).contributors?.length > 0 && (
-            <View className="contrib-row">
-              {(album as any).contributors
-                .filter((c: ContributorInfo) => c.status === 'accepted')
-                .slice(0, 5)
-                .map((c: ContributorInfo) => (
-                  <View key={c.userId} className="contrib-avatar" title={c.displayName || c.email}>
-                    <Text className="contrib-avatar-text">
-                      {(c.displayName || c.email).slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                ))}
-              <Text className="contrib-label">
-                {(album as any).contributors.filter((c: ContributorInfo) => c.status === 'accepted').length} 位贡献者
-              </Text>
-            </View>
-          )}
-
-          {/* 申请按钮（owner 不显示，已有 + 补充上传入口） */}
-          {!expired && !isOwner && (
-            <View className="join-row">
-              {joinStatus === 'accepted' ? (
-                <View className="join-badge join-badge-accepted">
-                  <Text className="join-badge-text">✓ 已是贡献者，可上传照片参与分享</Text>
+          <View className="join-row">
+            {joinStatus === 'accepted' ? (
+              <View className="join-badge join-badge-accepted">
+                <Text className="join-badge-text">✓ 已是贡献者，可上传照片参与分享</Text>
+              </View>
+            ) : joinStatus === 'pending' ? (
+              <View className="join-badge join-badge-pending">
+                <Text className="join-badge-text">⏳ 申请审核中…</Text>
+              </View>
+            ) : joinStatus === 'rejected' ? (
+              <View className="join-badge join-badge-rejected">
+                <Text className="join-badge-text">申请已被拒绝</Text>
+                <View className="join-btn-sm" onClick={handleJoin}>
+                  <Text className="join-btn-sm-text">重新申请</Text>
                 </View>
-              ) : joinStatus === 'pending' ? (
-                <View className="join-badge join-badge-pending">
-                  <Text className="join-badge-text">⏳ 申请审核中…</Text>
-                </View>
-              ) : joinStatus === 'rejected' ? (
-                <View className="join-badge join-badge-rejected">
-                  <Text className="join-badge-text">申请已被拒绝</Text>
-                  <View className="join-btn-sm" onClick={handleJoin}>
-                    <Text className="join-btn-sm-text">重新申请</Text>
-                  </View>
-                </View>
-              ) : (
-                <View className="join-btn" onClick={handleJoin}>
-                  <Text className="join-btn-text">
-                    {joinStatus === 'loading' ? '申请中…' : '📷 申请加入成为贡献者'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
+              </View>
+            ) : (
+              <View className="join-btn" onClick={handleJoin}>
+                <Image src={iconImagePlus('#ffffff')} className="join-btn-icon" />
+                <Text className="join-btn-text">
+                  {joinStatus === 'loading' ? '申请中…' : '申请加入成为贡献者'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
 

@@ -1,6 +1,7 @@
-.page { min-height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; }
-.center { display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
+.page { min-height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; padding: 0 32rpx; }
+.center { display: flex; flex-direction: column; align-items: center; width: 100%; }
 .emoji { font-size: 100rpx; }
-.title { font-size: 32rpx; font-weight: 700; color: #fff; }
-.sub { font-size: 24rpx; color: rgba(255,255,255,0.5); }
+.title-row { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 24rpx; width: 100%; margin-top: 24rpx; }
+.title { font-size: 32rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
+.sub { font-size: 24rpx; color: rgba(255,255,255,0.5); text-align: right; flex: 1; min-width: 0; }
 .cancel { font-size: 28rpx; color: rgba(255,255,255,0.7); margin-top: 48rpx; padding: 16rpx 48rpx; border: 2rpx solid rgba(255,255,255,0.3); border-radius: 999rpx; }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor, getThumbUrl } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
 import QrSheet from '@/components/QrSheet';
+import { iconQrcode, iconCopy, iconLink, iconFolder, iconUser } from '@/assets/icons';
 import type { ShareSummary } from '@photo/shared/dto';
 import { TTL_PRESETS } from '@photo/shared';
 import './index.scss';
@@ -152,7 +153,9 @@ export default function MySharesPage() {
     <View className="page">
       {items.length === 0 ? (
         <View className="center">
-          <Text style={{ fontSize: '80rpx', marginBottom: '24rpx' }}>📂</Text>
+          <View className="empty-icon">
+            <Image src={iconFolder('#94a3b8')} className="empty-icon-img" />
+          </View>
           <Text style={{ fontSize: '36rpx', fontWeight: 700, color: colors.text2 }}>还没有分享</Text>
           <Text style={{ fontSize: '24rpx', color: colors.text3, marginTop: '8rpx' }}>
             点击右下角「+ 新建分享」开始
@@ -167,11 +170,6 @@ export default function MySharesPage() {
             const lowTime = active && item.expiresAt - now < 3600_000;
             return (
               <View key={item.id} className="share-card">
-                {(item as any).firstPhotoId && item.photoCount > 0 && (
-                  <View className="card-cover">
-                    <Image src={getThumbUrl(item.code, (item as any).firstPhotoId)} className="card-cover-img" mode="aspectFill" />
-                  </View>
-                )}
                 <View className="card-top">
                   <Text className="card-title" numberOfLines={1}>{item.title || '未命名相册'}</Text>
                   <View className="pill" style={{ backgroundColor: st.bg }}>
@@ -183,13 +181,13 @@ export default function MySharesPage() {
                   <Text className="code-text">{item.code}</Text>
                   <View className="code-actions">
                     <View className="icon-btn" onClick={() => setQrItem(item)}>
-                      <Text className="icon-btn-text">📱</Text>
+                      <Image src={iconQrcode('#475569')} className="icon-btn-img" />
                     </View>
                     <View className="icon-btn" onClick={() => copyCode(item.code)}>
-                      <Text className="icon-btn-text">📋</Text>
+                      <Image src={iconCopy('#475569')} className="icon-btn-img" />
                     </View>
                     <View className="icon-btn" onClick={() => copyLink(item.code)}>
-                      <Text className="icon-btn-text">🔗</Text>
+                      <Image src={iconLink('#475569')} className="icon-btn-img" />
                     </View>
                   </View>
                 </View>
@@ -210,14 +208,9 @@ export default function MySharesPage() {
                     <Text className="action-btn-text">预览</Text>
                   </View>
                   {active && (
-                    <>
-                      <View className="action-btn" onClick={() => onExtend(item)}>
-                        <Text className="action-btn-text">续期</Text>
-                      </View>
-                      <View className="action-btn action-btn-danger" onClick={() => onEnd(item)}>
-                        <Text className="action-btn-text-danger">结束</Text>
-                      </View>
-                    </>
+                    <View className="action-btn" onClick={() => onExtend(item)}>
+                      <Text className="action-btn-text">续期</Text>
+                    </View>
                   )}
                   {/* 贡献者管理 */}
                   <View className="action-btn" onClick={() => openManage(item.id, item.code)}>
@@ -225,6 +218,11 @@ export default function MySharesPage() {
                       管理{(item as any).pendingContributorCount > 0 ? ` (${(item as any).pendingContributorCount})` : ''}
                     </Text>
                   </View>
+                  {active && (
+                    <View className="action-btn action-btn-danger" onClick={() => onEnd(item)}>
+                      <Text className="action-btn-text-danger">结束</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             );
@@ -259,8 +257,10 @@ export default function MySharesPage() {
 
             {contributors.length === 0 ? (
               <View className="manage-empty">
-                <Text style={{ fontSize: '56rpx', marginBottom: '16rpx' }}>👥</Text>
-                <Text style={{ fontSize: '26rpx', color: '#9ca3af' }}>暂无贡献者申请</Text>
+                <View className="empty-icon">
+                  <Image src={iconUser('#94a3b8')} className="empty-icon-img" />
+                </View>
+                <Text style={{ fontSize: '26rpx', color: '#9ca3af', marginTop: '8rpx' }}>暂无贡献者申请</Text>
               </View>
             ) : (
               <View className="manage-list">

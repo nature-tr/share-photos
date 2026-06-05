@@ -21,8 +21,10 @@ export default function ScanPage() {
     <View className="page">
       <View className="center">
         <Text className="emoji">📷</Text>
-        <Text className="title">正在打开相机</Text>
-        <Text className="sub">对准分享码二维码即可自动扫描</Text>
+        <View className="title-row">
+          <Text className="title">正在打开相机</Text>
+          <Text className="sub">对准分享码二维码即可自动扫描</Text>
+        </View>
         <Text className="cancel" onClick={() => Taro.navigateBack()}>取消</Text>
       </View>
     </View>
