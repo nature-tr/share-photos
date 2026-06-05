@@ -72,4 +72,10 @@ export const photoApi = {
   zipDownloadUrl(code: string) {
     return `${API_BASE_URL}/api/v/${code}/download`;
   },
+  delete(shareId: string, photoId: string) {
+    return request<void>(`/api/shares/${shareId}/photos/${photoId}`, { method: 'DELETE' });
+  },
+  deleteBatch(shareId: string, photoIds: string[]) {
+    return request<void>(`/api/shares/${shareId}/photos/batch-delete`, { method: 'POST', body: { photoIds } });
+  },
 };

@@ -473,13 +473,27 @@ export default function ViewerScreen() {
       <ShareQrSheet visible={qrVisible} code={album.code} title={album.title || '未命名相册'} onClose={() => setQrVisible(false)} />
 
       {/* 大图预览 */}
-      {previewIdx !== null && (
+      {previewIdx !== null && album && (
         <PreviewModal
           album={album}
           codeUpper={codeUpper}
           startIdx={previewIdx}
           onClose={() => setPreviewIdx(null)}
           onSave={handleSaveOne}
+          onDelete={user ? async (photoId) => {
+            Alert.alert('删除照片', '确认从该分享中移除此照片？', [
+              { text: '取消', style: 'cancel' },
+              { text: '删除', style: 'destructive', onPress: async () => {
+                try {
+                  await photoApi.delete((album as any).id, photoId);
+                  const updated = { ...album, photos: album.photos.filter((p: any) => p.id !== photoId) };
+                  setAlbum(updated);
+                  setPreviewIdx(null);
+                  toast('已删除');
+                } catch (e) { toast((e as Error).message || '删除失败'); }
+              }},
+            ]);
+          } : undefined}
         />
       )}
     </SafeAreaView>
@@ -492,9 +506,10 @@ interface PreviewModalProps {
   startIdx: number;
   onClose: () => void;
   onSave: (photoId: string, filename: string) => void;
+  onDelete?: (photoId: string) => void;
 }
 
-function PreviewModal({ album, codeUpper, startIdx, onClose, onSave }: PreviewModalProps) {
+function PreviewModal({ album, codeUpper, startIdx, onClose, onSave, onDelete }: PreviewModalProps) {
   const [idx, setIdx] = useState(startIdx);
   const insets = useSafeAreaInsets();
   const photo = album.photos[idx];
@@ -519,6 +534,11 @@ function PreviewModal({ album, codeUpper, startIdx, onClose, onSave }: PreviewMo
               保存
             </Text>
           </Pressable>
+          {onDelete && (
+            <Pressable onPress={() => onDelete(photo.id)} style={pmS.headerBtn} hitSlop={10}>
+              <Text style={[pmS.headerBtnText, { color: '#ef4444', fontWeight: '600' }]}>删除</Text>
+            </Pressable>
+          )}
         </View>
 
         <FlatList

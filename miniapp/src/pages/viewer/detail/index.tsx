@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
-import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto } from '@/api/share.api';
+import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto, deletePhotos } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
@@ -39,6 +39,8 @@ export default function ViewerPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const scrollTopRef = useRef(0);
   const lastScrollTargetRef = useRef(0);
   const scrolledOnceRef = useRef(false);
@@ -232,6 +234,36 @@ export default function ViewerPage() {
     setPreviewIdx(index);
   }
 
+  /** 批量删除 */
+  async function handleBatchDelete() {
+    if (selectedIds.size === 0) return;
+    Taro.showModal({
+      title: '批量删除',
+      content: `确认删除选中的 ${selectedIds.size} 张照片？`,
+      confirmColor: '#ef4444',
+      success: async (m) => {
+        if (!m.confirm) return;
+        try {
+          await deletePhotos(album!.id, Array.from(selectedIds));
+          setAlbum((prev) => prev ? { ...prev, photos: prev.photos.filter((p) => !selectedIds.has(p.id)) } : prev);
+          setSelectMode(false);
+          setSelectedIds(new Set());
+          Taro.showToast({ title: '已删除', icon: 'success' });
+        } catch {
+          Taro.showToast({ title: '删除失败', icon: 'none' });
+        }
+      },
+    });
+  }
+
+  function toggleSelect(photoId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId); else next.add(photoId);
+      return next;
+    });
+  }
+
   /** 在预览弹窗中删除当前图片 */
   async function deleteCurrent(photoId: string) {
     if (!album) return;
@@ -356,9 +388,14 @@ export default function ViewerPage() {
           <Text className="action-info-sub">原图已加密传输</Text>
         </View>
         {user && !expired && (
-          <View className="add-photo-btn" onClick={handleOwnerUpload}>
-            <Text className="add-photo-btn-text">{uploadingMore ? '上传中…' : '+ 补充'}</Text>
-          </View>
+          <>
+            <View className="add-photo-btn" onClick={handleOwnerUpload}>
+              <Text className="add-photo-btn-text">{uploadingMore ? '上传中…' : '+ 补充'}</Text>
+            </View>
+            <View className="add-photo-btn" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}>
+              <Text className="add-photo-btn-text">{selectMode ? '取消' : '选择'}</Text>
+            </View>
+          </>
         )}
         <View
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
@@ -430,7 +467,11 @@ export default function ViewerPage() {
       ) : (
         <View className="grid">
           {photos.map((p, i) => (
-            <View key={p.id} className="grid-item" onClick={() => openPreview(i)}>
+            <View
+              key={p.id}
+              className={`grid-item ${selectMode && selectedIds.has(p.id) ? 'grid-item-selected' : ''}`}
+              onClick={() => selectMode ? toggleSelect(p.id) : openPreview(i)}
+            >
               <Image
                 src={getThumbUrl(code, p.id)}
                 className="grid-img"
@@ -438,6 +479,11 @@ export default function ViewerPage() {
                 lazyLoad
                 style={{ width: '100%', height: '100%' }}
               />
+              {selectMode && (
+                <View className={`grid-check ${selectedIds.has(p.id) ? 'grid-check-on' : ''}`}>
+                  {selectedIds.has(p.id) && <Text className="grid-check-icon">✓</Text>}
+                </View>
+              )}
             </View>
           ))}
         </View>
@@ -460,6 +506,16 @@ export default function ViewerPage() {
           <Text className="progress-text">保存到相册中 · {saveProgress.done}/{saveProgress.total}</Text>
           <View className="progress-track">
             <View className="progress-fill" style={{ width: `${saveProgress.total ? Math.round((saveProgress.done / saveProgress.total) * 100) : 0}%` }} />
+          </View>
+        </View>
+      )}
+
+      {/* 批量删除条 */}
+      {selectMode && selectedIds.size > 0 && (
+        <View className="batch-bar">
+          <Text className="batch-bar-text">已选 {selectedIds.size} 张</Text>
+          <View className="batch-delete-btn" onClick={handleBatchDelete}>
+            <Text className="batch-delete-btn-text">删除</Text>
           </View>
         </View>
       )}

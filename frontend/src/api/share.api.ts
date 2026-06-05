@@ -74,6 +74,9 @@ export const photoApi = {
   delete(shareId: string, photoId: string) {
     return request<void>(`/api/shares/${shareId}/photos/${photoId}`, { method: 'DELETE' });
   },
+  deleteBatch(shareId: string, photoIds: string[]) {
+    return request<void>(`/api/shares/${shareId}/photos/batch-delete`, { method: 'POST', body: { photoIds } });
+  },
 
   // 凭码访问图片 URL（用作 <img> src）
   thumbUrl(code: string, photoId: string) {

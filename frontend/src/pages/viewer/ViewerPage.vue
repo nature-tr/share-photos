@@ -178,6 +178,40 @@ async function handleJoin() {
   }
 }
 
+/** PhotoSwipe 大图查看时顶部「删除」按钮 */
+function attachDeletePhotoButton(pswp: PhotoSwipe) {
+  if (!auth.isAuthenticated || !album.value) return;
+  pswp.ui!.registerElement({
+    name: 'delete-button',
+    order: 9,
+    isButton: true,
+    tagName: 'button',
+    title: '删除照片',
+    html: {
+      isCustomSVG: true,
+      inner: '<path d="M6 6h20l-1.93 16.36a2 2 0 0 1-1.99 1.64H9.92a2 2 0 0 1-1.99-1.64L6 6Zm3.5 0h13l-.5 4M10 10v8m4-8v8m4-8v8" id="pswp__icn-delete" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+      outlineID: 'pswp__icn-delete',
+    },
+    onClick: async () => {
+      if (!album.value) return;
+      const idx = pswp.currIndex;
+      const photo = album.value.photos[idx];
+      if (!photo) return;
+      const shareId = (album.value as any).id;
+      if (!shareId) return;
+      if (!confirm('确认删除该照片？')) return;
+      try {
+        await photoApi.delete(shareId, photo.id);
+        album.value.photos.splice(idx, 1);
+        MessagePlugin.success('已删除');
+        pswp.close();
+      } catch (e) {
+        MessagePlugin.error((e as Error).message || '删除失败');
+      }
+    },
+  });
+}
+
 /** PhotoSwipe 大图查看时顶部「保存到相册 / 下载」按钮 */
 function attachSavePhotoButton(pswp: PhotoSwipe) {
   pswp.ui!.registerElement({
@@ -217,7 +251,10 @@ function initLightbox() {
     closeOnVerticalDrag: true,
   });
   lightbox.on('uiRegister', () => {
-    if (lightbox?.pswp) attachSavePhotoButton(lightbox.pswp);
+    if (lightbox?.pswp) {
+      attachSavePhotoButton(lightbox.pswp);
+      attachDeletePhotoButton(lightbox.pswp);
+    }
   });
   lightbox.init();
 }
