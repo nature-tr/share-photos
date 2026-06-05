@@ -128,13 +128,13 @@ async function handleLoadMore() {
 
 async function handleOwnerUpload() {
   if (!isOwner.value || !album.value) return;
-  uploadingMore.value = true;
   const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
   input.accept = 'image/*';
   input.onchange = async () => {
-    if (!input.files) return;
+    if (!input.files || input.files.length === 0) return;
+    uploadingMore.value = true;
     const shareId = (album.value as any).id;
     let done = 0, failed = 0;
     for (const f of Array.from(input.files)) {
@@ -145,15 +145,17 @@ async function handleOwnerUpload() {
     }
     uploadingMore.value = false;
     MessagePlugin.success(`完成 ${done}${failed ? `，失败 ${failed}` : ''}`);
-    // 重新加载首页
-    if (album.value) {
-      const fresh = await shareApi.getByCode(props.code, 1, PAGE);
+    const fresh = await shareApi.getByCode(props.code, 1, PAGE);
+    if (fresh) {
       album.value = fresh;
       page.value = 1;
       hasMore.value = (fresh as any).hasMore ?? false;
     }
   };
   input.click();
+  // 清理：取消文件选择时移除
+  const cleanup = () => { input.remove(); window.removeEventListener('focus', cleanup); };
+  window.addEventListener('focus', cleanup);
 }
 
 async function handleJoin() {

@@ -29,10 +29,10 @@ export const shareApi = {
     return request<void>(`/api/shares/${shareId}`, { method: 'DELETE' });
   },
 
-  // 凭码访问（公开）
+  // 凭码访问（公开，可选认证以获取 isOwner）
   getByCode(code: string, page?: number, pageSize?: number) {
     const params = page ? `?page=${page}&pageSize=${pageSize ?? 50}` : '';
-    return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}${params}`, { auth: false });
+    return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}${params}`, { auth: true });
   },
 
   // ─── 贡献者 ───
