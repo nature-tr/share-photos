@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
-import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
+import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
@@ -230,6 +230,27 @@ export default function ViewerPage() {
   /** 点击网格中的图片 → 打开预览 */
   function openPreview(index: number) {
     setPreviewIdx(index);
+  }
+
+  /** 在预览弹窗中删除当前图片 */
+  async function deleteCurrent(photoId: string) {
+    if (!album) return;
+    Taro.showModal({
+      title: '删除照片',
+      content: '确认从该分享中移除此照片？',
+      confirmColor: '#ef4444',
+      success: async (m) => {
+        if (!m.confirm) return;
+        try {
+          await deletePhoto(album!.id, photoId);
+          setAlbum((prev) => prev ? { ...prev, photos: prev.photos.filter((p) => p.id !== photoId) } : prev);
+          setPreviewIdx(null);
+          Taro.showToast({ title: '已删除', icon: 'success' });
+        } catch {
+          Taro.showToast({ title: '删除失败', icon: 'none' });
+        }
+      },
+    });
   }
 
   /** 在预览弹窗中保存当前图片到相册 */
@@ -461,6 +482,7 @@ export default function ViewerPage() {
           startIdx={previewIdx}
           onClose={() => setPreviewIdx(null)}
           onSave={(photoId) => saveCurrent(photoId)}
+          onDelete={user ? (photoId) => deleteCurrent(photoId) : undefined}
         />
       )}
     </View>
@@ -480,12 +502,14 @@ function PreviewModal({
   startIdx,
   onClose,
   onSave,
+  onDelete,
 }: {
   photos: PhotoMeta[];
   code: string;
   startIdx: number;
   onClose: () => void;
   onSave: (photoId: string) => void;
+  onDelete?: (photoId: string) => void;
 }) {
   const [current, setCurrent] = useState(startIdx);
 
@@ -512,6 +536,11 @@ function PreviewModal({
         >
           <Text className="preview-save-text">保存</Text>
         </View>
+        {onDelete && (
+          <View className="preview-delete" onClick={() => onDelete(photos[current]?.id)}>
+            <Text className="preview-delete-text">删除</Text>
+          </View>
+        )}
       </View>
 
       {/* 图片轮播 */}

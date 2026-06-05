@@ -88,3 +88,16 @@ export async function reviewContributor(shareId: string, userId: string, action:
     body: { action },
   });
 }
+
+/** 删除照片 */
+export async function deletePhoto(shareId: string, photoId: string) {
+  return api<void>(`/api/shares/${shareId}/photos/${photoId}`, { method: 'DELETE' });
+}
+
+/** 批量删除照片 */
+export async function deletePhotos(shareId: string, photoIds: string[]) {
+  return api<void>(`/api/shares/${shareId}/photos/batch-delete`, {
+    method: 'POST',
+    body: { photoIds },
+  });
+}
