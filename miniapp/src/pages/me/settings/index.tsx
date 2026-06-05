@@ -44,7 +44,7 @@ export default function SettingsPage() {
           <Text className="info-value">v0.1.0</Text>
         </View>
         <View className="info-row">
-          <Text className="info-label">Dolmo Photo</Text>
+          <Text className="info-label">格子橱窗</Text>
           <Text className="info-value">限时分享相册</Text>
         </View>
       </View>

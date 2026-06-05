@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Dolmo Photo",
-    "slug": "dolmo-photo",
+    "name": "格子橱窗",
+    "slug": "gezi-chuchuang",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "dolmophoto",
@@ -10,7 +10,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "top.dolmo.photo",
+      "bundleIdentifier": "top.gezi-chuchuang",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "需要相机权限用于扫描分享码二维码",
@@ -25,7 +25,7 @@
         "backgroundImage": "./assets/adaptive-icon-bg.png",
         "backgroundColor": "#00000000"
       },
-      "package": "top.dolmo.photo",
+      "package": "top.gezi-chuchuang",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

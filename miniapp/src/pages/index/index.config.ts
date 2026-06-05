@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Dolmo Photo',
+  navigationBarTitleText: '格子橱窗',
 });

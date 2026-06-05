@@ -202,7 +202,7 @@ export default function ViewerScreen() {
               if (err instanceof PermissionDeniedError) {
                 Alert.alert(
                   '需要相册权限',
-                  '请在 设置 → Dolmo Photo → 照片 中允许访问，否则无法保存图片到相册。',
+                  '请在 设置 → 格子橱窗 → 照片 中允许访问，否则无法保存图片到相册。',
                 );
               } else {
                 Alert.alert('保存失败', (err as Error).message);

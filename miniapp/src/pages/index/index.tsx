@@ -30,7 +30,7 @@ export default function IndexPage() {
     <View className="page-root">
       {/* 顶栏：左 logo，右 新建/我的/用户chip+退出 */}
       <View className="top-bar">
-        <Text className="top-logo">Dolmo Photo</Text>
+        <Text className="top-logo">格子橱窗</Text>
         <View className="top-actions">
           {user ? (
             <>
@@ -62,7 +62,7 @@ export default function IndexPage() {
         <View className="logo-box">
           <Image src={logoImg} className="logo-img" mode="aspectFit" />
         </View>
-        <Text className="app-title">Dolmo Photo</Text>
+        <Text className="app-title">格子橱窗</Text>
         <Text className="app-subtitle">限时分享相册 · 一键存到手机相册</Text>
       </View>
 
@@ -127,7 +127,7 @@ export default function IndexPage() {
       )}
 
       <View style={{ height: '64rpx' }} />
-      <Text className="footer-text">Dolmo Photo · v0.1</Text>
+      <Text className="footer-text">格子橱窗 · v0.1</Text>
     </View>
   );
 }

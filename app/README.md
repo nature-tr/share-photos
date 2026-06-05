@@ -1,4 +1,4 @@
-# Dolmo Photo App
+# 格子橱窗 App
 
 React Native + Expo 实现的移动 App。**核心功能**：扫二维码 / 粘贴分享码 → 看相册 → **一键全部保存到手机相册**（这是网页版做不到的）。
 

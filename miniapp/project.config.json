@@ -1,7 +1,7 @@
 {
   "miniprogramRoot": "dist/",
-  "projectname": "dolmo-photo-miniapp",
-  "description": "Dolmo Photo - 限时分享相册",
+  "projectname": "gezi-chuchuang-miniapp",
+  "description": "格子橱窗 - 限时分享相册",
   "appid": "wx053fa37a9b4f09ad",
   "setting": {
     "urlCheck": true,

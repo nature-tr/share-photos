@@ -1,5 +1,5 @@
 /**
- * Dolmo Photo 设计系统 token
+ * 格子橱窗 设计系统 token
  * 设计语言：克制、轻量、克莱因蓝主色 + 充足留白；与 web 端保持视觉一致。
  */
 import { Platform } from 'react-native';

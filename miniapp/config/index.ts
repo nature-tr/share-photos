@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 const config = {
-  projectName: 'dolmo-photo-miniapp',
+  projectName: 'gezi-chuchuang-miniapp',
   date: '2026-6-5',
   designWidth: 375,
   deviceRatio: {

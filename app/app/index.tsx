@@ -98,7 +98,7 @@ export default function HomeScreen() {
                 contentFit="contain"
               />
             </View>
-            <Text style={s.title}>Dolmo Photo</Text>
+            <Text style={s.title}>格子橱窗</Text>
             <Text style={s.subtitle}>限时分享相册 · 一键存到手机相册</Text>
           </View>
 
@@ -176,7 +176,7 @@ export default function HomeScreen() {
           )}
 
           <View style={{ height: space.xl }} />
-          <Text style={s.footer}>Dolmo Photo · v0.1</Text>
+          <Text style={s.footer}>格子橱窗 · v0.1</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

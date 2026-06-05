@@ -5,8 +5,8 @@
 
 ## 下载 📱
 
-Android APK（v0.1.0，约 42 MB）：**[dolmo-photo-v0.1.0.apk](https://www.dolmo.top/dolmo-photo-v0.1.0.apk)**
-Latest：**[dolmo-photo.apk](https://www.dolmo.top/dolmo-photo.apk)**
+Android APK（v0.1.0，约 42 MB）：**[gezi-chuchuang-v0.1.0.apk](https://www.dolmo.top/gezi-chuchuang-v0.1.0.apk)**
+Latest：**[gezi-chuchuang.apk](https://www.dolmo.top/gezi-chuchuang.apk)**
 
 ## 技术栈
 

@@ -1,5 +1,5 @@
 /**
- * Dolmo Photo 设计 token — 与 Expo App 完全对齐
+ * 格子橱窗 设计 token — 与 Expo App 完全对齐
  * 小程序用 rpx：1dp ≈ 2rpx
  */
 export const colors = {

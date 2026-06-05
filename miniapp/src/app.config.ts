@@ -12,7 +12,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'dark',
     navigationBarBackgroundColor: '#ffffff',
-    navigationBarTitleText: 'Dolmo Photo',
+    navigationBarTitleText: '格子橱窗',
     navigationBarTextStyle: 'black',
     backgroundColor: '#f5f7fa',
   },
