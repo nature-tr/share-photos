@@ -38,6 +38,8 @@ export default function ViewerPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
   const scrollTopRef = useRef(0);
+  const lastScrollTargetRef = useRef(0);
+  const scrolledOnceRef = useRef(false);
   const PAGE_SIZE = 50;
 
   useLoad((options) => {
@@ -50,9 +52,10 @@ export default function ViewerPage() {
     let cancelled = false;
     setLoading(true);
     setPage(1);
+    scrolledOnceRef.current = false;
+    lastScrollTargetRef.current = 0;
     (async () => {
       try {
-        // 1. 加载第一页
         const firstRes = await getViewerShare(code, 1, PAGE_SIZE);
         if (cancelled) return;
         if (!firstRes.data) {
@@ -66,9 +69,13 @@ export default function ViewerPage() {
         let currentPage = 1;
         let hasMorePages = (firstRes.data as any).hasMore ?? false;
 
-        // 2. 恢复上次位置：自动加载到上次所在页
         const { photoCount: lastPhotoCount, scrollTop: lastScrollTop } = getLastPosition(code);
-        const needPages = Math.min(Math.ceil(Math.max(lastPhotoCount, allPhotos.length) / PAGE_SIZE), Math.ceil(totalPhotos / PAGE_SIZE));
+        console.log('[scroll] restore plan', { code, lastPhotoCount, lastScrollTop, totalPhotos });
+        lastScrollTargetRef.current = lastScrollTop;
+        const needPages = Math.min(
+          Math.ceil(Math.max(lastPhotoCount, allPhotos.length) / PAGE_SIZE),
+          Math.ceil(totalPhotos / PAGE_SIZE),
+        );
 
         for (let pg = 2; pg <= needPages; pg++) {
           const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
@@ -82,25 +89,12 @@ export default function ViewerPage() {
         }
 
         if (cancelled) return;
-        // 一次性设置完整数据
         setAlbum({ ...firstData, photos: allPhotos } as ShareDetail);
         setPage(currentPage);
         setHasMore(hasMorePages);
         setIsOwner((firstRes.data as any).isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
-        // 3. 滚动恢复：nextTick 等 DOM 更新后多次重试
-        if (lastScrollTop > 0) {
-          Taro.nextTick(() => {
-            [200, 500, 900, 1400].forEach((delay) => {
-              setTimeout(() => {
-                Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 0 });
-              }, delay);
-            });
-          });
-        }
-
-        // 检测贡献者状态
         const contributors: ContributorInfo[] = (firstRes.data as any).contributors ?? [];
         if (user && contributors.length > 0) {
           const me = contributors.find((c: ContributorInfo) => c.userId === user.id);
@@ -115,22 +109,31 @@ export default function ViewerPage() {
     return () => { cancelled = true; };
   }, [code, user]);
 
-  // 离开页面时保存浏览位置（真实滚动高度 + 已加载照片数）
-  useDidHide(() => {
-    if (!album) return;
-    // 直接从 DOM 查询真实滚动位置，比 ref 更可靠
-    Taro.createSelectorQuery()
-      .selectViewport()
-      .scrollOffset()
-      .exec((res) => {
-        const realScrollTop = res?.[0]?.scrollTop ?? scrollTopRef.current;
-        updateLastPosition(code, album.photos.length, realScrollTop);
+  // ── 滚动恢复：用 useEffect 监听 !loading && album，DOM 已提交后执行 ──
+  useEffect(() => {
+    if (!loading && album && lastScrollTargetRef.current > 0 && !scrolledOnceRef.current) {
+      scrolledOnceRef.current = true;
+      const target = lastScrollTargetRef.current;
+      console.log('[scroll] fire pageScrollTo', target);
+      [100, 300, 600, 1000, 1500].forEach((delay) => {
+        setTimeout(() => {
+          Taro.pageScrollTo({ scrollTop: target, duration: 0 });
+        }, delay);
       });
-  });
+    }
+  }, [loading, album]);
 
-  // 实时跟踪滚动位置（作为 fallback）
+  // ── 实时跟踪滚动位置 ──
   usePageScroll((e) => {
     scrollTopRef.current = e.scrollTop;
+  });
+
+  // ── 离开页面保存位置 ──
+  useDidHide(() => {
+    if (!album) return;
+    const saved = scrollTopRef.current;
+    updateLastPosition(code, album.photos.length, saved);
+    console.log('[scroll] save', { code, photos: album.photos.length, scrollTop: saved });
   });
 
   /** 加载更多照片 */
