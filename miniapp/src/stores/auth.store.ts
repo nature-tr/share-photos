@@ -17,7 +17,7 @@ interface AuthState {
   getAccessToken: () => Promise<string | null>;
 }
 
-/** 直接从 storage 读取 user，不走 zustand 订阅链 */
+/** 直接从 storage 读取 user，绕过 zustand 订阅时序问题 */
 export function getUserFromStorage(): UserDTO | null {
   try {
     const raw = Taro.getStorageSync(STORAGE_KEY_USER);
@@ -27,7 +27,6 @@ export function getUserFromStorage(): UserDTO | null {
   } catch { return null; }
 }
 
-/** 还原：什么都不做，只写 zustand */
 function restoreToStore(set: (s: Partial<AuthState>) => void) {
   const u = getUserFromStorage();
   const t = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
@@ -37,6 +36,7 @@ function restoreToStore(set: (s: Partial<AuthState>) => void) {
 function persistUser(user: UserDTO) {
   Taro.setStorageSync(STORAGE_KEY_USER, JSON.stringify(user));
 }
+
 function clearPersist() {
   Taro.removeStorageSync(STORAGE_KEY_TOKEN);
   Taro.removeStorageSync(STORAGE_KEY_REFRESH);
@@ -81,7 +81,6 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
-    // 先把 storage 里的值灌到 store
     restoreToStore(set);
 
     const token = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
@@ -94,8 +93,9 @@ export const useAuth = create<AuthState>((set, get) => ({
         method: 'GET',
         header: { Authorization: `Bearer ${token}` },
       });
-      if (me.statusCode === 200 && me.data?.data?.user) {
-        set({ user: me.data.data.user, accessToken: token });
+      const meUser = me.data?.data as UserDTO | undefined;
+      if (me.statusCode === 200 && meUser?.id) {
+        set({ user: meUser, accessToken: token });
         return;
       }
     } catch { return; }
@@ -114,13 +114,14 @@ export const useAuth = create<AuthState>((set, get) => ({
         method: 'GET',
         header: { Authorization: `Bearer ${freshToken}` },
       });
-      if (me2.statusCode === 200 && me2.data?.data?.user) {
-        set({ user: me2.data.data.user, accessToken: freshToken });
+      const me2User = me2.data?.data as UserDTO | undefined;
+      if (me2.statusCode === 200 && me2User?.id) {
+        set({ user: me2User, accessToken: freshToken });
       } else {
         clearPersist();
         set({ user: null, accessToken: null });
       }
-    } catch { /* 网络错不清除 */ }
+    } catch { /* 网络错误不清除 */ }
   },
 
   getAccessToken: async () => {
