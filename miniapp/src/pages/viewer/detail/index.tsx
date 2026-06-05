@@ -124,16 +124,24 @@ export default function ViewerPage() {
     }
   }, [loading, album]);
 
-  // ── 跟踪滚动位置（忽略退出时清零事件）──
+  // ── 跟踪滚动位置 + 防抖保存（useDidHide 单独取 ref 不可靠）──
+  const saveDebounce = useRef(0);
   usePageScroll((e) => {
-    if (e.scrollTop > 0) scrollTopRef.current = e.scrollTop;
+    if (e.scrollTop === 0) return;
+    scrollTopRef.current = e.scrollTop;
+    if (!album) return;
+    clearTimeout(saveDebounce.current);
+    saveDebounce.current = setTimeout(() => {
+      updateLastPosition(code, album.photos.length, e.scrollTop);
+    }, 1000) as unknown as number;
   });
 
-  // ── 离开页面时保存 ──
+  // ── 离开页面前立即写入 ──
   useDidHide(() => {
     if (!album) return;
-    const saved = scrollTopRef.current;
-    if (saved > 0) updateLastPosition(code, album.photos.length, saved);
+    clearTimeout(saveDebounce.current);
+    const top = scrollTopRef.current;
+    if (top > 0) updateLastPosition(code, album.photos.length, top);
   });
 
   /** 加载更多照片 */
