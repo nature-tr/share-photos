@@ -124,15 +124,15 @@ export default function ViewerPage() {
     }
   }, [loading, album]);
 
-  // ── 跟踪滚动位置 ──
+  // ── 跟踪滚动位置（忽略退出时清零事件）──
   usePageScroll((e) => {
-    scrollTopRef.current = e.scrollTop;
+    if (e.scrollTop > 0) scrollTopRef.current = e.scrollTop;
   });
 
-  // ── 离开页面时保存当前滚动位置 ──
+  // ── 离开页面时保存 ──
   useDidHide(() => {
     if (!album) return;
-    const saved = scrollTopRef.current || 0;
+    const saved = scrollTopRef.current;
     if (saved > 0) updateLastPosition(code, album.photos.length, saved);
   });
 
