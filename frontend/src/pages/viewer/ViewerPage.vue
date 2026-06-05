@@ -13,6 +13,7 @@ import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/com
 import { saveImage } from '@/utils/download';
 import { copyText } from '@/utils/clipboard';
 import { useAuthStore } from '@/stores/auth.store';
+import ShareQrDialog from '@/components/ShareQrDialog.vue';
 
 const props = defineProps<{ code: string }>();
 const router = useRouter();
@@ -40,6 +41,7 @@ const wechatTipDismissed = ref(false);
 
 // 贡献者
 const joinStatus = ref<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
+const qrVisible = ref(false);
 
 const acceptedContributors = computed(() => {
   if (!album.value?.contributors) return [];
@@ -317,6 +319,9 @@ async function copyShareLink() {
           <button class="icon-btn" @click="copyShareLink" aria-label="复制链接">
             <span class="i-tdesign:share text-20px"></span>
           </button>
+          <button v-if="album" class="icon-btn" @click="qrVisible = true" aria-label="二维码">
+            <span class="i-tdesign:qrcode text-20px"></span>
+          </button>
           <t-button
             v-if="album && album.photos.length > 0"
             theme="primary"
@@ -463,6 +468,8 @@ async function copyShareLink() {
         </div>
       </t-loading>
     </main>
+
+    <ShareQrDialog v-if="album" v-model:visible="qrVisible" :code="album.code" :title="album.title || '未命名相册'" />
   </div>
 </template>
 

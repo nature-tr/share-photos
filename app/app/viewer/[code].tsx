@@ -51,6 +51,7 @@ export default function ViewerScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
   const scrollYRef = useRef(0);
   const savedScrollRef = useRef(0);
 
@@ -246,6 +247,11 @@ export default function ViewerScreen() {
           </Text>
         )}
       </View>
+      {album && (
+        <Pressable style={s.navQr} onPress={() => setQrVisible(true)} hitSlop={8}>
+          <Text style={s.navQrText}>QR</Text>
+        </Pressable>
+      )}
     </View>
   );
 
@@ -463,6 +469,9 @@ export default function ViewerScreen() {
         </View>
       )}
 
+      {/* QR 码弹层 */}
+      <ShareQrSheet visible={qrVisible} code={album.code} title={album.title || '未命名相册'} onClose={() => setQrVisible(false)} />
+
       {/* 大图预览 */}
       {previewIdx !== null && (
         <PreviewModal
@@ -586,6 +595,8 @@ const s = StyleSheet.create({
   navTitle: { ...font.h3, color: colors.text1 },
   navSub: { ...font.caption, color: colors.text3, marginTop: 1 },
   navCode: { color: colors.primary, fontWeight: '700', letterSpacing: 1 },
+  navQr: { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.primarySoft, borderRadius: radius.full },
+  navQrText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
 
   addBtn: {
     paddingHorizontal: 12,

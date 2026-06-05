@@ -4,6 +4,7 @@ import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
+import QrSheet from '@/components/QrSheet';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
@@ -37,6 +38,7 @@ export default function ViewerPage() {
   const [hasMore, setHasMore] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
   const scrollTopRef = useRef(0);
   const lastScrollTargetRef = useRef(0);
   const scrolledOnceRef = useRef(false);
@@ -319,6 +321,9 @@ export default function ViewerPage() {
             <Text> · {photos.length} 张 · 剩余 {formatRemaining(album.expiresAt - now)}</Text>
           </Text>
         </View>
+        <View className="nav-qr" onClick={() => setQrVisible(true)}>
+          <Text className="nav-qr-text">QR</Text>
+        </View>
       </View>
 
       {/* 操作条 */}
@@ -444,6 +449,9 @@ export default function ViewerPage() {
           <Text className="expired-text">该分享已过期，图片已不可下载</Text>
         </View>
       )}
+
+      {/* QR 码弹层 */}
+      <QrSheet visible={qrVisible} code={album.code} title={album.title || '未命名相册'} onClose={() => setQrVisible(false)} />
 
       {/* 大图预览弹窗 */}
       {previewIdx !== null && photos.length > 0 && (
