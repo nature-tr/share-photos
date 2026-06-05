@@ -32,6 +32,11 @@ try {
   sqlite.exec(`ALTER TABLE photos ADD COLUMN uploaded_by TEXT REFERENCES users(id)`);
 } catch { /* 列已存在 */ }
 
+// 添加 exif 列
+try {
+  sqlite.exec(`ALTER TABLE photos ADD COLUMN exif TEXT`);
+} catch { /* 列已存在 */ }
+
 export const db = drizzle(sqlite, { schema });
 export const rawDb = sqlite;
 export { schema };

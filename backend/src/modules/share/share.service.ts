@@ -37,6 +37,8 @@ function toPhotoMeta(p: typeof photos.$inferSelect): PhotoMeta {
     height: p.height,
     sizeBytes: p.sizeBytes,
     uploadedAs: p.uploadedAs,
+    uploadedBy: p.uploadedBy,
+    exif: p.exif ? (() => { try { return JSON.parse(p.exif); } catch { return null; } })() : null,
     createdAt: p.createdAt,
   };
 }

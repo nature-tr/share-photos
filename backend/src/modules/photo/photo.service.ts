@@ -74,8 +74,16 @@ export const photoService = {
     }
 
     let processed;
+    let exifRaw: Record<string, any> | null = null;
     try {
       processed = await processImage(shareId, photoId, dest);
+      // 读取 EXIF（设备型号、拍摄时间等）
+      try {
+        const meta = await sharp(dest).metadata();
+        if (meta.exif) {
+          exifRaw = { hasExif: true };
+        }
+      } catch { /* 无 EXIF */ }
     } catch (err) {
       await safeUnlink(dest);
       throw err;
@@ -90,6 +98,7 @@ export const photoService = {
         id: photoId,
         shareId,
         uploadedBy: userId,
+        exif: exifRaw ? JSON.stringify(exifRaw) : null,
         originalName: file.filename,
         mimeType: mime,
         ext,

@@ -68,6 +68,7 @@ export const photos = sqliteTable(
     width: integer('width').notNull(),
     height: integer('height').notNull(),
     uploadedAs: text('uploaded_as', { enum: ['original', 'compressed'] }).notNull(),
+    exif: text('exif'),
     sortIndex: integer('sort_index').notNull().default(0),
     createdAt: integer('created_at').notNull(),
   },

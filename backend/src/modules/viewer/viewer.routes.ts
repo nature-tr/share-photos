@@ -133,6 +133,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
         sizeBytes: p.sizeBytes,
         uploadedAs: p.uploadedAs,
         uploadedBy: p.uploadedBy,
+        exif: p.exif ? (() => { try { return JSON.parse(p.exif); } catch { return null; } })() : null,
         createdAt: p.createdAt,
       })),
       contributors: contributorList,

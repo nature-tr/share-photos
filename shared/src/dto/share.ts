@@ -13,6 +13,7 @@ export interface PhotoMeta {
   uploadedAs: UploadedAs;
   uploadedBy?: string | null;
   uploadedByName?: string | null;
+  exif?: Record<string, any> | null;
   createdAt: number;
 }
 
