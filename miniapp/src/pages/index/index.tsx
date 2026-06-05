@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { useAuth } from '@/stores/auth.store';
+import { useAuth, getUserFromStorage } from '@/stores/auth.store';
 import { getHistory } from '@/utils/history';
 import {
   iconAdd,
@@ -17,8 +17,11 @@ import './index.scss';
 interface HistoryItem { code: string; title: string; lastViewedAt: number; photoCount: number }
 
 export default function IndexPage() {
-  const user = useAuth((s) => s.user);
+  const storeUser = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+  // 首次渲染直接读 storage 保底，后续以 zustand 为准
+  const [storageUser] = useState(() => getUserFromStorage());
+  const user = storeUser ?? storageUser;
   const [code, setCode] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
 

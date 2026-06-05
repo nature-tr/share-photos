@@ -17,24 +17,26 @@ interface AuthState {
   getAccessToken: () => Promise<string | null>;
 }
 
+/** 直接从 storage 读取 user，不走 zustand 订阅链 */
+export function getUserFromStorage(): UserDTO | null {
+  try {
+    const raw = Taro.getStorageSync(STORAGE_KEY_USER);
+    if (!raw) return null;
+    const u = JSON.parse(raw) as UserDTO;
+    return u?.id ? u : null;
+  } catch { return null; }
+}
+
+/** 还原：什么都不做，只写 zustand */
+function restoreToStore(set: (s: Partial<AuthState>) => void) {
+  const u = getUserFromStorage();
+  const t = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
+  if (u && t) set({ user: u, accessToken: t });
+}
+
 function persistUser(user: UserDTO) {
   Taro.setStorageSync(STORAGE_KEY_USER, JSON.stringify(user));
 }
-
-/** 从 storage 同步恢复用户信息 */
-export function tryRestoreSession(): { user: UserDTO | null; token: string | null } {
-  try {
-    const token = Taro.getStorageSync(STORAGE_KEY_TOKEN);
-    const raw = Taro.getStorageSync(STORAGE_KEY_USER);
-    if (!token || !raw) return { user: null, token: null };
-    const user = JSON.parse(raw) as UserDTO;
-    if (!user || !user.id || !user.email) return { user: null, token: null };
-    return { user, token };
-  } catch {
-    return { user: null, token: null };
-  }
-}
-
 function clearPersist() {
   Taro.removeStorageSync(STORAGE_KEY_TOKEN);
   Taro.removeStorageSync(STORAGE_KEY_REFRESH);
@@ -42,17 +44,16 @@ function clearPersist() {
   Taro.removeStorageSync(STORAGE_KEY_USER);
 }
 
-async function silentRefresh(): Promise<{ accessToken: string; refreshToken: string } | null> {
+async function silentRefresh(): Promise<string | null> {
   const rt = Taro.getStorageSync(STORAGE_KEY_REFRESH) as string | null;
   if (!rt) return null;
   try {
-    const refreshRes = await refreshAccessToken(rt);
-    if (refreshRes.data) {
-      const d = refreshRes.data;
-      Taro.setStorageSync(STORAGE_KEY_TOKEN, d.accessToken);
-      Taro.setStorageSync(STORAGE_KEY_REFRESH, d.refreshToken);
-      if (d.refreshExpiresAt) Taro.setStorageSync(STORAGE_KEY_REFRESH_EXP, d.refreshExpiresAt);
-      return { accessToken: d.accessToken, refreshToken: d.refreshToken };
+    const r = await refreshAccessToken(rt);
+    if (r.data) {
+      Taro.setStorageSync(STORAGE_KEY_TOKEN, r.data.accessToken);
+      Taro.setStorageSync(STORAGE_KEY_REFRESH, r.data.refreshToken);
+      if (r.data.refreshExpiresAt) Taro.setStorageSync(STORAGE_KEY_REFRESH_EXP, r.data.refreshExpiresAt);
+      return r.data.accessToken;
     }
   } catch { /* ignore */ }
   return null;
@@ -80,71 +81,57 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
-    const { user, token } = tryRestoreSession();
+    // 先把 storage 里的值灌到 store
+    restoreToStore(set);
 
-    // 先在 store 中恢复本地已有的 session
-    if (user && token) {
-      set({ user, accessToken: token });
-    }
-
+    const token = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
     if (!token) return;
 
-    // 后台验证 /me
+    // 用 token 调 /me 验证
     try {
-      const meRes = await Taro.request({
+      const me = await Taro.request({
         url: `${API_BASE}/api/auth/me`,
         method: 'GET',
         header: { Authorization: `Bearer ${token}` },
       });
-      if (meRes.statusCode === 200 && meRes.data?.data?.user) {
-        set({ user: meRes.data.data.user, accessToken: token });
+      if (me.statusCode === 200 && me.data?.data?.user) {
+        set({ user: me.data.data.user, accessToken: token });
         return;
       }
     } catch { return; }
 
-    // /me 失败 → refresh
-    const fresh = await silentRefresh();
-    if (!fresh) {
+    // 过期 → refresh
+    const freshToken = await silentRefresh();
+    if (!freshToken) {
       clearPersist();
       set({ user: null, accessToken: null });
       return;
     }
 
-    // 新 token 再试 /me
     try {
-      const meRes2 = await Taro.request({
+      const me2 = await Taro.request({
         url: `${API_BASE}/api/auth/me`,
         method: 'GET',
-        header: { Authorization: `Bearer ${fresh.accessToken}` },
+        header: { Authorization: `Bearer ${freshToken}` },
       });
-      if (meRes2.statusCode === 200 && meRes2.data?.data?.user) {
-        set({ user: meRes2.data.data.user, accessToken: fresh.accessToken });
+      if (me2.statusCode === 200 && me2.data?.data?.user) {
+        set({ user: me2.data.data.user, accessToken: freshToken });
       } else {
         clearPersist();
         set({ user: null, accessToken: null });
       }
-    } catch { /* 网络错误不清除 */ }
+    } catch { /* 网络错不清除 */ }
   },
 
   getAccessToken: async () => {
     const token = get().accessToken;
     if (token) return token;
-
     const cached = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
-    if (cached) {
-      set({ accessToken: cached });
-      return cached;
-    }
-
-    const fresh = await silentRefresh();
-    if (fresh) {
-      set({ accessToken: fresh.accessToken });
-      return fresh.accessToken;
-    }
-
+    if (cached) { set({ accessToken: cached }); return cached; }
+    const ft = await silentRefresh();
+    if (ft) { set({ accessToken: ft }); return ft; }
     return null;
   },
 }));
 
-/** 后端 API 地址 */
 export const API_BASE = 'https://www.dolmo.top';

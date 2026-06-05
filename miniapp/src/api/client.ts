@@ -1,9 +1,11 @@
 import Taro from '@tarojs/taro';
 import { useAuth, API_BASE } from '@/stores/auth.store';
+import { refreshAccessToken } from './auth.api';
 
 /**
  * 小程序请求封装。
  * - 自动注入 Bearer token
+ * - 401 时自动用 refresh token 刷新（带正确的 body）
  * - 返回 { data, error } 统一格式
  */
 export async function api<T = any>(
@@ -52,18 +54,16 @@ export async function api<T = any>(
       return { data: payload.data ?? payload };
     }
 
-    // 401 → 尝试刷新 token 后重试一次
-    if (res.statusCode === 401) {
-      try {
-        const refreshRes = await Taro.request({
-          url: `${API_BASE}/api/auth/refresh`,
-          method: 'POST',
-        });
-        if (refreshRes.statusCode === 200) {
-          const newToken = (refreshRes.data as any)?.data?.accessToken;
+    // 401 → 用本地 refreshToken 刷新一次后重试（避免错误清空 storage）
+    if (res.statusCode === 401 && path !== '/api/auth/refresh' && path !== '/api/auth/me') {
+      const rt = Taro.getStorageSync('refresh_token') as string | null;
+      if (rt) {
+        try {
+          const refreshRes = await refreshAccessToken(rt);
+          const newToken = refreshRes.data?.accessToken;
           if (newToken) {
+            // 更新 store 与 storage（refreshAccessToken 内部已写 storage）
             useAuth.setState({ accessToken: newToken });
-            Taro.setStorageSync('access_token', newToken);
             header['Authorization'] = `Bearer ${newToken}`;
             const retryRes = await Taro.request({
               url: `${API_BASE}${path}`,
@@ -75,12 +75,12 @@ export async function api<T = any>(
               const payload = retryRes.data as any;
               return { data: payload.data ?? payload };
             }
+            // 重试还失败 → 走下面 errPayload 流程，但不清空登录态
           }
+        } catch {
+          /* refresh 失败也不清空，由 checkAuth 决策 */
         }
-      } catch {
-        // refresh 失败，往下走
       }
-      useAuth.getState().logout();
     }
 
     const errPayload = res.data as any;
