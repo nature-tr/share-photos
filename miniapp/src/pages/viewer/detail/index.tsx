@@ -123,17 +123,29 @@ export default function ViewerPage() {
     }
   }, [loading, album]);
 
-  // ── 实时跟踪滚动位置 ──
+  // ── 实时跟踪 + 即存滚动位置 ──
+  const saveScrollTimer = useRef(0);
   usePageScroll((e) => {
     scrollTopRef.current = e.scrollTop;
+    // 滚动时立即 debounce 保存，不等到离开页面
+    if (e.scrollTop > 0 && album) {
+      clearTimeout(saveScrollTimer.current);
+      saveScrollTimer.current = setTimeout(() => {
+        updateLastPosition(code, album.photos.length, e.scrollTop);
+        console.log('[scroll] auto-save', { code, scrollTop: e.scrollTop, photos: album.photos.length });
+      }, 500) as unknown as number;
+    }
   });
 
-  // ── 离开页面保存位置 ──
+  // ── 离开页面最后一次保存 ──
   useDidHide(() => {
     if (!album) return;
-    const saved = scrollTopRef.current;
-    updateLastPosition(code, album.photos.length, saved);
-    console.log('[scroll] save', { code, photos: album.photos.length, scrollTop: saved });
+    clearTimeout(saveScrollTimer.current);
+    const saved = scrollTopRef.current || 0;
+    if (saved > 0) {
+      updateLastPosition(code, album.photos.length, saved);
+      console.log('[scroll] didHide save', { code, scrollTop: saved, photos: album.photos.length });
+    }
   });
 
   /** 加载更多照片 */
