@@ -36,18 +36,22 @@ export function addBrowsingHistory(code: string, title: string, photoCount: numb
   });
 }
 
-/** 更新最后看到的照片位置（页面离开时调用） */
-export function updateLastPosition(code: string, photoIndex: number) {
+/** 更新最后浏览位置（页面离开时调用，记录已加载照片数 + 滚动高度） */
+export function updateLastPosition(code: string, photoCount: number, scrollTop: number) {
   const list = getHistory();
   const item = list.find((h) => h.code === code);
   if (item) {
-    item.lastPhotoIndex = photoIndex;
+    item.lastPhotoIndex = photoCount;
+    (item as any).scrollTop = scrollTop;
     Taro.setStorageSync('browse_history', JSON.stringify(list));
   }
 }
 
-/** 获取某个分享上次看到的照片位置 */
-export function getLastPosition(code: string): number {
+/** 获取某个分享上次的浏览位置信息 */
+export function getLastPosition(code: string): { photoCount: number; scrollTop: number } {
   const item = getHistory().find((h) => h.code === code);
-  return item?.lastPhotoIndex ?? 0;
+  return {
+    photoCount: item?.lastPhotoIndex ?? 0,
+    scrollTop: (item as any)?.scrollTop ?? 0,
+  };
 }

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
-import Taro, { useLoad, useDidHide } from '@tarojs/taro';
+import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
@@ -37,6 +37,7 @@ export default function ViewerPage() {
   const [hasMore, setHasMore] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
+  const scrollTopRef = useRef(0);
   const PAGE_SIZE = 50;
 
   useLoad((options) => {
@@ -66,8 +67,8 @@ export default function ViewerPage() {
         let hasMorePages = (firstRes.data as any).hasMore ?? false;
 
         // 2. 恢复上次位置：自动加载到上次所在页
-        const lastPos = getLastPosition(code);
-        const needPages = Math.min(Math.ceil(Math.max(lastPos, allPhotos.length) / PAGE_SIZE), Math.ceil(totalPhotos / PAGE_SIZE));
+        const { photoCount: lastPhotoCount, scrollTop: lastScrollTop } = getLastPosition(code);
+        const needPages = Math.min(Math.ceil(Math.max(lastPhotoCount, allPhotos.length) / PAGE_SIZE), Math.ceil(totalPhotos / PAGE_SIZE));
 
         for (let pg = 2; pg <= needPages; pg++) {
           const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
@@ -88,6 +89,13 @@ export default function ViewerPage() {
         setIsOwner((firstRes.data as any).isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
+        // 3. 恢复滚动位置
+        if (lastScrollTop > 0) {
+          setTimeout(() => {
+            Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 0 });
+          }, 300);  // 等渲染完再滚动
+        }
+
         // 检测贡献者状态
         const contributors: ContributorInfo[] = (firstRes.data as any).contributors ?? [];
         if (user && contributors.length > 0) {
@@ -103,11 +111,16 @@ export default function ViewerPage() {
     return () => { cancelled = true; };
   }, [code, user]);
 
-  // 离开页面时保存浏览位置
+  // 离开页面时保存浏览位置（已加载照片数 + 滚动高度）
   useDidHide(() => {
     if (album) {
-      updateLastPosition(code, album.photos.length);
+      updateLastPosition(code, album.photos.length, scrollTopRef.current);
     }
+  });
+
+  // 实时跟踪滚动位置
+  usePageScroll((e) => {
+    scrollTopRef.current = e.scrollTop;
   });
 
   /** 加载更多照片 */
