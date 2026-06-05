@@ -8,14 +8,16 @@ import 'photoswipe/style.css';
 import { shareApi, photoApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes } from '@photo/shared';
-import type { ViewerAlbum } from '@photo/shared';
+import type { ViewerAlbum, ContributorInfo } from '@photo/shared';
 import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/composables/useDevice';
 import { saveImage } from '@/utils/download';
 import { copyText } from '@/utils/clipboard';
+import { useAuth } from '@/stores/auth.store';
 
 const props = defineProps<{ code: string }>();
 const router = useRouter();
 const { isMobile } = useDevice();
+const auth = useAuth();
 
 const album = ref<ViewerAlbum | null>(null);
 const loading = ref(true);
@@ -28,6 +30,14 @@ const supportsShare = canShareFiles();
 const inWeChat = isWeChatBrowser();
 const inAppWebView = isInAppWebView();
 const wechatTipDismissed = ref(false);
+
+// 贡献者
+const joinStatus = ref<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
+
+const acceptedContributors = computed(() => {
+  if (!album.value?.contributors) return [];
+  return album.value.contributors.filter((c: ContributorInfo) => c.status === 'accepted');
+});
 
 const remaining = computed(() => {
   void tick.value;
@@ -51,11 +61,35 @@ async function load() {
   error.value = null;
   try {
     album.value = await shareApi.getByCode(props.code);
+    // 检查当前用户的贡献者状态
+    if (auth.user && album.value?.contributors) {
+      const me = album.value.contributors.find((c: ContributorInfo) => c.userId === auth.user!.id);
+      if (me) joinStatus.value = me.status as any;
+      else joinStatus.value = 'none';
+    }
   } catch (err) {
     if (err instanceof ApiException) error.value = err.message;
     else error.value = '加载失败';
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleJoin() {
+  if (!auth.user) {
+    MessagePlugin.warning('请先登录');
+    router.push({ name: 'login', query: { redirect: window.location.pathname } });
+    return;
+  }
+  joinStatus.value = 'loading';
+  try {
+    const res = await shareApi.requestJoin(props.code);
+    joinStatus.value = res.status as any;
+    MessagePlugin.success('申请已提交，等待创建者审核');
+  } catch (err) {
+    joinStatus.value = 'none';
+    if (err instanceof ApiException) MessagePlugin.error(err.message);
+    else MessagePlugin.error('申请失败');
   }
 }
 
@@ -240,6 +274,51 @@ async function copyShareLink() {
         </div>
 
         <div v-else-if="album">
+          <!-- 贡献者区域 + 申请按钮 -->
+          <div v-if="remaining" class="contrib-section">
+            <div v-if="acceptedContributors.length > 0" class="contrib-row">
+              <div
+                v-for="c in acceptedContributors.slice(0, 8)"
+                :key="c.userId"
+                class="contrib-avatar"
+                :title="c.displayName || c.email"
+              >
+                {{ (c.displayName || c.email).slice(0, 1).toUpperCase() }}
+              </div>
+              <span class="contrib-label">
+                {{ acceptedContributors.length }} 位贡献者
+              </span>
+            </div>
+            <div class="join-row">
+              <button
+                v-if="joinStatus === 'accepted'"
+                class="join-badge join-badge-accepted"
+                disabled
+              >
+                ✓ 已是贡献者，可上传照片参与分享
+              </button>
+              <button
+                v-else-if="joinStatus === 'pending'"
+                class="join-badge join-badge-pending"
+                disabled
+              >
+                ⏳ 申请审核中…
+              </button>
+              <div v-else-if="joinStatus === 'rejected'" class="join-badge join-badge-rejected">
+                <span>申请已被拒绝</span>
+                <button class="join-btn-sm" @click="handleJoin">重新申请</button>
+              </div>
+              <button
+                v-else
+                class="join-btn"
+                :disabled="joinStatus === 'loading'"
+                @click="handleJoin"
+              >
+                {{ joinStatus === 'loading' ? '申请中…' : '📷 申请加入成为贡献者' }}
+              </button>
+            </div>
+          </div>
+
           <!-- 单张保存的轻提示（移动端展示，避免用户找不到入口） -->
           <div v-if="isMobile && !inAppWebView" class="single-save-tip">
             <span class="i-tdesign:tips text-14px"></span>
@@ -408,6 +487,87 @@ async function copyShareLink() {
   margin-bottom: 10px;
   line-height: 1.5;
 }
+
+/* ─── 贡献者区域 ─── */
+.contrib-section {
+  margin-bottom: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  border: 1px solid var(--border-light);
+}
+.contrib-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.contrib-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: -8px;
+  border: 2px solid var(--surface);
+  flex-shrink: 0;
+}
+.contrib-label {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-left: 16px;
+}
+.join-row {
+  display: flex;
+}
+.join-btn {
+  flex: 1;
+  height: 40px;
+  background: var(--success);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.join-btn:hover { filter: brightness(1.1); }
+.join-btn:disabled { opacity: 0.7; cursor: default; }
+.join-badge {
+  flex: 1;
+  min-height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border: none;
+}
+.join-badge-accepted { background: rgba(16,185,129,0.08); color: var(--success); }
+.join-badge-pending { background: rgba(245,158,11,0.08); color: var(--warning); }
+.join-badge-rejected { background: rgba(239,68,68,0.06); color: var(--danger); }
+.join-btn-sm {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 4px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.join-btn-sm:hover { filter: brightness(1.1); }
 
 /* —— 网格 —— */
 .gallery {

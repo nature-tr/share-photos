@@ -1,4 +1,4 @@
-import type { CreateShareInput, ShareDetail, ShareSummary, ViewerAlbum } from '@photo/shared';
+import type { CreateShareInput, ShareDetail, ShareSummary, ViewerAlbum, ContributorInfo } from '@photo/shared';
 import { API_BASE_URL, request } from './client';
 
 export const shareApi = {
@@ -19,6 +19,23 @@ export const shareApi = {
   },
   getByCode(code: string) {
     return request<ViewerAlbum>(`/api/v/${code}`, { auth: false, autoRefresh: false });
+  },
+
+  // ─── 贡献者 ───
+  requestJoin(code: string) {
+    return request<ContributorInfo>(`/api/v/${code}/join`, { method: 'POST' });
+  },
+  getViewerContributors(code: string) {
+    return request<ContributorInfo[]>(`/api/v/${code}/contributors`, { auth: false, autoRefresh: false });
+  },
+  getShareContributors(shareId: string) {
+    return request<ContributorInfo[]>(`/api/shares/${shareId}/contributors`);
+  },
+  reviewContributor(shareId: string, userId: string, action: 'accepted' | 'rejected') {
+    return request<ContributorInfo>(`/api/shares/${shareId}/contributors/${userId}`, {
+      method: 'PATCH',
+      body: { action },
+    });
   },
 };
 

@@ -6,6 +6,7 @@ import type {
   ViewerAlbum,
   UploadPhotoResponse,
   UploadedAs,
+  ContributorInfo,
 } from '@photo/shared';
 
 export const shareApi = {
@@ -31,6 +32,23 @@ export const shareApi = {
   // 凭码访问（公开）
   getByCode(code: string) {
     return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}`, { auth: false });
+  },
+
+  // ─── 贡献者 ───
+  requestJoin(code: string) {
+    return request<ContributorInfo>(`/api/v/${encodeURIComponent(code)}/join`, { method: 'POST' });
+  },
+  getViewerContributors(code: string) {
+    return request<ContributorInfo[]>(`/api/v/${encodeURIComponent(code)}/contributors`, { auth: false });
+  },
+  getShareContributors(shareId: string) {
+    return request<ContributorInfo[]>(`/api/shares/${shareId}/contributors`);
+  },
+  reviewContributor(shareId: string, userId: string, action: 'accepted' | 'rejected') {
+    return request<ContributorInfo>(`/api/shares/${shareId}/contributors/${userId}`, {
+      method: 'PATCH',
+      body: { action },
+    });
   },
 };
 

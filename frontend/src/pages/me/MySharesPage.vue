@@ -5,7 +5,7 @@ import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
 import { shareApi } from '@/api/share.api';
 import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes, formatDateTime, TTL_PRESETS } from '@photo/shared';
-import type { ShareSummary } from '@photo/shared';
+import type { ShareSummary, ContributorInfo } from '@photo/shared';
 import { copyText } from '@/utils/clipboard';
 import ShareQrDialog from '@/components/ShareQrDialog.vue';
 
@@ -22,6 +22,12 @@ let timer: number | null = null;
 const qrVisible = ref(false);
 const qrCode = ref('');
 const qrTitle = ref('');
+
+// 贡献者管理
+const manageVisible = ref(false);
+const manageShareId = ref('');
+const manageCode = ref('');
+const contributors = ref<ContributorInfo[]>([]);
 
 function showQr(s: ShareSummary) {
   qrCode.value = s.code;
@@ -134,6 +140,30 @@ function viewAlbum(code: string) {
 function gotoNew() {
   router.push({ name: 'new-share' });
 }
+
+async function openManage(shareId: string, code: string) {
+  manageShareId.value = shareId;
+  manageCode.value = code;
+  manageVisible.value = true;
+  try {
+    const res = await shareApi.getShareContributors(shareId);
+    contributors.value = res;
+  } catch {
+    contributors.value = [];
+  }
+}
+
+async function handleReview(userId: string, action: 'accepted' | 'rejected') {
+  try {
+    const res = await shareApi.reviewContributor(manageShareId.value, userId, action);
+    const idx = contributors.value.findIndex((c) => c.userId === userId);
+    if (idx !== -1) contributors.value[idx] = res;
+    MessagePlugin.success(action === 'accepted' ? '已通过' : '已拒绝');
+    await load();
+  } catch (err) {
+    if (err instanceof ApiException) MessagePlugin.error(err.message);
+  }
+}
 </script>
 
 <template>
@@ -219,6 +249,13 @@ function gotoNew() {
               <template #icon><span class="i-tdesign:browse"></span></template>
               预览
             </t-button>
+            <t-button size="medium" variant="outline" @click="openManage(s.id, s.code)">
+              <template #icon><span class="i-tdesign:usergroup"></span></template>
+              管理
+              <span v-if="(s as any).pendingContributorCount > 0" class="pending-badge">
+                {{ (s as any).pendingContributorCount }}
+              </span>
+            </t-button>
             <t-dropdown
               v-if="s.status === 'active'"
               :options="ttlOptions()"
@@ -254,6 +291,35 @@ function gotoNew() {
     </t-loading>
 
     <ShareQrDialog v-model:visible="qrVisible" :code="qrCode" :title="qrTitle" />
+
+    <!-- 贡献者管理对话框 -->
+    <t-dialog
+      v-model:visible="manageVisible"
+      header="贡献者管理"
+      :footer="false"
+      width="480px"
+    >
+      <div v-if="contributors.length === 0" class="manage-empty">
+        <p class="muted">暂无贡献者申请</p>
+      </div>
+      <div v-else class="manage-list">
+        <div v-for="c in contributors" :key="c.userId" class="manage-item">
+          <div class="manage-avatar">
+            {{ (c.displayName || c.email).slice(0, 1).toUpperCase() }}
+          </div>
+          <div class="manage-info">
+            <div class="manage-name">{{ c.displayName || c.email }}</div>
+            <div class="manage-status" :class="`manage-status-${c.status}`">
+              {{ c.status === 'pending' ? '待审核' : c.status === 'accepted' ? '已通过' : '已拒绝' }}
+            </div>
+          </div>
+          <div v-if="c.status === 'pending'" class="manage-actions">
+            <t-button size="small" theme="success" @click="handleReview(c.userId, 'accepted')">通过</t-button>
+            <t-button size="small" theme="danger" variant="outline" @click="handleReview(c.userId, 'rejected')">拒绝</t-button>
+          </div>
+        </div>
+      </div>
+    </t-dialog>
   </div>
 </template>
 
@@ -542,6 +608,67 @@ function gotoNew() {
   justify-content: center;
   margin-top: 32px;
 }
+
+.pending-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 5px;
+  margin-left: 4px;
+}
+
+/* ─── 贡献者管理弹窗 ─── */
+.manage-empty {
+  text-align: center;
+  padding: 32px 0;
+}
+.manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.manage-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.manage-item:last-child { border-bottom: none; }
+.manage-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.manage-info { flex: 1; min-width: 0; }
+.manage-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.manage-status { font-size: 12px; margin-top: 2px; }
+.manage-status-pending { color: var(--warning); }
+.manage-status-accepted { color: var(--success); }
+.manage-status-rejected { color: var(--danger); }
+.manage-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 @media (max-width: 768px) {
   .page {

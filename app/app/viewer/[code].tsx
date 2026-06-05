@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ViewerAlbum } from '@photo/shared';
+import type { ViewerAlbum, ContributorInfo } from '@photo/shared';
 import { ApiException } from '@/api/client';
 import { photoApi, shareApi } from '@/api/share.api';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/utils/saveToAlbum';
 import { toast, toastLong } from '@/utils/toast';
 import { formatBytes, formatRemaining } from '@/utils/format';
+import { useAuth } from '@/stores/auth.store';
 import { colors, font, radius, shadow, space } from '@/theme';
 
 const { width: WIN_W, height: WIN_H } = Dimensions.get('window');
@@ -32,6 +33,7 @@ export default function ViewerScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const user = useAuth((s) => s.user);
   const [album, setAlbum] = useState<ViewerAlbum | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,8 @@ export default function ViewerScreen() {
 
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState<SaveProgress | null>(null);
+
+  const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
 
   const codeUpper = (code ?? '').toString().toUpperCase();
 
@@ -53,7 +57,15 @@ export default function ViewerScreen() {
     (async () => {
       try {
         const data = await shareApi.getByCode(codeUpper);
-        if (mounted) setAlbum(data);
+        if (mounted) {
+          setAlbum(data);
+          // 检查当前用户的贡献者状态
+          if (user && data.contributors) {
+            const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
+            if (me) setJoinStatus(me.status as any);
+            else setJoinStatus('none');
+          }
+        }
       } catch (err) {
         if (mounted) setError(err instanceof ApiException ? err.message : '加载失败');
       } finally {
@@ -191,6 +203,23 @@ export default function ViewerScreen() {
   const numColumns = 3;
   const tileSize = (WIN_W - space.sm * 2 - 4 * (numColumns - 1)) / numColumns;
   const expired = album.expiresAt - now <= 0;
+  const acceptedContributors = (album.contributors ?? []).filter((c) => c.status === 'accepted');
+
+  async function handleJoin() {
+    if (!user) {
+      toast('请先登录');
+      return;
+    }
+    setJoinStatus('loading');
+    try {
+      const res = await shareApi.requestJoin(codeUpper);
+      setJoinStatus(res.status as any);
+      toast('申请已提交，等待创建者审核');
+    } catch (err) {
+      setJoinStatus('none');
+      toast(err instanceof ApiException ? err.message : '申请失败');
+    }
+  }
 
   return (
     <SafeAreaView style={s.root} edges={['bottom']}>
@@ -218,6 +247,52 @@ export default function ViewerScreen() {
           <Text style={s.saveAllText}>{saving ? '保存中…' : '一键存到相册'}</Text>
         </Pressable>
       </View>
+
+      {/* 贡献者区域 + 申请按钮 */}
+      {!expired && (
+        <View style={cs.contribSection}>
+          {acceptedContributors.length > 0 && (
+            <View style={cs.contribRow}>
+              {acceptedContributors.slice(0, 6).map((c) => (
+                <View key={c.userId} style={cs.contribAvatar}>
+                  <Text style={cs.contribAvatarText}>
+                    {(c.displayName || c.email).slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              ))}
+              <Text style={cs.contribLabel}>{acceptedContributors.length} 位贡献者</Text>
+            </View>
+          )}
+          <View style={cs.joinRow}>
+            {joinStatus === 'accepted' ? (
+              <View style={[cs.joinBadge, cs.joinBadgeAccepted]}>
+                <Text style={cs.joinBadgeTextAccepted}>✓ 已是贡献者，可上传照片参与分享</Text>
+              </View>
+            ) : joinStatus === 'pending' ? (
+              <View style={[cs.joinBadge, cs.joinBadgePending]}>
+                <Text style={cs.joinBadgeTextPending}>⏳ 申请审核中…</Text>
+              </View>
+            ) : joinStatus === 'rejected' ? (
+              <View style={[cs.joinBadge, cs.joinBadgeRejected]}>
+                <Text style={cs.joinBadgeTextRejected}>申请已被拒绝</Text>
+                <Pressable style={cs.joinBtnSm} onPress={handleJoin}>
+                  <Text style={cs.joinBtnSmText}>重新申请</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [cs.joinBtn, pressed && { opacity: 0.85 }, joinStatus === 'loading' && { opacity: 0.5 }]}
+                disabled={joinStatus === 'loading'}
+                onPress={handleJoin}
+              >
+                <Text style={cs.joinBtnText}>
+                  {joinStatus === 'loading' ? '申请中…' : '📷 申请加入成为贡献者'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* 网格 */}
       {photos.length === 0 ? (
@@ -467,6 +542,83 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   expiredText: { ...font.caption, color: colors.danger, fontWeight: '600' },
+});
+
+/* ─── 贡献者区域 ─── */
+const cs = StyleSheet.create({
+  contribSection: {
+    marginHorizontal: space.md,
+    marginBottom: space.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  contribRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: space.sm,
+  },
+  contribAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -6,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
+  contribAvatarText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  contribLabel: {
+    ...font.caption,
+    color: colors.text3,
+    marginLeft: 14,
+  },
+  joinRow: {
+    flexDirection: 'row',
+  },
+  joinBtn: {
+    flex: 1,
+    height: 38,
+    backgroundColor: colors.success,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinBtnText: {
+    ...font.smallStrong,
+    color: '#fff',
+  },
+  joinBadge: {
+    flex: 1,
+    minHeight: 34,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: space.sm,
+    gap: 6,
+  },
+  joinBadgeAccepted: { backgroundColor: colors.successSoft },
+  joinBadgeTextAccepted: { ...font.small, color: colors.success, fontWeight: '600' },
+  joinBadgePending: { backgroundColor: colors.warningSoft },
+  joinBadgeTextPending: { ...font.small, color: colors.warning },
+  joinBadgeRejected: { backgroundColor: colors.dangerSoft },
+  joinBadgeTextRejected: { ...font.caption, color: colors.danger },
+  joinBtnSm: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+  },
+  joinBtnSmText: { color: '#fff', fontSize: 11, fontWeight: '600' },
 });
 
 const pmS = StyleSheet.create({

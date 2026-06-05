@@ -4,14 +4,16 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import type { ShareSummary } from '@photo/shared';
+import type { ShareSummary, ContributorInfo } from '@photo/shared';
 import { TTL_PRESETS } from '@photo/shared';
 import { ApiException } from '@/api/client';
 import { shareApi } from '@/api/share.api';
@@ -33,6 +35,9 @@ export default function MySharesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
+  const [manageVisible, setManageVisible] = useState(false);
+  const [manageShareId, setManageShareId] = useState('');
+  const [contributors, setContributors] = useState<ContributorInfo[]>([]);
 
   async function load() {
     try {
@@ -126,6 +131,28 @@ export default function MySharesScreen() {
       { text: '取消', style: 'cancel' },
       { text: '退出', style: 'destructive', onPress: () => void logout() },
     ]);
+  }
+
+  async function openManage(shareId: string) {
+    setManageShareId(shareId);
+    setManageVisible(true);
+    try {
+      const res = await shareApi.getShareContributors(shareId);
+      setContributors(res);
+    } catch {
+      setContributors([]);
+    }
+  }
+
+  async function handleReview(userId: string, action: 'accepted' | 'rejected') {
+    try {
+      const res = await shareApi.reviewContributor(manageShareId, userId, action);
+      setContributors((arr) => arr.map((c) => (c.userId === userId ? res : c)));
+      toast(action === 'accepted' ? '已通过' : '已拒绝');
+      void load();
+    } catch (err) {
+      toast(err instanceof ApiException ? err.message : '操作失败');
+    }
   }
 
   return (
@@ -246,6 +273,14 @@ export default function MySharesScreen() {
                   >
                     <Text style={s.btnSmText}>预览</Text>
                   </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [s.btnSm, pressed && { opacity: 0.7 }]}
+                    onPress={() => openManage(item.id)}
+                  >
+                    <Text style={s.btnSmText}>
+                      管理{(item as any).pendingContributorCount > 0 ? ` (${(item as any).pendingContributorCount})` : ''}
+                    </Text>
+                  </Pressable>
                   {active && (
                     <>
                       <Pressable
@@ -287,6 +322,50 @@ export default function MySharesScreen() {
         title={qrItem?.title || '未命名相册'}
         onClose={() => setQrItem(null)}
       />
+
+      {/* 贡献者管理弹窗 */}
+      <Modal visible={manageVisible} transparent animationType="fade" onRequestClose={() => setManageVisible(false)}>
+        <Pressable style={ms.backdrop} onPress={() => setManageVisible(false)}>
+          <Pressable style={ms.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={ms.title}>贡献者管理</Text>
+            {contributors.length === 0 ? (
+              <View style={ms.empty}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>👥</Text>
+                <Text style={{ ...font.small, color: colors.text3 }}>暂无贡献者申请</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ gap: 10 }}>
+                {contributors.map((c) => (
+                  <View key={c.userId} style={ms.item}>
+                    <View style={ms.avatar}>
+                      <Text style={ms.avatarText}>{(c.displayName || c.email).slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={ms.name}>{c.displayName || c.email}</Text>
+                      <Text style={[ms.status, c.status === 'pending' ? ms.statusPending : c.status === 'accepted' ? ms.statusAccepted : ms.statusRejected]}>
+                        {c.status === 'pending' ? '待审核' : c.status === 'accepted' ? '已通过' : '已拒绝'}
+                      </Text>
+                    </View>
+                    {c.status === 'pending' && (
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <Pressable style={ms.btnAccept} onPress={() => handleReview(c.userId, 'accepted')}>
+                          <Text style={ms.btnAcceptText}>通过</Text>
+                        </Pressable>
+                        <Pressable style={ms.btnReject} onPress={() => handleReview(c.userId, 'rejected')}>
+                          <Text style={ms.btnRejectText}>拒绝</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <Pressable style={ms.closeBtn} onPress={() => setManageVisible(false)}>
+              <Text style={ms.closeBtnText}>关闭</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -422,4 +501,60 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   logoutBtnText: { ...font.smallStrong, color: colors.danger },
+});
+
+/* ─── 贡献者管理弹窗 ─── */
+const ms = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    justifyContent: 'center',
+    padding: space.xl,
+  },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: space.lg,
+    maxHeight: '80%',
+  },
+  title: { ...font.h2, color: colors.text1, marginBottom: space.md },
+  empty: { alignItems: 'center', paddingVertical: 32 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderLight,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  name: { ...font.bodyStrong, color: colors.text1 },
+  status: { ...font.caption, marginTop: 1 },
+  statusPending: { color: colors.warning },
+  statusAccepted: { color: colors.success },
+  statusRejected: { color: colors.danger },
+  btnAccept: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: colors.success,
+    borderRadius: radius.full,
+  },
+  btnAcceptText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  btnReject: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.full,
+  },
+  btnRejectText: { color: colors.danger, fontSize: 12, fontWeight: '600' },
+  closeBtn: { alignItems: 'center', marginTop: space.md, paddingVertical: 8 },
+  closeBtnText: { ...font.small, color: colors.text3 },
 });
