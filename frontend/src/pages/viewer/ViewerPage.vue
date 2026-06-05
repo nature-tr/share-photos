@@ -74,10 +74,6 @@ async function load() {
     hasMore.value = (data as any).hasMore ?? false;
     isOwner.value = false;
     saveHistory();
-    // 独立检测 owner（不触发 auth 刷新）
-    if (auth.user) {
-      shareApi.tryGetOwner(props.code).then((v) => { isOwner.value = v; });
-    }
     checkContributor(data);
     // 恢复滚动 + 自动加载到上次位置
     if (savedScroll.value > 0) restoreScrollAndPages(data);
@@ -332,13 +328,20 @@ async function copyShareLink() {
             <span class="download-text">下载 zip</span>
           </t-button>
           <t-button
-            v-if="isOwner && remaining"
+            v-if="auth.isAuthenticated && !uploadingMore"
             size="small"
             variant="outline"
             @click="handleOwnerUpload"
-            :loading="uploadingMore"
           >
             + 补充
+          </t-button>
+          <t-button
+            v-if="uploadingMore"
+            size="small"
+            variant="outline"
+            loading
+          >
+            上传中
           </t-button>
         </div>
       </div>

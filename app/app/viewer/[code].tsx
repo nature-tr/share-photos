@@ -66,10 +66,7 @@ export default function ViewerScreen() {
         if (mounted) {
           setAlbum(data);
           setHasMore((data as any).hasMore ?? false);
-          setIsOwner(false);
           setPage(1);
-          // 独立检测 owner（不触发 auth 刷新）
-          if (user) { shareApi.tryGetOwner(codeUpper).then((v) => setIsOwner(v)); }
           if (user && data.contributors) {
             const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
             setJoinStatus(me ? (me.status as any) : 'none');
@@ -98,7 +95,7 @@ export default function ViewerScreen() {
   }
 
   async function handleOwnerUpload() {
-    if (!isOwner || !album) return;
+    if (!user || !album) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { toast('需要相册权限'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -282,7 +279,7 @@ export default function ViewerScreen() {
           </Text>
           <Text style={s.actionInfoSub}>原图已加密传输</Text>
         </View>
-        {isOwner && !expired && (
+        {user && !expired && (
           <Pressable
             style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.7 }]}
             onPress={handleOwnerUpload}

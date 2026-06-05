@@ -35,16 +35,6 @@ export const shareApi = {
     return request<ViewerAlbum>(`/api/v/${encodeURIComponent(code)}${params}`, { auth: false });
   },
 
-  /** 安全检测当前用户是否是分享owner（独立调用，不会触发登出） */
-  async tryGetOwner(code: string): Promise<boolean> {
-    try {
-      const res = await request<{ isOwner: boolean }>(`/api/v/${encodeURIComponent(code)}?page=1&pageSize=1`, { auth: true, autoRefresh: false });
-      return (res as any)?.isOwner ?? false;
-    } catch {
-      return false;
-    }
-  },
-
   // ─── 贡献者 ───
   requestJoin(code: string) {
     return request<ContributorInfo>(`/api/v/${encodeURIComponent(code)}/join`, { method: 'POST' });

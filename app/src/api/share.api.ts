@@ -22,14 +22,6 @@ export const shareApi = {
     return request<ViewerAlbum>(`/api/v/${code}${qs}`, { auth: false, autoRefresh: false });
   },
 
-  /** 安全检测 owner，失败不触发登出 */
-  async tryGetOwner(code: string): Promise<boolean> {
-    try {
-      const res = await request<any>(`/api/v/${code}?page=1&pageSize=1`, { auth: true, autoRefresh: false });
-      return res?.isOwner ?? false;
-    } catch { return false; }
-  },
-
   // ─── 贡献者 ───
   requestJoin(code: string) {
     return request<ContributorInfo>(`/api/v/${code}/join`, { method: 'POST' });
