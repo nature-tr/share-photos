@@ -89,11 +89,13 @@ export default function ViewerPage() {
         setIsOwner((firstRes.data as any).isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
-        // 3. 恢复滚动位置
+        // 3. 恢复滚动位置（多次重试直到页面足够高）
         if (lastScrollTop > 0) {
-          setTimeout(() => {
-            Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 0 });
-          }, 300);  // 等渲染完再滚动
+          [200, 400, 700, 1100, 1600].forEach((delay) => {
+            setTimeout(() => {
+              Taro.pageScrollTo({ scrollTop: lastScrollTop, duration: 300 });
+            }, delay);
+          });
         }
 
         // 检测贡献者状态
@@ -111,14 +113,20 @@ export default function ViewerPage() {
     return () => { cancelled = true; };
   }, [code, user]);
 
-  // 离开页面时保存浏览位置（已加载照片数 + 滚动高度）
+  // 离开页面时保存浏览位置（真实滚动高度 + 已加载照片数）
   useDidHide(() => {
-    if (album) {
-      updateLastPosition(code, album.photos.length, scrollTopRef.current);
-    }
+    if (!album) return;
+    // 直接从 DOM 查询真实滚动位置，比 ref 更可靠
+    Taro.createSelectorQuery()
+      .selectViewport()
+      .scrollOffset()
+      .exec((res) => {
+        const realScrollTop = res?.[0]?.scrollTop ?? scrollTopRef.current;
+        updateLastPosition(code, album.photos.length, realScrollTop);
+      });
   });
 
-  // 实时跟踪滚动位置
+  // 实时跟踪滚动位置（作为 fallback）
   usePageScroll((e) => {
     scrollTopRef.current = e.scrollTop;
   });
