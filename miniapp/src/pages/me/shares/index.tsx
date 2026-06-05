@@ -181,14 +181,16 @@ export default function MySharesPage() {
 
                 <View className="code-row">
                   <Text className="code-text">{item.code}</Text>
-                  <View className="icon-btn" onClick={() => setQrItem(item)}>
-                    <Text className="icon-btn-text">码图</Text>
-                  </View>
-                  <View className="icon-btn" onClick={() => copyCode(item.code)}>
-                    <Text className="icon-btn-text">复制</Text>
-                  </View>
-                  <View className="icon-btn" onClick={() => copyLink(item.code)}>
-                    <Text className="icon-btn-text">链接</Text>
+                  <View className="code-actions">
+                    <View className="icon-btn" onClick={() => setQrItem(item)}>
+                      <Text className="icon-btn-text">📱</Text>
+                    </View>
+                    <View className="icon-btn" onClick={() => copyCode(item.code)}>
+                      <Text className="icon-btn-text">📋</Text>
+                    </View>
+                    <View className="icon-btn" onClick={() => copyLink(item.code)}>
+                      <Text className="icon-btn-text">🔗</Text>
+                    </View>
                   </View>
                 </View>
 
