@@ -98,21 +98,18 @@ export const shareService = {
       .where(where)
       .get();
 
-    // 批量查 pending 贡献者数
-    const pendingCounts: Record<string, number> = {};
+    // 批量查 pending 贡献者数 + 首图ID
+    const extras: Record<string, { pending: number; firstPhotoId: string | null }> = {};
     for (const s of items) {
-      const row = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(contributors)
-        .where(
-          and(eq(contributors.shareId, s.id), eq(contributors.status, 'pending')),
-        )
-        .get();
-      pendingCounts[s.id] = Number(row?.count ?? 0);
+      const [pRow, fRow] = await Promise.all([
+        db.select({ count: sql<number>`count(*)` }).from(contributors).where(and(eq(contributors.shareId, s.id), eq(contributors.status, 'pending'))).get(),
+        db.select({ id: photos.id }).from(photos).where(eq(photos.shareId, s.id)).orderBy(photos.sortIndex).limit(1).get(),
+      ]);
+      extras[s.id] = { pending: Number(pRow?.count ?? 0), firstPhotoId: fRow?.id ?? null };
     }
 
     return {
-      items: items.map((s) => ({ ...toSummary(s), pendingContributorCount: pendingCounts[s.id] ?? 0 })),
+      items: items.map((s) => ({ ...toSummary(s), pendingContributorCount: extras[s.id]?.pending ?? 0, firstPhotoId: extras[s.id]?.firstPhotoId ?? null })),
       total: Number(totalRow?.count ?? 0),
       page,
       pageSize,

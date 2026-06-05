@@ -37,6 +37,7 @@ export interface ShareSummary {
   endedAt: number | null;
   photoCount: number;
   totalBytes: number;
+  firstPhotoId?: string | null;
   pendingContributorCount?: number;
 }
 

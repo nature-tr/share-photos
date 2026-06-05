@@ -4,6 +4,9 @@
 
 .share-card { background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04); }
 
+.card-cover { width: 100%; height: 200rpx; border-radius: 16rpx; overflow: hidden; margin-bottom: 20rpx; background: #f1f5f9; }
+.card-cover-img { width: 100%; height: 100%; }
+
 .card-top { display: flex; flex-direction: row; align-items: center; margin-bottom: 20rpx; }
 .card-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--color-text1); line-height: 1.3; }
 .pill { padding: 6rpx 20rpx; border-radius: 9999rpx; flex-shrink: 0; margin-left: 16rpx; }

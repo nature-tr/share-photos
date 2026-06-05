@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView } from '@tarojs/components';
+import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor, getThumbUrl } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
@@ -167,6 +167,11 @@ export default function MySharesPage() {
             const lowTime = active && item.expiresAt - now < 3600_000;
             return (
               <View key={item.id} className="share-card">
+                {(item as any).firstPhotoId && item.photoCount > 0 && (
+                  <View className="card-cover">
+                    <Image src={getThumbUrl(item.code, (item as any).firstPhotoId)} className="card-cover-img" mode="aspectFill" />
+                  </View>
+                )}
                 <View className="card-top">
                   <Text className="card-title" numberOfLines={1}>{item.title || '未命名相册'}</Text>
                   <View className="pill" style={{ backgroundColor: st.bg }}>
