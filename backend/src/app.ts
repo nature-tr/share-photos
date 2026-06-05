@@ -42,7 +42,7 @@ export async function buildApp() {
   await app.register(cookie);
 
   await app.register(rateLimit, {
-    max: 60,
+    max: 2000,
     timeWindow: '1 minute',
     allowList: [],
   });
