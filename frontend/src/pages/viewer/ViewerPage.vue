@@ -12,12 +12,12 @@ import type { ViewerAlbum, ContributorInfo } from '@photo/shared';
 import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/composables/useDevice';
 import { saveImage } from '@/utils/download';
 import { copyText } from '@/utils/clipboard';
-import { useAuth } from '@/stores/auth.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 const props = defineProps<{ code: string }>();
 const router = useRouter();
 const { isMobile } = useDevice();
-const auth = useAuth();
+const auth = useAuthStore();
 
 const album = ref<ViewerAlbum | null>(null);
 const loading = ref(true);
