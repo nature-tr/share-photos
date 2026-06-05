@@ -174,31 +174,31 @@ export default function ViewerPage() {
           count: 9,
           mediaType: ['image'],
           sizeType: compressed ? ['compressed'] : ['original'],
-      success: async (chooseRes) => {
-        setUploadingMore(true);
-        let done = 0;
-        let failed = 0;
-        for (const f of chooseRes.tempFiles) {
-          try {
-            const uploadRes = await Taro.uploadFile({
-              url: `${API_BASE}/api/shares/${album.id}/photos`,
-              filePath: f.tempFilePath,
-              name: 'file',
-              header: user ? { Authorization: `Bearer ${await useAuth.getState().getAccessToken()}` } : {},
+          success: async (chooseRes) => {
+            setUploadingMore(true);
+            let done = 0, failed = 0;
+            for (const f of chooseRes.tempFiles) {
+              try {
+                const uploadRes = await Taro.uploadFile({
+                  url: `${API_BASE}/api/shares/${album!.id}/photos`,
+                  filePath: f.tempFilePath,
+                  name: 'file',
+                  header: user ? { Authorization: `Bearer ${await useAuth.getState().getAccessToken()}` } : {},
+                });
+                if (uploadRes.statusCode === 201 || uploadRes.statusCode === 200) done++;
+                else failed++;
+              } catch { failed++; }
+            }
+            setUploadingMore(false);
+            Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success' });
+            getViewerShare(code, 1, PAGE_SIZE).then((res) => {
+              if (res.data) {
+                setAlbum(res.data as ShareDetail);
+                setPage(1);
+                setHasMore((res.data as any).hasMore ?? false);
+              }
             });
-            if (uploadRes.statusCode === 201 || uploadRes.statusCode === 200) done++;
-            else failed++;
-          } catch { failed++; }
-        }
-        setUploadingMore(false);
-        Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success' });
-        // 重新加载首页
-        getViewerShare(code, 1, PAGE_SIZE).then((res) => {
-          if (res.data) {
-            setAlbum(res.data as ShareDetail);
-            setPage(1);
-            setHasMore((res.data as any).hasMore ?? false);
-          }
+          },
         });
       },
     });
