@@ -3,7 +3,7 @@ import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
-import { addBrowsingHistory } from '@/pages/index/index';
+import { addBrowsingHistory } from '@/utils/history';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 

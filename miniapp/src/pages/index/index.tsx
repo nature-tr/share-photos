@@ -1,30 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
+import { getHistory } from '@/utils/history';
 import logoImg from '../../assets/logo.png';
 import './index.scss';
 
 interface HistoryItem { code: string; title: string; lastViewedAt: number; photoCount: number }
-
-function getHistory(): HistoryItem[] {
-  try {
-    const raw = Taro.getStorageSync('browse_history');
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveHistory(item: HistoryItem) {
-  const list = getHistory().filter((h) => h.code !== item.code);
-  list.unshift(item);
-  if (list.length > 20) list.length = 20;
-  Taro.setStorageSync('browse_history', JSON.stringify(list));
-}
-
-export function addBrowsingHistory(code: string, title: string, photoCount: number) {
-  saveHistory({ code, title, lastViewedAt: Date.now(), photoCount });
-}
 
 export default function IndexPage() {
   const user = useAuth((s) => s.user);
