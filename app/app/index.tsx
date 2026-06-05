@@ -14,11 +14,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/stores/auth.store';
 import { colors, font, radius, shadow, space } from '@/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuth((s) => s.user);
   const [code, setCode] = useState('');
+  const [history, setHistory] = useState<{ code: string; title: string; photoCount: number; time: number }[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('browse_history').then((raw) => {
+      setHistory(JSON.parse(raw || '[]').slice(0, 5));
+    });
+  }, []);
 
   function go() {
     const c = code.trim().toUpperCase();

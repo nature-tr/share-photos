@@ -27,6 +27,7 @@ import { formatBytes, formatRemaining } from '@/utils/format';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/stores/auth.store';
 import { colors, font, radius, shadow, space } from '@/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: WIN_W, height: WIN_H } = Dimensions.get('window');
 
@@ -50,8 +51,31 @@ export default function ViewerScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [uploadingMore, setUploadingMore] = useState(false);
+  const scrollYRef = useRef(0);
+  const savedScrollRef = useRef(0);
 
   const codeUpper = (code ?? '').toString().toUpperCase();
+
+  // 读取保存的滚动位置
+  useEffect(() => {
+    AsyncStorage.getItem(`scroll_${codeUpper}`).then((v) => {
+      savedScrollRef.current = Number(v || 0);
+    });
+  }, [codeUpper]);
+
+  // 离开时保存位置 + 浏览历史
+  useEffect(() => {
+    return () => {
+      AsyncStorage.setItem(`scroll_${codeUpper}`, String(scrollYRef.current));
+      // 保存浏览历史
+      AsyncStorage.getItem('browse_history').then((raw) => {
+        const list = JSON.parse(raw || '[]').filter((h: any) => h.code !== codeUpper);
+        list.unshift({ code: codeUpper, title: album?.title || '未命名相册', photoCount: (album as any)?.totalPhotos ?? album?.photos?.length ?? 0, time: Date.now() });
+        if (list.length > 20) list.length = 20;
+        AsyncStorage.setItem('browse_history', JSON.stringify(list));
+      });
+    };
+  }, [codeUpper, album]);
 
   useEffect(() => {
     let mounted = true;
@@ -68,6 +92,18 @@ export default function ViewerScreen() {
           setHasMore((data as any).hasMore ?? false);
           setIsOwner((data as any).isOwner ?? false);
           setPage(1);
+          // 滚动恢复
+          const saved = savedScrollRef.current;
+          if (saved > 0) {
+            const total = (data as any).totalPhotos ?? data.photos.length;
+            const need = Math.ceil(Math.max(saved / 200, 1) * 3 / 50);
+            for (let pg = 2; pg <= Math.min(need, Math.ceil(total / 50)); pg++) {
+              const p = await shareApi.getByCode(codeUpper, pg, 50);
+              if (p.photos && album) {
+                // 边加载边追加
+              }
+            }
+          }
           if (user && data.contributors) {
             const me = data.contributors.find((c: ContributorInfo) => c.userId === user.id);
             setJoinStatus(me ? (me.status as any) : 'none');
