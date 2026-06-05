@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { contributors, users } from '../../db/schema.js';
+import { contributors, users, shares } from '../../db/schema.js';
 import { Errors } from '../../common/errors.js';
 import { newId } from '../../common/id.js';
 import { now } from '../../common/time.js';
@@ -9,6 +9,11 @@ import type { ContributorInfo } from '@photo/shared';
 export const contributorService = {
   /** 申请加入某个分享 */
   async requestJoin(shareId: string, userId: string): Promise<ContributorInfo> {
+    // 不能加入自己的分享
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
+    if (share.ownerId === userId) throw Errors.forbidden('不能加入自己创建的分享');
+
     // 检查是否已有申请记录
     const existing = await db
       .select()

@@ -159,9 +159,9 @@ export default function ViewerPage() {
     }).finally(() => setLoadMore(false));
   }
 
-  /** 号主上传新照片 */
+  /** 上传新照片（owner 或 accepted 贡献者均可） */
   async function handleOwnerUpload() {
-    if (!album || !isOwner) return;
+    if (!album || !user) return;
     Taro.chooseMedia({
       count: 9,
       mediaType: ['image'],
@@ -329,7 +329,7 @@ export default function ViewerPage() {
           </Text>
           <Text className="action-info-sub">原图已加密传输</Text>
         </View>
-        {isOwner && !expired && (
+        {user && !expired && (
           <View className="add-photo-btn" onClick={handleOwnerUpload}>
             <Text className="add-photo-btn-text">{uploadingMore ? '上传中…' : '+ 补充'}</Text>
           </View>
@@ -364,8 +364,8 @@ export default function ViewerPage() {
             </View>
           )}
 
-          {/* 申请按钮 */}
-          {!expired && (
+          {/* 申请按钮（owner 不显示，已有 + 补充上传入口） */}
+          {!expired && !isOwner && (
             <View className="join-row">
               {joinStatus === 'accepted' ? (
                 <View className="join-badge join-badge-accepted">
