@@ -21,6 +21,14 @@ export function previewPath(shareId: string, photoId: string): string {
   return path.join(config.storageDir, PREVIEWS, shareId, `${photoId}.jpg`);
 }
 
+export function previewWebpPath(shareId: string, photoId: string): string {
+  return path.join(config.storageDir, PREVIEWS, shareId, `${photoId}.webp`);
+}
+
 export function mediumPath(shareId: string, photoId: string): string {
   return path.join(config.storageDir, MEDIUMS, shareId, `${photoId}.jpg`);
+}
+
+export function mediumWebpPath(shareId: string, photoId: string): string {
+  return path.join(config.storageDir, MEDIUMS, shareId, `${photoId}.webp`);
 }

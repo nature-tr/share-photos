@@ -9,7 +9,7 @@ import { Errors } from '../../common/errors.js';
 import { newId } from '../../common/id.js';
 import { now } from '../../common/time.js';
 import { ensureShareDirs, safeUnlink } from '../../infra/storage/local.js';
-import { originalPath, previewPath, mediumPath } from '../../infra/storage/paths.js';
+import { originalPath, previewPath, previewWebpPath, mediumPath, mediumWebpPath } from '../../infra/storage/paths.js';
 import { processImage, getFileSize } from '../../infra/image/processor.js';
 import {
   MAX_FILE_SIZE,
@@ -134,7 +134,9 @@ export const photoService = {
     await Promise.all([
       safeUnlink(originalPath(shareId, photoId, photo.ext)),
       safeUnlink(previewPath(shareId, photoId)),
+      safeUnlink(previewWebpPath(shareId, photoId)),
       safeUnlink(mediumPath(shareId, photoId)),
+      safeUnlink(mediumWebpPath(shareId, photoId)),
     ]);
 
     await db.delete(photos).where(eq(photos.id, photoId)).run();

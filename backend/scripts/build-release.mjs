@@ -40,6 +40,7 @@ const externalDeps = {
   '@fastify/cookie': '^11.0.1',
   '@fastify/jwt': '^9.0.1',
   '@fastify/multipart': '^9.0.1',
+  '@fastify/compress': '^8.0.1',
   '@fastify/rate-limit': '^10.1.1',
   '@fastify/static': '^8.0.2',
   'fastify-plugin': '^5.0.1',
