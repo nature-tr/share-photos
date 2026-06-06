@@ -127,10 +127,17 @@ export const useAuth = create<AuthState>((set, get) => ({
   getAccessToken: async () => {
     const token = get().accessToken;
     if (token) return token;
+
     const cached = Taro.getStorageSync(STORAGE_KEY_TOKEN) as string | null;
     if (cached) { set({ accessToken: cached }); return cached; }
-    const ft = await silentRefresh();
-    if (ft) { set({ accessToken: ft }); return ft; }
+
+    // token 丢了但 user 还在 → 尝试 refresh
+    const u = getUserFromStorage();
+    if (u) {
+      const ft = await silentRefresh();
+      if (ft) { set({ accessToken: ft }); return ft; }
+    }
+
     return null;
   },
 }));
