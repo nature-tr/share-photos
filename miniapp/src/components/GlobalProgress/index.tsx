@@ -60,6 +60,26 @@ export default function GlobalProgress() {
                     <Image src={isUpload ? iconUpload('#475569') : iconDownload('#475569')} className="gp-row-btn-icon" />
                   </View>
                 )}
+                {isPaused && isUpload && (
+                  <View className="gp-row-btn" onClick={() => {
+                    useTaskStore.setState((s) => ({
+                      uploads: { ...s.uploads, [t.shareId]: { ...s.uploads[t.shareId]!, status: 'uploading' } },
+                    }));
+                    Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+                  }}>
+                    <Image src={iconUpload('#3b82f6')} className="gp-row-btn-icon" />
+                  </View>
+                )}
+                {isPaused && !isUpload && (
+                  <View className="gp-row-btn" onClick={() => {
+                    useTaskStore.setState((s) => ({
+                      downloads: { ...s.downloads, [t.shareCode]: { ...s.downloads[t.shareCode]!, status: 'downloading' } },
+                    }));
+                    Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
+                  }}>
+                    <Image src={iconDownload('#3b82f6')} className="gp-row-btn-icon" />
+                  </View>
+                )}
                 <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().cancelUpload(t.shareId) : useTaskStore.getState().cancelDownload(t.shareCode)}>
                   <Image src={iconXMark('#94a3b8')} className="gp-row-btn-icon" />
                 </View>

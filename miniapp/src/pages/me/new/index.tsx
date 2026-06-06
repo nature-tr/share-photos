@@ -107,49 +107,65 @@ export default function NewSharePage() {
     }
     setSubmitting(true);
     try {
-      const shareRes = await createShare(ttl, title.trim() || undefined);
-      if (shareRes.error || !shareRes.data) {
-        Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
-        setSubmitting(false);
-        return;
-      }
-      const share = shareRes.data;
-      setCreated({ id: share.id, code: share.code });
+      let shareId: string;
 
-      // 全局任务追踪 + 保存表单和图片状态
-      const totalCount = items.length;
-      useTaskStore.getState().startUpload(share.id, totalCount);
-      useTaskStore.getState().saveFormState(share.id, title.trim(), ttl, totalCount, stats.totalBytes);
-      Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(items));
+      // 恢复模式：share 已创建则复用
+      if (created?.id) {
+        shareId = created.id;
+      } else {
+        const shareRes = await createShare(ttl, title.trim() || undefined);
+        if (shareRes.error || !shareRes.data) {
+          Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
+          setSubmitting(false);
+          return;
+        }
+        const share = shareRes.data;
+        setCreated({ id: share.id, code: share.code });
+        shareId = share.id;
+
+        // 首次启动才初始化任务
+        useTaskStore.getState().startUpload(shareId, items.length);
+        useTaskStore.getState().saveFormState(shareId, title.trim(), ttl, items.length, stats.totalBytes);
+        Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(items));
+      }
+
+      // 恢复时重设状态为 uploading
+      const taskState = useTaskStore.getState().uploads[shareId];
+      if (taskState?.status === 'paused' || taskState?.status === 'done' || taskState?.status === 'cancelled') {
+        useTaskStore.setState((s) => ({
+          uploads: { ...s.uploads, [shareId]: { ...s.uploads[shareId]!, status: 'uploading' } },
+        }));
+      }
+
       let done = 0, failed = 0;
 
       for (const it of items) {
-        // 检查是否被暂停或取消
-        const taskState = useTaskStore.getState().uploads[share.id];
-        if (!taskState || taskState.status === 'paused' || taskState.status === 'cancelled') break;
+        if (it.status === 'done') { done++; continue; }
+
+        const tState = useTaskStore.getState().uploads[shareId];
+        if (!tState || tState.status === 'paused' || tState.status === 'cancelled') break;
 
         setItems((arr) => {
           const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading' as const, error: undefined } : x));
-          Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+          Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
           return next;
         });
         try {
           if (it.size && it.size > MAX_FILE_SIZE) {
             throw new Error(`文件过大（${formatBytes(it.size)}）`);
           }
-          const uploadRes = await uploadPhoto(share.id, it.path);
-          // 上传后再次检查（暂停可能在等待网络时触发）
-          const taskState2 = useTaskStore.getState().uploads[share.id];
-          if (!taskState2 || taskState2.status === 'paused' || taskState2.status === 'cancelled') break;
+          const uploadRes = await uploadPhoto(shareId, it.path);
+          const tState2 = useTaskStore.getState().uploads[shareId];
+          if (!tState2 || tState2.status === 'paused' || tState2.status === 'cancelled') break;
 
           if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
             setItems((arr) => {
               const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x));
-              Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+              Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
               return next;
             });
             done++;
-            useTaskStore.getState().updateUpload(share.id, done, failed);
+            useTaskStore.getState().updateUpload(shareId, done, failed);
           } else {
             throw new Error('上传失败');
           }
@@ -157,14 +173,17 @@ export default function NewSharePage() {
           failed++;
           setItems((arr) => {
             const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'error', error: err?.message || '上传失败' } : x));
-            Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+            Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
             return next;
           });
-          useTaskStore.getState().updateUpload(share.id, done, failed);
+          useTaskStore.getState().updateUpload(shareId, done, failed);
         }
       }
-      useTaskStore.getState().finishUpload(share.id);
-      Taro.removeStorageSync(`upload_items_${share.id}`);
+      const finalTask = useTaskStore.getState().uploads[shareId];
+      if (finalTask && finalTask.status !== 'cancelled' && finalTask.status !== 'paused') {
+        useTaskStore.getState().finishUpload(shareId);
+      }
+      Taro.removeStorageSync(`upload_items_${shareId}`);
       Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success', duration: 2000 });
     } catch {
       Taro.showToast({ title: '创建分享失败', icon: 'none' });
