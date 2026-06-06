@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useLoad } from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare, uploadPhoto } from '@/api/share.api';
 import { useTaskStore } from '@/stores/task.store';
@@ -28,28 +28,32 @@ export default function NewSharePage() {
   const [items, setItems] = useState<PickedItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
-  const [qrVisible, setQrVisible] = useState(false);
+  const [restoreShareId, setRestoreShareId] = useState<string | null>(null);
 
-  // 恢复页面状态：从活跃上传任务中读取表单数据
+  // 从 URL 参数读取 restoreShareId（仅点击进度卡片时传入）
+  useLoad((options) => {
+    if (options?.restoreShareId) {
+      setRestoreShareId(options.restoreShareId as string);
+    }
+  });
+
+  // 仅当从进度卡片进入时才恢复表单状态
   useDidShow(() => {
-    const pendingUploads = Object.values(useTaskStore.getState().uploads).filter((t) => t.status === 'uploading');
-    if (pendingUploads.length > 0) {
-      const task = pendingUploads[0]!;
-      if (task.formTitle) setTitle(task.formTitle);
-      if (task.formTtl) setTtl(task.formTtl);
+    if (!restoreShareId) return;
+    const task = useTaskStore.getState().uploads[restoreShareId];
+    if (!task || task.status !== 'uploading') return;
+    if (task.formTitle) setTitle(task.formTitle);
+    if (task.formTtl) setTtl(task.formTtl);
 
-      // 从 storage 恢复图片列表（tempFilePath 在小程序 session 内有效）
-      const saved = Taro.getStorageSync(`upload_items_${task.shareId}`);
-      if (saved) {
-        try {
-          const savedItems = JSON.parse(saved) as PickedItem[];
-          // 仅恢复未完成的上传项
-          const restoredItems = savedItems.map((it) =>
-            it.status === 'done' ? it : { ...it, status: 'uploading' as const, error: undefined },
-          );
-          setItems(restoredItems);
-        } catch { /* ignore */ }
-      }
+    const saved = Taro.getStorageSync(`upload_items_${task.shareId}`);
+    if (saved) {
+      try {
+        const savedItems = JSON.parse(saved) as PickedItem[];
+        const restoredItems = savedItems.map((it) =>
+          it.status === 'done' ? it : { ...it, status: 'uploading' as const, error: undefined },
+        );
+        setItems(restoredItems);
+      } catch { /* ignore */ }
     }
   });
 
