@@ -47,11 +47,19 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
     return { data: result };
   });
 
-  // 提前结束
+  // 提前结束（软删除）
   app.delete('/:shareId', async (req, reply) => {
     const { shareId } = shareIdParamSchema.parse(req.params);
     const userId = req.currentUser!.sub;
     await shareService.end(shareId, userId);
+    reply.code(204).send();
+  });
+
+  // 永久删除（硬删除，仅 ended/cleaned 状态可操作）
+  app.post('/:shareId/destroy', async (req, reply) => {
+    const { shareId } = shareIdParamSchema.parse(req.params);
+    const userId = req.currentUser!.sub;
+    await shareService.destroy(shareId, userId);
     reply.code(204).send();
   });
 

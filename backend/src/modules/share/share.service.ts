@@ -191,6 +191,37 @@ export const shareService = {
     return { id: shareId, expiresAt: newExpiresAt };
   },
 
+  /** 硬删除：删除照片文件、DB记录、分享目录，仅允许 ended/cleaned 状态 */
+  async destroy(shareId: string, ownerId: string): Promise<void> {
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
+    if (share.ownerId !== ownerId) throw Errors.forbidden();
+    if (share.status !== 'ended' && share.status !== 'cleaned') throw Errors.forbidden('仅已结束或已清理的分享可删除');
+
+    // 删除所有照片文件
+    const { safeUnlink } = await import('../../infra/storage/local.js');
+    const { originalPath, previewPath, previewWebpPath, mediumPath, mediumWebpPath } = await import('../../infra/storage/paths.js');
+    const photoList = await db.select().from(photos).where(eq(photos.shareId, shareId)).all();
+    await Promise.all(photoList.map((p) =>
+      Promise.all([
+        safeUnlink(originalPath(shareId, p.id, p.ext)),
+        safeUnlink(previewPath(shareId, p.id)),
+        safeUnlink(previewWebpPath(shareId, p.id)),
+        safeUnlink(mediumPath(shareId, p.id)),
+        safeUnlink(mediumWebpPath(shareId, p.id)),
+      ])
+    ));
+
+    // 删除 DB 记录
+    await db.delete(photos).where(eq(photos.shareId, shareId)).run();
+    await db.delete(contributors).where(eq(contributors.shareId, shareId)).run();
+    await db.delete(shares).where(eq(shares.id, shareId)).run();
+
+    // 清理目录
+    const { removeShareDirs } = await import('../../infra/storage/local.js');
+    await removeShareDirs(shareId).catch(() => {});
+  },
+
   async end(shareId: string, ownerId: string): Promise<void> {
     const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
     if (!share) throw Errors.shareNotFound();

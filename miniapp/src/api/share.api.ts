@@ -64,6 +64,14 @@ export async function endShare(shareId: string) {
   }
 }
 
+/** 永久删除分享 */
+export async function deleteShare(shareId: string) {
+  const res = await api(`/api/shares/${shareId}/destroy`, { method: 'POST' });
+  if (res.error) {
+    throw new Error(res.error.message || '删除失败');
+  }
+}
+
 /* ─── 贡献者 ─── */
 
 /** 凭分享码申请加入 */

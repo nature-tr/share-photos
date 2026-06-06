@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
 import QrSheet from '@/components/QrSheet';
-import { iconQrcode, iconCopy, iconLink, iconFolder, iconUser } from '@/assets/icons';
+import { iconQrcode, iconCopy, iconLink, iconFolder, iconUser, iconTrash } from '@/assets/icons';
 import type { ShareSummary } from '@photo/shared/dto';
 import { TTL_PRESETS } from '@photo/shared';
 import './index.scss';
@@ -121,6 +121,24 @@ export default function MySharesPage() {
     });
   }
 
+  function onDelete(item: ShareSummary) {
+    Taro.showModal({
+      title: '删除分享',
+      content: `永久删除「${item.title || item.code}」？此操作不可撤销。`,
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await deleteShare(item.id);
+          Taro.showToast({ title: '已删除', icon: 'success' });
+          void load();
+        } catch {
+          Taro.showToast({ title: '删除失败', icon: 'none' });
+        }
+      },
+    });
+  }
+
   function confirmLogout() {
     Taro.showModal({
       title: '退出登录',
@@ -180,6 +198,11 @@ export default function MySharesPage() {
                   <View className="pill" style={{ backgroundColor: st.bg }}>
                     <Text className="pill-text" style={{ color: st.color }}>{st.text}</Text>
                   </View>
+                  {(item.status === 'ended' || item.status === 'cleaned') && (
+                    <View className="delete-icon" onClick={(e: any) => { e.stopPropagation(); onDelete(item); }}>
+                      <Image src={iconTrash('#ef4444')} className="delete-icon-img" />
+                    </View>
+                  )}
                 </View>
 
                 <View className="code-row">
