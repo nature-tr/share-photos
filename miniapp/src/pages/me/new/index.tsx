@@ -37,16 +37,18 @@ export default function NewSharePage() {
       const task = pendingUploads[0]!;
       if (task.formTitle) setTitle(task.formTitle);
       if (task.formTtl) setTtl(task.formTtl);
-      // items 的 tempFilePath 已失效，仅显示数量摘要
-      if (task.formItemCount) {
-        const placeholderItems: PickedItem[] = Array.from({ length: task.formItemCount }, (_, i) => ({
-          id: `restored-${i}`,
-          path: '',
-          name: `照片${i + 1}`,
-          size: Math.round((task.formTotalBytes ?? 0) / task.formItemCount!),
-          status: 'done' as const,
-        }));
-        setItems(placeholderItems);
+
+      // 从 storage 恢复图片列表（tempFilePath 在小程序 session 内有效）
+      const saved = Taro.getStorageSync(`upload_items_${task.shareId}`);
+      if (saved) {
+        try {
+          const savedItems = JSON.parse(saved) as PickedItem[];
+          // 仅恢复未完成的上传项
+          const restoredItems = savedItems.map((it) =>
+            it.status === 'done' ? it : { ...it, status: 'uploading' as const, error: undefined },
+          );
+          setItems(restoredItems);
+        } catch { /* ignore */ }
       }
     }
   });
@@ -111,10 +113,11 @@ export default function NewSharePage() {
       const share = shareRes.data;
       setCreated({ id: share.id, code: share.code });
 
-      // 全局任务追踪 + 保存表单状态
+      // 全局任务追踪 + 保存表单和图片状态
       const totalCount = items.length;
       useTaskStore.getState().startUpload(share.id, totalCount);
       useTaskStore.getState().saveFormState(share.id, title.trim(), ttl, totalCount, stats.totalBytes);
+      Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(items));
       let done = 0, failed = 0;
 
       for (const it of items) {
@@ -125,7 +128,7 @@ export default function NewSharePage() {
           }
           const uploadRes = await uploadPhoto(share.id, it.path);
           if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
-            setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'done' } : x)));
+            setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x)));
             done++;
             useTaskStore.getState().updateUpload(share.id, done, failed);
           } else {
@@ -140,6 +143,7 @@ export default function NewSharePage() {
         }
       }
       useTaskStore.getState().finishUpload(share.id);
+      Taro.removeStorageSync(`upload_items_${share.id}`);
       Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success', duration: 2000 });
     } catch {
       Taro.showToast({ title: '创建分享失败', icon: 'none' });
