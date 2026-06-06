@@ -29,22 +29,33 @@ export default function IndexPage() {
   useDidShow(() => {
     const raw = getHistory();
     setHistory(raw);
-    // 后台验证：移除已过期/结束/清除的分享
+    // 后台验证：移除失效分享 + 同步重命名
     if (raw.length > 0) {
       Promise.all(
         raw.map((h) =>
           getViewerShare(h.code, 1, 1)
-            .then((res) => (res.error ? h.code : null))
-            .catch(() => h.code),
+            .then((res) => {
+              if (res.error) return { code: h.code, invalid: true };
+              const newTitle = res.data?.title;
+              if (newTitle && newTitle !== h.title) return { code: h.code, title: newTitle };
+              return null;
+            })
+            .catch(() => ({ code: h.code, invalid: true })),
         ),
-      ).then((invalidCodes) => {
-        const invalid = invalidCodes.filter(Boolean) as string[];
-        if (invalid.length > 0) {
-          let list = getHistory();
-          for (const c of invalid) list = list.filter((x) => x.code !== c);
-          saveHistoryList(list);
-          setHistory(list);
+      ).then((results) => {
+        const hasChange = results.some((r) => r !== null);
+        if (!hasChange) return;
+        let list = getHistory();
+        for (const r of results) {
+          if (!r) continue;
+          if ((r as any).invalid) {
+            list = list.filter((x) => x.code !== r.code);
+          } else if ((r as any).title) {
+            list = list.map((x) => (x.code === r.code ? { ...x, title: (r as any).title } : x));
+          }
         }
+        saveHistoryList(list);
+        setHistory(list);
       });
     }
   });
