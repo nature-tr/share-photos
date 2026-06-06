@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
-import { iconUpload, iconDownload, iconXMark } from '@/assets/icons';
+import { iconPause, iconUpload, iconDownload, iconXMark } from '@/assets/icons';
 import './index.scss';
 
 export default function GlobalProgress() {
@@ -57,27 +57,24 @@ export default function GlobalProgress() {
               <View className="gp-row-actions" onClick={(e: any) => e.stopPropagation()}>
                 {isActive && (
                   <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().pauseUpload(t.shareId) : useTaskStore.getState().pauseDownload(t.shareCode)}>
-                    <Image src={isUpload ? iconUpload('#475569') : iconDownload('#475569')} className="gp-row-btn-icon" />
+                    <Image src={iconPause('#475569')} className="gp-row-btn-icon" />
                   </View>
                 )}
-                {isPaused && isUpload && (
+                {isPaused && (
                   <View className="gp-row-btn" onClick={() => {
-                    useTaskStore.setState((s) => ({
-                      uploads: { ...s.uploads, [t.shareId]: { ...s.uploads[t.shareId]!, status: 'uploading' } },
-                    }));
-                    Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+                    if (isUpload) {
+                      useTaskStore.setState((s) => ({
+                        uploads: { ...s.uploads, [t.shareId]: { ...s.uploads[t.shareId]!, status: 'uploading' } },
+                      }));
+                      Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+                    } else {
+                      useTaskStore.setState((s) => ({
+                        downloads: { ...s.downloads, [t.shareCode]: { ...s.downloads[t.shareCode]!, status: 'downloading' } },
+                      }));
+                      Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
+                    }
                   }}>
-                    <Image src={iconUpload('#3b82f6')} className="gp-row-btn-icon" />
-                  </View>
-                )}
-                {isPaused && !isUpload && (
-                  <View className="gp-row-btn" onClick={() => {
-                    useTaskStore.setState((s) => ({
-                      downloads: { ...s.downloads, [t.shareCode]: { ...s.downloads[t.shareCode]!, status: 'downloading' } },
-                    }));
-                    Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
-                  }}>
-                    <Image src={iconDownload('#3b82f6')} className="gp-row-btn-icon" />
+                    <Image src={isUpload ? iconUpload('#3b82f6') : iconDownload('#3b82f6')} className="gp-row-btn-icon" />
                   </View>
                 )}
                 <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().cancelUpload(t.shareId) : useTaskStore.getState().cancelDownload(t.shareCode)}>
