@@ -44,15 +44,14 @@ export default function NewSharePage() {
     if (!task || task.status !== 'uploading') return;
     if (task.formTitle) setTitle(task.formTitle);
     if (task.formTtl) setTtl(task.formTtl);
+    setSubmitting(true);
+    setCreated({ id: restoreShareId, code: '' });
 
     const saved = Taro.getStorageSync(`upload_items_${task.shareId}`);
     if (saved) {
       try {
         const savedItems = JSON.parse(saved) as PickedItem[];
-        const restoredItems = savedItems.map((it) =>
-          it.status === 'done' ? it : { ...it, status: 'uploading' as const, error: undefined },
-        );
-        setItems(restoredItems);
+        setItems(savedItems);
       } catch { /* ignore */ }
     }
   });
@@ -125,14 +124,22 @@ export default function NewSharePage() {
       let done = 0, failed = 0;
 
       for (const it of items) {
-        setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading', error: undefined } : x)));
+        setItems((arr) => {
+          const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading' as const, error: undefined } : x));
+          Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+          return next;
+        });
         try {
           if (it.size && it.size > MAX_FILE_SIZE) {
             throw new Error(`文件过大（${formatBytes(it.size)}）`);
           }
           const uploadRes = await uploadPhoto(share.id, it.path);
           if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
-            setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x)));
+            setItems((arr) => {
+              const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x));
+              Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+              return next;
+            });
             done++;
             useTaskStore.getState().updateUpload(share.id, done, failed);
           } else {
@@ -140,9 +147,11 @@ export default function NewSharePage() {
           }
         } catch (err: any) {
           failed++;
-          setItems((arr) =>
-            arr.map((x) => (x.id === it.id ? { ...x, status: 'error', error: err?.message || '上传失败' } : x)),
-          );
+          setItems((arr) => {
+            const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'error', error: err?.message || '上传失败' } : x));
+            Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
+            return next;
+          });
           useTaskStore.getState().updateUpload(share.id, done, failed);
         }
       }
