@@ -6,6 +6,7 @@ import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
 import QrSheet from '@/components/QrSheet';
+import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconCopy, iconLink, iconFolder, iconUser, iconTrash } from '@/assets/icons';
 import type { ShareSummary } from '@photo/shared/dto';
 import { TTL_PRESETS } from '@photo/shared';
@@ -359,6 +360,7 @@ export default function MySharesPage() {
         title={qrItem?.title || '未命名相册'}
         onClose={() => setQrItem(null)}
       />
+      <GlobalProgress />
     </View>
   );
 }
