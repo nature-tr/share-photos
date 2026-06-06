@@ -27,7 +27,7 @@ async function handleLogout() {
       <div class="container">
         <RouterLink to="/" class="logo">
           <span class="logo-icon">
-            <span class="i-tdesign:image-1 text-22px"></span>
+            <img src="/favicon.png" class="logo-img" alt="logo" />
           </span>
           <span class="logo-text">格子橱窗</span>
         </RouterLink>
@@ -104,12 +104,11 @@ async function handleLogout() {
   color: var(--text-1);
 }
 
+.logo-img { width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
 .logo-icon {
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
