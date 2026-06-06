@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
-import { iconPause, iconXMark, iconDownload } from '@/assets/icons';
+import { iconUpload, iconDownload, iconXMark } from '@/assets/icons';
 import './index.scss';
 
 export default function GlobalProgress() {
@@ -57,16 +57,7 @@ export default function GlobalProgress() {
               <View className="gp-row-actions" onClick={(e: any) => e.stopPropagation()}>
                 {isActive && (
                   <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().pauseUpload(t.shareId) : useTaskStore.getState().pauseDownload(t.shareCode)}>
-                    <Image src={iconPause('#94a3b8')} className="gp-row-btn-icon" />
-                  </View>
-                )}
-                {isPaused && (
-                  <View className="gp-row-btn" onClick={() => {
-                    // 恢复：重新 set status 为 uploading/downloading
-                    // 但暂停时循环已 break，无法恢复——直接标记为取消让用户重新操作
-                    Taro.showToast({ title: '任务已暂停，无法恢复，请重新操作', icon: 'none' });
-                  }}>
-                    <Image src={iconDownload('#3b82f6')} className="gp-row-btn-icon" />
+                    <Image src={isUpload ? iconUpload('#475569') : iconDownload('#475569')} className="gp-row-btn-icon" />
                   </View>
                 )}
                 <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().cancelUpload(t.shareId) : useTaskStore.getState().cancelDownload(t.shareCode)}>
