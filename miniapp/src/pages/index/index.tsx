@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';

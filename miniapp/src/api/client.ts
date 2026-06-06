@@ -28,11 +28,6 @@ export async function api<T = any>(
     header['Authorization'] = `Bearer ${token}`;
   }
 
-  // 关键：微信 wx.request 默认 Content-Type = application/json。
-  // 若 body 为空 / 无 body，但 Content-Type 仍是 application/json，
-  // Fastify 解析空 body 会抛 400，所以这里：
-  //   - 有 body → 正常 application/json
-  //   - 无 body → 显式发 {} 避免空 body 触发解析失败
   let dataToSend: any = body;
   if (!formData) {
     header['Content-Type'] = 'application/json';
@@ -54,7 +49,7 @@ export async function api<T = any>(
       return { data: payload.data ?? payload };
     }
 
-    // 401 → 用本地 refreshToken 刷新一次后重试（避免错误清空 storage）
+    // 401 → 用本地 refreshToken 刷新一次后重试
     if (res.statusCode === 401 && path !== '/api/auth/refresh' && path !== '/api/auth/me') {
       const rt = Taro.getStorageSync('refresh_token') as string | null;
       if (rt) {
@@ -62,7 +57,6 @@ export async function api<T = any>(
           const refreshRes = await refreshAccessToken(rt);
           const newToken = refreshRes.data?.accessToken;
           if (newToken) {
-            // 更新 store 与 storage（refreshAccessToken 内部已写 storage）
             useAuth.setState({ accessToken: newToken });
             header['Authorization'] = `Bearer ${newToken}`;
             const retryRes = await Taro.request({
@@ -75,10 +69,9 @@ export async function api<T = any>(
               const payload = retryRes.data as any;
               return { data: payload.data ?? payload };
             }
-            // 重试还失败 → 走下面 errPayload 流程，但不清空登录态
           }
         } catch {
-          /* refresh 失败也不清空，由 checkAuth 决策 */
+          /* refresh 失败也不清空 */
         }
       }
     }
