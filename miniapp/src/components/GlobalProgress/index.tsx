@@ -34,7 +34,7 @@ export default function GlobalProgress() {
               Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
             } else {
               if (current?.route === 'pages/viewer/detail/index' && (current?.options as any)?.code === t.shareCode) return;
-              Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
+              Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}` });
             }
           };
 
@@ -66,12 +66,10 @@ export default function GlobalProgress() {
                       useTaskStore.setState((s) => ({
                         uploads: { ...s.uploads, [t.shareId]: { ...s.uploads[t.shareId]!, status: 'uploading' } },
                       }));
-                      Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
                     } else {
                       useTaskStore.setState((s) => ({
                         downloads: { ...s.downloads, [t.shareCode]: { ...s.downloads[t.shareCode]!, status: 'downloading' } },
                       }));
-                      Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
                     }
                   }}>
                     <Image src={isUpload ? iconUpload('#3b82f6') : iconDownload('#3b82f6')} className="gp-row-btn-icon" />

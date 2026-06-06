@@ -48,8 +48,6 @@ export default function ViewerPage() {
   const scrolledOnceRef = useRef(false);
   const PAGE_SIZE = 50;
 
-  const [fromDownload, setFromDownload] = useState(false);
-
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
     setCode(c.toUpperCase());
@@ -58,20 +56,15 @@ export default function ViewerPage() {
       const { scrollTop: lastScrollTop } = getLastPosition(c.toUpperCase());
       lastScrollTargetRef.current = lastScrollTop;
     }
-    if (options?.fromDownload === '1') {
-      setFromDownload(true);
-    }
   });
 
-  // 从下载暂停恢复时，重启 saveAll
+  // 监听下载任务状态：从 paused 恢复到 downloading 时自动继续
+  const dlStatus = useTaskStore((s) => s.downloads[code]?.status);
   useEffect(() => {
-    if (!fromDownload || !album || album.photos.length === 0) return;
-    const dlTask = useTaskStore.getState().downloads[code];
-    if (dlTask && dlTask.status === 'downloading') {
-      setFromDownload(false);
-      setTimeout(() => void saveAll(), 500);
-    }
-  }, [fromDownload, album, code]);
+    if (!album || album.photos.length === 0 || dlStatus !== 'downloading') return;
+    if (saving) return;
+    void saveAll();
+  }, [dlStatus]);
 
   useEffect(() => {
     if (!code) return;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow, useLoad } from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
@@ -55,6 +55,13 @@ export default function NewSharePage() {
       } catch { /* ignore */ }
     }
   });
+
+  // 监听任务状态：从 paused 恢复到 uploading 时自动继续
+  const taskStatus = useTaskStore((s) => created?.id ? s.uploads[created.id]?.status : undefined);
+  useEffect(() => {
+    if (!created?.id || taskStatus !== 'uploading') return;
+    void start();
+  }, [taskStatus]);
 
   const stats = useMemo(() => {
     const total = items.length;
