@@ -1,5 +1,4 @@
 import { PropsWithChildren } from 'react';
-import { View } from '@tarojs/components';
 import { useLaunch } from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
 import GlobalProgress from '@/components/GlobalProgress';
@@ -13,10 +12,10 @@ function App({ children }: PropsWithChildren) {
   });
 
   return (
-    <View>
+    <>
       {children}
       <GlobalProgress />
-    </View>
+    </>
   );
 }
 

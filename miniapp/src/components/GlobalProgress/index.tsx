@@ -1,28 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { View, Text } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
 import './index.scss';
 
 export default function GlobalProgress() {
-  const uploads = useTaskStore((s) => Object.values(s.uploads).filter((t) => t.status === 'uploading'));
-  const downloads = useTaskStore((s) => Object.values(s.downloads).filter((t) => t.status === 'downloading'));
-  const doneUploads = useTaskStore((s) => Object.values(s.uploads).filter((t) => t.status === 'done'));
-  const doneDownloads = useTaskStore((s) => Object.values(s.downloads).filter((t) => t.status === 'done'));
-  const dismissed = useRef(false);
+  // 使用 useMemo 避免 filter 每次生成新引用导致无限重渲染
+  const allUploads = useTaskStore((s) => s.uploads);
+  const allDownloads = useTaskStore((s) => s.downloads);
 
-  // 完成后 3 秒自动消失（仅触发一次）
-  useEffect(() => {
-    if (doneUploads.length > 0 || doneDownloads.length > 0) {
-      if (dismissed.current) return;
-      dismissed.current = true;
-      const timer = setTimeout(() => {
-        doneUploads.forEach((t) => useTaskStore.getState().cancelUpload(t.shareId));
-        doneDownloads.forEach((t) => useTaskStore.getState().cancelDownload(t.shareCode));
-        dismissed.current = false;
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [doneUploads.length, doneDownloads.length]);
+  const uploads = useMemo(() => Object.values(allUploads).filter((t) => t.status === 'uploading'), [allUploads]);
+  const downloads = useMemo(() => Object.values(allDownloads).filter((t) => t.status === 'downloading'), [allDownloads]);
+  const doneUploads = useMemo(() => Object.values(allUploads).filter((t) => t.status === 'done'), [allUploads]);
+  const doneDownloads = useMemo(() => Object.values(allDownloads).filter((t) => t.status === 'done'), [allDownloads]);
 
   const activeUploads = uploads.length;
   const activeDownloads = downloads.length;
@@ -58,13 +47,13 @@ export default function GlobalProgress() {
         </View>
       )}
       {activeUploads === 0 && completedUploads > 0 && (
-        <View className="gp-item gp-done">
-          <Text className="gp-label gp-label-done">✓ 上传完成</Text>
+        <View className="gp-item gp-done" onClick={() => doneUploads.forEach((t) => useTaskStore.getState().cancelUpload(t.shareId))}>
+          <Text className="gp-label gp-label-done">✓ 上传完成 · 点击关闭</Text>
         </View>
       )}
       {activeDownloads === 0 && completedDownloads > 0 && (
-        <View className="gp-item gp-done">
-          <Text className="gp-label gp-label-done">✓ 保存完成</Text>
+        <View className="gp-item gp-done" onClick={() => doneDownloads.forEach((t) => useTaskStore.getState().cancelDownload(t.shareCode))}>
+          <Text className="gp-label gp-label-done">✓ 保存完成 · 点击关闭</Text>
         </View>
       )}
     </View>
