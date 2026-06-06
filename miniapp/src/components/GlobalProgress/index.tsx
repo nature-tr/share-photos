@@ -21,8 +21,15 @@ export default function GlobalProgress() {
     <View className="global-progress">
       {activeUploads.map((t) => {
         const pct = t.total > 0 ? Math.round((t.done / t.total) * 100) : 0;
+        const onCardClick = () => {
+          const pages = Taro.getCurrentPages();
+          const current = pages[pages.length - 1];
+          // 已在新建分享页则不跳转
+          if (current?.route === 'pages/me/new/index') return;
+          Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+        };
         return (
-          <View key={t.shareId} className="gp-item" onClick={() => Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` })}>
+          <View key={t.shareId} className="gp-item" onClick={onCardClick}>
             <Text className="gp-label">上传中 {t.done}/{t.total}{t.formTitle ? ` · ${t.formTitle}` : ''}</Text>
             <View className="gp-track">
               <View className="gp-fill gp-fill-upload" style={{ width: `${pct}%` }} />

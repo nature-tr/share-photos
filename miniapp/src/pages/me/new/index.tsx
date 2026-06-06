@@ -287,10 +287,10 @@ export default function NewSharePage() {
           )}
         </View>
         <View
-          className={`btn ${(items.length === 0 || submitting) ? 'btn-disabled' : ''}`}
-          onClick={() => !submitting && items.length > 0 && start()}
+          className={`btn ${(items.length === 0 || submitting || !!restoreShareId) ? 'btn-disabled' : ''}`}
+          onClick={() => !submitting && !restoreShareId && items.length > 0 && start()}
         >
-          <Text className="btn-text">{submitting ? '上传中' : '创建并上传'}</Text>
+          <Text className="btn-text">{restoreShareId ? '正在上传中' : submitting ? '上传中' : '创建并上传'}</Text>
         </View>
       </View>
       <GlobalProgress />
