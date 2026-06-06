@@ -1,72 +1,82 @@
 import Taro from '@tarojs/taro';
-import { View, Text } from '@tarojs/components';
+import { View, Text, Image } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
+import { iconPause, iconXMark } from '@/assets/icons';
 import './index.scss';
 
 export default function GlobalProgress() {
   const allUploads = useTaskStore((s) => s.uploads);
   const allDownloads = useTaskStore((s) => s.downloads);
 
-  const uploadList = Object.values(allUploads);
-  const downloadList = Object.values(allDownloads);
+  const tasks = [
+    ...Object.values(allUploads).map((t) => ({ ...t, kind: 'upload' as const })),
+    ...Object.values(allDownloads).map((t) => ({ ...t, kind: 'download' as const })),
+  ].filter((t) => t.status !== 'cancelled');
 
-  const activeUploads = uploadList.filter((t) => t.status === 'uploading');
-  const doneUploads = uploadList.filter((t) => t.status === 'done');
-  const activeDownloads = downloadList.filter((t) => t.status === 'downloading');
-  const doneDownloads = downloadList.filter((t) => t.status === 'done');
+  if (tasks.length === 0) return null;
 
-  if (activeUploads.length === 0 && activeDownloads.length === 0 && doneUploads.length === 0 && doneDownloads.length === 0) return null;
+  // 在详情页隐藏下载任务（页面自带进度条）
+  const pages = Taro.getCurrentPages();
+  const isViewerPage = pages[pages.length - 1]?.route === 'pages/viewer/detail/index';
+
+  const visible = isViewerPage
+    ? tasks.filter((t) => t.kind !== 'download')
+    : tasks;
+
+  if (visible.length === 0) return null;
 
   return (
     <View className="global-progress">
-      {activeUploads.map((t) => {
-        const pct = t.total > 0 ? Math.round((t.done / t.total) * 100) : 0;
-        const onCardClick = () => {
-          const pages = Taro.getCurrentPages();
-          const current = pages[pages.length - 1];
-          // 已在新建分享页则不跳转
-          if (current?.route === 'pages/me/new/index') return;
-          Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
-        };
-        return (
-          <View key={t.shareId} className="gp-item" onClick={onCardClick}>
-            <Text className="gp-label">上传中 {t.done}/{t.total}{t.formTitle ? ` · ${t.formTitle}` : ''}</Text>
-            <View className="gp-track">
-              <View className="gp-fill gp-fill-upload" style={{ width: `${pct}%` }} />
+      <View className="gp-card">
+        {visible.map((t) => {
+          const isUpload = t.kind === 'upload';
+          const isActive = t.status === 'uploading' || t.status === 'downloading';
+          const isPaused = t.status === 'paused';
+          const isDone = t.status === 'done';
+          const total = t.total;
+          const pct = total > 0 ? Math.round((t.done / total) * 100) : 0;
+
+          const onRowClick = () => {
+            const current = pages[pages.length - 1];
+            if (isUpload) {
+              if (current?.route === 'pages/me/new/index') return;
+              Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+            } else {
+              if (current?.route === 'pages/viewer/detail/index' && (current?.options as any)?.code === t.shareCode) return;
+              Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
+            }
+          };
+
+          return (
+            <View key={isUpload ? t.shareId : t.shareCode} className="gp-row" onClick={onRowClick}>
+              <View className="gp-row-left">
+                <Text className="gp-row-label">
+                  {isPaused ? '⏸' : isDone ? '✓' : isUpload ? '↑' : '↓'}
+                  {' '}{isUpload ? `上传 ${t.done}/${total}` : `保存 ${t.done}/${total}`}
+                  {t.formTitle ? ` · ${t.formTitle}` : ''}
+                  {isPaused ? ' 已暂停' : ''}
+                  {t.failed > 0 && !isDone ? ` (失败${t.failed})` : ''}
+                </Text>
+                {isActive && (
+                  <View className="gp-row-track">
+                    <View className="gp-row-fill" style={{ width: `${pct}%` }} />
+                  </View>
+                )}
+              </View>
+              <View className="gp-row-actions" onClick={(e: any) => e.stopPropagation()}>
+                {isActive && (
+                  <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().pauseUpload(t.shareId) : useTaskStore.getState().pauseDownload(t.shareCode)}>
+                    <Image src={iconPause('#94a3b8')} className="gp-row-btn-icon" />
+                  </View>
+                )}
+                <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().cancelUpload(t.shareId) : useTaskStore.getState().cancelDownload(t.shareCode)}>
+                  <Image src={iconXMark('#94a3b8')} className="gp-row-btn-icon" />
+                </View>
+              </View>
             </View>
-          </View>
-        );
-      })}
-      {activeDownloads.map((t) => {
-        const pct = t.total > 0 ? Math.round((t.done / t.total) * 100) : 0;
-        const onDlClick = () => {
-          const pages = Taro.getCurrentPages();
-          const current = pages[pages.length - 1];
-          if (current?.route === 'pages/viewer/detail/index' && (current?.options as any)?.code === t.shareCode) return;
-          Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
-        };
-        // 已在详情页时隐藏（页面自带进度条）
-        const pages = Taro.getCurrentPages();
-        if (pages[pages.length - 1]?.route === 'pages/viewer/detail/index') return null;
-        return (
-          <View key={t.shareCode} className="gp-item" onClick={onDlClick}>
-            <Text className="gp-label">保存中 {t.done}/{t.total}</Text>
-            <View className="gp-track">
-              <View className="gp-fill gp-fill-download" style={{ width: `${pct}%` }} />
-            </View>
-          </View>
-        );
-      })}
-      {doneUploads.map((t) => (
-        <View key={t.shareId} className="gp-item gp-done" onClick={() => useTaskStore.getState().cancelUpload(t.shareId)}>
-          <Text className="gp-label gp-label-done">✓ 上传完成 · 点击关闭</Text>
-        </View>
-      ))}
-      {doneDownloads.map((t) => (
-        <View key={t.shareCode} className="gp-item gp-done" onClick={() => useTaskStore.getState().cancelDownload(t.shareCode)}>
-          <Text className="gp-label gp-label-done">✓ 保存完成 · 点击关闭</Text>
-        </View>
-      ))}
+          );
+        })}
+      </View>
     </View>
   );
 }

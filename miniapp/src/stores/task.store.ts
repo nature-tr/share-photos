@@ -5,7 +5,7 @@ export interface UploadTask {
   total: number;
   done: number;
   failed: number;
-  status: 'uploading' | 'done' | 'cancelled';
+  status: 'uploading' | 'paused' | 'done' | 'cancelled';
   formTitle?: string;
   formTtl?: number;
   formItemCount?: number;
@@ -17,7 +17,7 @@ export interface DownloadTask {
   total: number;
   done: number;
   failed: number;
-  status: 'downloading' | 'done' | 'cancelled';
+  status: 'downloading' | 'paused' | 'done' | 'cancelled';
 }
 
 interface TaskState {
@@ -26,11 +26,13 @@ interface TaskState {
 
   startUpload: (shareId: string, total: number) => void;
   updateUpload: (shareId: string, done: number, failed: number) => void;
+  pauseUpload: (shareId: string) => void;
   finishUpload: (shareId: string) => void;
   cancelUpload: (shareId: string) => void;
 
   startDownload: (shareCode: string, total: number) => void;
   updateDownload: (shareCode: string, done: number, failed: number) => void;
+  pauseDownload: (shareCode: string) => void;
   finishDownload: (shareCode: string) => void;
   cancelDownload: (shareCode: string) => void;
 
@@ -42,66 +44,71 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   downloads: {},
 
   startUpload: (shareId, total) =>
-    set((s) => ({
-      uploads: { ...s.uploads, [shareId]: { shareId, total, done: 0, failed: 0, status: 'uploading' } },
-    })),
+    set((s) => ({ uploads: { ...s.uploads, [shareId]: { shareId, total, done: 0, failed: 0, status: 'uploading' } } })),
 
   updateUpload: (shareId, done, failed) =>
     set((s) => {
-      const existing = s.uploads[shareId];
-      if (!existing) return s;
-      return { uploads: { ...s.uploads, [shareId]: { ...existing, done, failed } } };
+      const e = s.uploads[shareId];
+      if (!e || e.status !== 'uploading') return s;
+      return { uploads: { ...s.uploads, [shareId]: { ...e, done, failed } } };
+    }),
+
+  pauseUpload: (shareId) =>
+    set((s) => {
+      const e = s.uploads[shareId];
+      if (!e || e.status !== 'uploading') return s;
+      return { uploads: { ...s.uploads, [shareId]: { ...e, status: 'paused' } } };
     }),
 
   finishUpload: (shareId) =>
     set((s) => {
-      const existing = s.uploads[shareId];
-      if (!existing) return s;
-      return { uploads: { ...s.uploads, [shareId]: { ...existing, status: 'done' as const } } };
+      const e = s.uploads[shareId];
+      if (!e) return s;
+      return { uploads: { ...s.uploads, [shareId]: { ...e, status: 'done' as const } } };
     }),
 
   cancelUpload: (shareId) =>
     set((s) => {
-      const existing = s.uploads[shareId];
-      if (!existing) return s;
-      return { uploads: { ...s.uploads, [shareId]: { ...existing, status: 'cancelled' as const } } };
+      const e = s.uploads[shareId];
+      if (!e) return s;
+      return { uploads: { ...s.uploads, [shareId]: { ...e, status: 'cancelled' as const } } };
     }),
 
   startDownload: (shareCode, total) =>
-    set((s) => ({
-      downloads: { ...s.downloads, [shareCode]: { shareCode, total, done: 0, failed: 0, status: 'downloading' } },
-    })),
+    set((s) => ({ downloads: { ...s.downloads, [shareCode]: { shareCode, total, done: 0, failed: 0, status: 'downloading' } } })),
 
   updateDownload: (shareCode, done, failed) =>
     set((s) => {
-      const existing = s.downloads[shareCode];
-      if (!existing) return s;
-      return { downloads: { ...s.downloads, [shareCode]: { ...existing, done, failed } } };
+      const e = s.downloads[shareCode];
+      if (!e || e.status !== 'downloading') return s;
+      return { downloads: { ...s.downloads, [shareCode]: { ...e, done, failed } } };
+    }),
+
+  pauseDownload: (shareCode) =>
+    set((s) => {
+      const e = s.downloads[shareCode];
+      if (!e || e.status !== 'downloading') return s;
+      return { downloads: { ...s.downloads, [shareCode]: { ...e, status: 'paused' } } };
     }),
 
   finishDownload: (shareCode) =>
     set((s) => {
-      const existing = s.downloads[shareCode];
-      if (!existing) return s;
-      return { downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'done' as const } } };
+      const e = s.downloads[shareCode];
+      if (!e) return s;
+      return { downloads: { ...s.downloads, [shareCode]: { ...e, status: 'done' as const } } };
     }),
 
   cancelDownload: (shareCode) =>
     set((s) => {
-      const existing = s.downloads[shareCode];
-      if (!existing) return s;
-      return { downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'cancelled' as const } } };
+      const e = s.downloads[shareCode];
+      if (!e) return s;
+      return { downloads: { ...s.downloads, [shareCode]: { ...e, status: 'cancelled' as const } } };
     }),
 
   saveFormState: (shareId, title, ttl, itemCount, totalBytes) =>
     set((s) => {
-      const existing = s.uploads[shareId];
-      if (!existing) return s;
-      return {
-        uploads: {
-          ...s.uploads,
-          [shareId]: { ...existing, formTitle: title, formTtl: ttl, formItemCount: itemCount, formTotalBytes: totalBytes },
-        },
-      };
+      const e = s.uploads[shareId];
+      if (!e) return s;
+      return { uploads: { ...s.uploads, [shareId]: { ...e, formTitle: title, formTtl: ttl, formItemCount: itemCount, formTotalBytes: totalBytes } } };
     }),
 }));
