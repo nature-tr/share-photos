@@ -6,6 +6,11 @@ export interface UploadTask {
   done: number;
   failed: number;
   status: 'uploading' | 'done' | 'cancelled';
+  /** 新建分享页表单状态，用于恢复页面 */
+  formTitle?: string;
+  formTtl?: number;
+  formItemCount?: number;
+  formTotalBytes?: number;
 }
 
 export interface DownloadTask {
@@ -19,17 +24,18 @@ interface TaskState {
   uploads: Record<string, UploadTask>;
   downloads: Record<string, DownloadTask>;
 
-  // upload
   startUpload: (shareId: string, total: number) => void;
   updateUpload: (shareId: string, done: number, failed: number) => void;
   finishUpload: (shareId: string) => void;
   cancelUpload: (shareId: string) => void;
 
-  // download
   startDownload: (shareCode: string, total: number) => void;
   updateDownload: (shareCode: string, done: number) => void;
   finishDownload: (shareCode: string) => void;
   cancelDownload: (shareCode: string) => void;
+
+  /** 保存表单状态到已有的上传任务 */
+  saveFormState: (shareId: string, title: string, ttl: number, itemCount: number, totalBytes: number) => void;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -45,27 +51,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set((s) => {
       const existing = s.uploads[shareId];
       if (!existing) return s;
-      return {
-        uploads: { ...s.uploads, [shareId]: { ...existing, done, failed } },
-      };
+      return { uploads: { ...s.uploads, [shareId]: { ...existing, done, failed } } };
     }),
 
   finishUpload: (shareId) =>
     set((s) => {
       const existing = s.uploads[shareId];
       if (!existing) return s;
-      return {
-        uploads: { ...s.uploads, [shareId]: { ...existing, status: 'done' as const } },
-      };
+      return { uploads: { ...s.uploads, [shareId]: { ...existing, status: 'done' as const } } };
     }),
 
   cancelUpload: (shareId) =>
     set((s) => {
       const existing = s.uploads[shareId];
       if (!existing) return s;
-      return {
-        uploads: { ...s.uploads, [shareId]: { ...existing, status: 'cancelled' as const } },
-      };
+      return { uploads: { ...s.uploads, [shareId]: { ...existing, status: 'cancelled' as const } } };
     }),
 
   startDownload: (shareCode, total) =>
@@ -77,26 +77,32 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set((s) => {
       const existing = s.downloads[shareCode];
       if (!existing) return s;
-      return {
-        downloads: { ...s.downloads, [shareCode]: { ...existing, done } },
-      };
+      return { downloads: { ...s.downloads, [shareCode]: { ...existing, done } } };
     }),
 
   finishDownload: (shareCode) =>
     set((s) => {
       const existing = s.downloads[shareCode];
       if (!existing) return s;
-      return {
-        downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'done' as const } },
-      };
+      return { downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'done' as const } } };
     }),
 
   cancelDownload: (shareCode) =>
     set((s) => {
       const existing = s.downloads[shareCode];
       if (!existing) return s;
+      return { downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'cancelled' as const } } };
+    }),
+
+  saveFormState: (shareId, title, ttl, itemCount, totalBytes) =>
+    set((s) => {
+      const existing = s.uploads[shareId];
+      if (!existing) return s;
       return {
-        downloads: { ...s.downloads, [shareCode]: { ...existing, status: 'cancelled' as const } },
+        uploads: {
+          ...s.uploads,
+          [shareId]: { ...existing, formTitle: title, formTtl: ttl, formItemCount: itemCount, formTotalBytes: totalBytes },
+        },
       };
     }),
 }));

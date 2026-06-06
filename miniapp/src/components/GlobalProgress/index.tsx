@@ -1,3 +1,4 @@
+import Taro from '@tarojs/taro';
 import { View, Text } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
 import './index.scss';
@@ -21,8 +22,8 @@ export default function GlobalProgress() {
       {activeUploads.map((t) => {
         const pct = t.total > 0 ? Math.round((t.done / t.total) * 100) : 0;
         return (
-          <View key={t.shareId} className="gp-item">
-            <Text className="gp-label">上传中 {t.done}/{t.total}</Text>
+          <View key={t.shareId} className="gp-item" onClick={() => Taro.navigateTo({ url: '/pages/me/new/index' })}>
+            <Text className="gp-label">上传中 {t.done}/{t.total}{t.formTitle ? ` · ${t.formTitle}` : ''}</Text>
             <View className="gp-track">
               <View className="gp-fill gp-fill-upload" style={{ width: `${pct}%` }} />
             </View>

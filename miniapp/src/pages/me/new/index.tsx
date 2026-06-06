@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare, uploadPhoto } from '@/api/share.api';
 import { useTaskStore } from '@/stores/task.store';
@@ -29,6 +29,27 @@ export default function NewSharePage() {
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
   const [qrVisible, setQrVisible] = useState(false);
+
+  // 恢复页面状态：从活跃上传任务中读取表单数据
+  useDidShow(() => {
+    const pendingUploads = Object.values(useTaskStore.getState().uploads).filter((t) => t.status === 'uploading');
+    if (pendingUploads.length > 0) {
+      const task = pendingUploads[0]!;
+      if (task.formTitle) setTitle(task.formTitle);
+      if (task.formTtl) setTtl(task.formTtl);
+      // items 的 tempFilePath 已失效，仅显示数量摘要
+      if (task.formItemCount) {
+        const placeholderItems: PickedItem[] = Array.from({ length: task.formItemCount }, (_, i) => ({
+          id: `restored-${i}`,
+          path: '',
+          name: `照片${i + 1}`,
+          size: Math.round((task.formTotalBytes ?? 0) / task.formItemCount!),
+          status: 'done' as const,
+        }));
+        setItems(placeholderItems);
+      }
+    }
+  });
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -90,9 +111,10 @@ export default function NewSharePage() {
       const share = shareRes.data;
       setCreated({ id: share.id, code: share.code });
 
-      // 全局任务追踪
+      // 全局任务追踪 + 保存表单状态
       const totalCount = items.length;
       useTaskStore.getState().startUpload(share.id, totalCount);
+      useTaskStore.getState().saveFormState(share.id, title.trim(), ttl, totalCount, stats.totalBytes);
       let done = 0, failed = 0;
 
       for (const it of items) {
