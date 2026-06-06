@@ -339,9 +339,15 @@ export default function ViewerPage() {
     let done = 0;
     let failed = 0;
     for (const p of allPhotos) {
+      const dlTask = useTaskStore.getState().downloads[code];
+      if (!dlTask || dlTask.status === 'paused' || dlTask.status === 'cancelled') break;
+
       try {
         const url = getOriginalUrl(code, p.id);
         const downloadRes = await Taro.downloadFile({ url });
+        const dlTask2 = useTaskStore.getState().downloads[code];
+        if (!dlTask2 || dlTask2.status === 'paused' || dlTask2.status === 'cancelled') break;
+
         if (downloadRes.statusCode === 200) {
           await Taro.saveImageToPhotosAlbum({ filePath: downloadRes.tempFilePath });
           done++;
@@ -349,7 +355,10 @@ export default function ViewerPage() {
       } catch { failed++; }
       useTaskStore.getState().updateDownload(code, done + failed, failed);
     }
-    useTaskStore.getState().finishDownload(code);
+    const finalTask = useTaskStore.getState().downloads[code];
+    if (finalTask && finalTask.status !== 'cancelled') {
+      useTaskStore.getState().finishDownload(code);
+    }
     setSaving(false);
     if (failed === 0) Taro.showToast({ title: `已保存 ${done} 张`, icon: 'success' });
     else Taro.showToast({ title: `完成 ${done}，失败 ${failed}`, icon: 'none' });

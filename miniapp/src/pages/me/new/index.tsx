@@ -124,6 +124,10 @@ export default function NewSharePage() {
       let done = 0, failed = 0;
 
       for (const it of items) {
+        // 检查是否被暂停或取消
+        const taskState = useTaskStore.getState().uploads[share.id];
+        if (!taskState || taskState.status === 'paused' || taskState.status === 'cancelled') break;
+
         setItems((arr) => {
           const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading' as const, error: undefined } : x));
           Taro.setStorageSync(`upload_items_${share.id}`, JSON.stringify(next));
@@ -134,6 +138,10 @@ export default function NewSharePage() {
             throw new Error(`文件过大（${formatBytes(it.size)}）`);
           }
           const uploadRes = await uploadPhoto(share.id, it.path);
+          // 上传后再次检查（暂停可能在等待网络时触发）
+          const taskState2 = useTaskStore.getState().uploads[share.id];
+          if (!taskState2 || taskState2.status === 'paused' || taskState2.status === 'cancelled') break;
+
           if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
             setItems((arr) => {
               const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x));
