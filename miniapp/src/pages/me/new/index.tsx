@@ -98,7 +98,7 @@ export default function NewSharePage() {
             throw new Error(`文件过大（${formatBytes(it.size)}），单文件需 ≤ ${formatBytes(MAX_FILE_SIZE)}`);
           }
           const uploadRes = await uploadPhoto(share.id, it.path);
-          if (uploadRes.statusCode === 200) {
+          if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
             setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'done' } : x)));
           } else {
             throw new Error('上传失败');

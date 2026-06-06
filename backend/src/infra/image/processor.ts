@@ -4,8 +4,8 @@ import os from 'node:os';
 import { Errors } from '../../common/errors.js';
 import { previewPath, mediumPath, previewWebpPath, mediumWebpPath } from '../storage/paths.js';
 
-// 限制 sharp 并发数，避免 CPU 争抢
-sharp.concurrency(Math.max(1, os.cpus().length - 1));
+// sharp.concurrency 在 0.33.x 已废弃，移除避免出错
+
 
 export interface ProcessedImage {
   width: number;
@@ -25,7 +25,7 @@ export async function processImage(
   let base: sharp.Sharp;
   try {
     // 读取原图并自动旋转 EXIF
-    base = sharp(origPath).rotate().limitInputPixels(268435456); // 268MP 上限
+    base = sharp(origPath).rotate();
   } catch {
     throw Errors.invalidImage();
   }
