@@ -6,7 +6,6 @@ export interface UploadTask {
   done: number;
   failed: number;
   status: 'uploading' | 'done' | 'cancelled';
-  /** 新建分享页表单状态，用于恢复页面 */
   formTitle?: string;
   formTtl?: number;
   formItemCount?: number;
@@ -17,6 +16,7 @@ export interface DownloadTask {
   shareCode: string;
   total: number;
   done: number;
+  failed: number;
   status: 'downloading' | 'done' | 'cancelled';
 }
 
@@ -30,11 +30,10 @@ interface TaskState {
   cancelUpload: (shareId: string) => void;
 
   startDownload: (shareCode: string, total: number) => void;
-  updateDownload: (shareCode: string, done: number) => void;
+  updateDownload: (shareCode: string, done: number, failed: number) => void;
   finishDownload: (shareCode: string) => void;
   cancelDownload: (shareCode: string) => void;
 
-  /** 保存表单状态到已有的上传任务 */
   saveFormState: (shareId: string, title: string, ttl: number, itemCount: number, totalBytes: number) => void;
 }
 
@@ -70,14 +69,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   startDownload: (shareCode, total) =>
     set((s) => ({
-      downloads: { ...s.downloads, [shareCode]: { shareCode, total, done: 0, status: 'downloading' } },
+      downloads: { ...s.downloads, [shareCode]: { shareCode, total, done: 0, failed: 0, status: 'downloading' } },
     })),
 
-  updateDownload: (shareCode, done) =>
+  updateDownload: (shareCode, done, failed) =>
     set((s) => {
       const existing = s.downloads[shareCode];
       if (!existing) return s;
-      return { downloads: { ...s.downloads, [shareCode]: { ...existing, done } } };
+      return { downloads: { ...s.downloads, [shareCode]: { ...existing, done, failed } } };
     }),
 
   finishDownload: (shareCode) =>

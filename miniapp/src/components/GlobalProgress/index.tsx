@@ -39,8 +39,15 @@ export default function GlobalProgress() {
       })}
       {activeDownloads.map((t) => {
         const pct = t.total > 0 ? Math.round((t.done / t.total) * 100) : 0;
+        const onDlClick = () => {
+          const pages = Taro.getCurrentPages();
+          const current = pages[pages.length - 1];
+          const targetRoute = `pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1`;
+          if (current?.route === 'pages/viewer/detail/index' && (current?.options as any)?.code === t.shareCode) return;
+          Taro.navigateTo({ url: `/${targetRoute}` });
+        };
         return (
-          <View key={t.shareCode} className="gp-item">
+          <View key={t.shareCode} className="gp-item" onClick={onDlClick}>
             <Text className="gp-label">保存中 {t.done}/{t.total}</Text>
             <View className="gp-track">
               <View className="gp-fill gp-fill-download" style={{ width: `${pct}%` }} />

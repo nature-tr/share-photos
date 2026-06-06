@@ -57,6 +57,14 @@ export default function ViewerPage() {
       const { scrollTop: lastScrollTop } = getLastPosition(c.toUpperCase());
       lastScrollTargetRef.current = lastScrollTop;
     }
+    // 从保存进度卡片进入时恢复保存状态
+    if (options?.fromDownload === '1') {
+      const task = useTaskStore.getState().downloads[c.toUpperCase()];
+      if (task && task.status === 'downloading') {
+        setSaving(true);
+        setSaveProgress({ done: task.done, total: task.total });
+      }
+    }
   });
 
   useEffect(() => {
@@ -350,7 +358,7 @@ export default function ViewerPage() {
         } else { failed++; }
       } catch { failed++; }
       setSaveProgress({ done: done + failed, total: totalCount });
-      useTaskStore.getState().updateDownload(code, done + failed);
+      useTaskStore.getState().updateDownload(code, done + failed, failed);
     }
     useTaskStore.getState().finishDownload(code);
     setSaving(false);
