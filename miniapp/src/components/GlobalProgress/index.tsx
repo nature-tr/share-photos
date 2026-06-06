@@ -42,10 +42,12 @@ export default function GlobalProgress() {
         const onDlClick = () => {
           const pages = Taro.getCurrentPages();
           const current = pages[pages.length - 1];
-          const targetRoute = `pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1`;
           if (current?.route === 'pages/viewer/detail/index' && (current?.options as any)?.code === t.shareCode) return;
-          Taro.navigateTo({ url: `/${targetRoute}` });
+          Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}&fromDownload=1` });
         };
+        // 已在详情页时隐藏（页面自带进度条）
+        const pages = Taro.getCurrentPages();
+        if (pages[pages.length - 1]?.route === 'pages/viewer/detail/index') return null;
         return (
           <View key={t.shareCode} className="gp-item" onClick={onDlClick}>
             <Text className="gp-label">保存中 {t.done}/{t.total}</Text>
