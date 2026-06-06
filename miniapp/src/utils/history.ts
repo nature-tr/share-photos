@@ -55,3 +55,14 @@ export function getLastPosition(code: string): { photoCount: number; scrollTop: 
     scrollTop: (item as any)?.scrollTop ?? 0,
   };
 }
+
+/** 清除指定分享的浏览记录 */
+export function removeHistory(code: string) {
+  const list = getHistory().filter((h) => h.code !== code);
+  Taro.setStorageSync('browse_history', JSON.stringify(list));
+}
+
+/** 替换全部历史记录 */
+export function saveHistoryList(list: HistoryItem[]) {
+  Taro.setStorageSync('browse_history', JSON.stringify(list));
+}

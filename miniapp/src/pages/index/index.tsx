@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';
-import { getHistory } from '@/utils/history';
+import { getHistory, saveHistoryList } from '@/utils/history';
+import { getViewerShare } from '@/api/share.api';
 import {
   iconAdd,
   iconList,
@@ -25,7 +26,28 @@ export default function IndexPage() {
   const [code, setCode] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  useDidShow(() => { setHistory(getHistory()); });
+  useDidShow(() => {
+    const raw = getHistory();
+    setHistory(raw);
+    // 后台验证：移除已过期/结束/清除的分享
+    if (raw.length > 0) {
+      Promise.all(
+        raw.map((h) =>
+          getViewerShare(h.code, 1, 1)
+            .then((res) => (res.error ? h.code : null))
+            .catch(() => h.code),
+        ),
+      ).then((invalidCodes) => {
+        const invalid = invalidCodes.filter(Boolean) as string[];
+        if (invalid.length > 0) {
+          let list = getHistory();
+          for (const c of invalid) list = list.filter((x) => x.code !== c);
+          saveHistoryList(list);
+          setHistory(list);
+        }
+      });
+    }
+  });
 
   function go() {
     const c = code.trim().toUpperCase();
