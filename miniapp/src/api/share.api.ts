@@ -47,6 +47,14 @@ export async function uploadPhoto(shareId: string, filePath: string) {
   });
 }
 
+/** 重命名 */
+export async function renameShare(shareId: string, title: string) {
+  return api(`/api/shares/${shareId}/rename`, {
+    method: 'PATCH',
+    body: { title },
+  });
+}
+
 /** 续期 */
 export async function extendShare(shareId: string, extendSeconds: number) {
   return api(`/api/shares/${shareId}/extend`, {

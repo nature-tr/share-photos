@@ -169,6 +169,13 @@ export const shareService = {
     return share;
   },
 
+  async rename(shareId: string, ownerId: string, title: string): Promise<void> {
+    const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
+    if (!share) throw Errors.shareNotFound();
+    if (share.ownerId !== ownerId) throw Errors.forbidden();
+    await db.update(shares).set({ title }).where(eq(shares.id, shareId)).run();
+  },
+
   async extend(shareId: string, ownerId: string, extendSeconds: number): Promise<{ id: string; expiresAt: number }> {
     const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
     if (!share) throw Errors.shareNotFound();

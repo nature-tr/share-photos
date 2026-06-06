@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, renameShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
@@ -121,6 +121,25 @@ export default function MySharesPage() {
     });
   }
 
+  function onRename(item: ShareSummary) {
+    Taro.showModal({
+      title: '重命名',
+      editable: true,
+      placeholderText: item.title || '输入新标题',
+      content: (item as any)._inputValue ?? item.title ?? '',
+      success: async (res) => {
+        if (!res.confirm || !res.content?.trim()) return;
+        try {
+          await renameShare(item.id, res.content.trim());
+          Taro.showToast({ title: '已更新', icon: 'success' });
+          void load();
+        } catch {
+          Taro.showToast({ title: '重命名失败', icon: 'none' });
+        }
+      },
+    });
+  }
+
   function onDelete(item: ShareSummary) {
     Taro.showModal({
       title: '删除分享',
@@ -194,7 +213,7 @@ export default function MySharesPage() {
             return (
               <View key={item.id} className="share-card">
                 <View className="card-top">
-                  <Text className="card-title" numberOfLines={1}>{item.title || '未命名相册'}</Text>
+                  <Text className="card-title" numberOfLines={1} onClick={(e: any) => { e.stopPropagation(); onRename(item); }}>{item.title || '未命名相册'}</Text>
                   <View className="pill" style={{ backgroundColor: st.bg }}>
                     <Text className="pill-text" style={{ color: st.color }}>{st.text}</Text>
                   </View>

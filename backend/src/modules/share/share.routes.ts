@@ -38,6 +38,15 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
     return { data: detail };
   });
 
+  // 重命名
+  app.patch('/:shareId/rename', async (req, reply) => {
+    const { shareId } = shareIdParamSchema.parse(req.params);
+    const { title } = z.object({ title: z.string().trim().max(50) }).parse(req.body);
+    const userId = req.currentUser!.sub;
+    await shareService.rename(shareId, userId, title);
+    reply.code(204).send();
+  });
+
   // 续期
   app.patch('/:shareId/extend', async (req) => {
     const { shareId } = shareIdParamSchema.parse(req.params);
