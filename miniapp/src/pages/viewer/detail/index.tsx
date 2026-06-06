@@ -6,6 +6,7 @@ import { useAuth, API_BASE } from '@/stores/auth.store';
 import { useTaskStore } from '@/stores/task.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
+import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
@@ -532,6 +533,7 @@ export default function ViewerPage() {
           onDelete={user ? (photoId) => deleteCurrent(photoId) : undefined}
         />
       )}
+      <GlobalProgress />
     </View>
   );
 }

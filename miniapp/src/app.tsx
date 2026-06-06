@@ -11,12 +11,7 @@ function App({ children }: PropsWithChildren) {
     void checkAuth();
   });
 
-  return (
-    <>
-      {children}
-      <GlobalProgress />
-    </>
-  );
+  return children;
 }
 
 export default App;

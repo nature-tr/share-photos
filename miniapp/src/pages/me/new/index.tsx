@@ -5,6 +5,7 @@ import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared'
 import { createShare, uploadPhoto } from '@/api/share.api';
 import { useTaskStore } from '@/stores/task.store';
 import QrSheet from '@/components/QrSheet';
+import GlobalProgress from '@/components/GlobalProgress';
 import './index.scss';
 
 interface PickedItem {
@@ -262,6 +263,7 @@ export default function NewSharePage() {
           <Text className="btn-text">{submitting ? '上传中' : '创建并上传'}</Text>
         </View>
       </View>
+      <GlobalProgress />
     </View>
   );
 }
