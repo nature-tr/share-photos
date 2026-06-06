@@ -6,34 +6,28 @@ import './index.scss';
 export default function GlobalProgress() {
   const uploads = useTaskStore((s) => Object.values(s.uploads).filter((t) => t.status === 'uploading'));
   const downloads = useTaskStore((s) => Object.values(s.downloads).filter((t) => t.status === 'downloading'));
-  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doneUploads = useTaskStore((s) => Object.values(s.uploads).filter((t) => t.status === 'done'));
+  const doneDownloads = useTaskStore((s) => Object.values(s.downloads).filter((t) => t.status === 'done'));
+  const dismissed = useRef(false);
 
-  // 上传/下载完成后 3 秒自动消失
-  const finishUpload = useTaskStore((s) => Object.values(s.uploads).filter((t) => t.status === 'done'));
-  const finishDownload = useTaskStore((s) => Object.values(s.downloads).filter((t) => t.status === 'done'));
-
+  // 完成后 3 秒自动消失（仅触发一次）
   useEffect(() => {
-    if (finishUpload.length > 0) {
-      dismissTimer.current = setTimeout(() => {
-        finishUpload.forEach((t) => useTaskStore.getState().cancelUpload(t.shareId));
+    if (doneUploads.length > 0 || doneDownloads.length > 0) {
+      if (dismissed.current) return;
+      dismissed.current = true;
+      const timer = setTimeout(() => {
+        doneUploads.forEach((t) => useTaskStore.getState().cancelUpload(t.shareId));
+        doneDownloads.forEach((t) => useTaskStore.getState().cancelDownload(t.shareCode));
+        dismissed.current = false;
       }, 3000);
+      return () => clearTimeout(timer);
     }
-    return () => { if (dismissTimer.current) clearTimeout(dismissTimer.current); };
-  }, [finishUpload.length]);
-
-  useEffect(() => {
-    if (finishDownload.length > 0) {
-      dismissTimer.current = setTimeout(() => {
-        finishDownload.forEach((t) => useTaskStore.getState().cancelDownload(t.shareCode));
-      }, 3000);
-    }
-    return () => { if (dismissTimer.current) clearTimeout(dismissTimer.current); };
-  }, [finishDownload.length]);
+  }, [doneUploads.length, doneDownloads.length]);
 
   const activeUploads = uploads.length;
   const activeDownloads = downloads.length;
-  const completedUploads = finishUpload.length;
-  const completedDownloads = finishDownload.length;
+  const completedUploads = doneUploads.length;
+  const completedDownloads = doneDownloads.length;
 
   if (activeUploads === 0 && activeDownloads === 0 && completedUploads === 0 && completedDownloads === 0) return null;
 
