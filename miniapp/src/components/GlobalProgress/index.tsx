@@ -15,20 +15,12 @@ export default function GlobalProgress() {
 
   if (tasks.length === 0) return null;
 
-  // 在详情页隐藏下载任务（页面自带进度条）
   const pages = Taro.getCurrentPages();
-  const isViewerPage = pages[pages.length - 1]?.route === 'pages/viewer/detail/index';
-
-  const visible = isViewerPage
-    ? tasks.filter((t) => t.kind !== 'download')
-    : tasks;
-
-  if (visible.length === 0) return null;
 
   return (
     <View className="global-progress">
       <View className="gp-card">
-        {visible.map((t) => {
+        {tasks.map((t) => {
           const isUpload = t.kind === 'upload';
           const isActive = t.status === 'uploading' || t.status === 'downloading';
           const isPaused = t.status === 'paused';

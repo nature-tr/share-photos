@@ -33,7 +33,6 @@ export default function ViewerPage() {
   const [code, setCode] = useState('');
   const [now, setNow] = useState(Date.now());
   const [saving, setSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState({ done: 0, total: 0 });
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
   const [loadMore, setLoadMore] = useState(false);
@@ -56,14 +55,6 @@ export default function ViewerPage() {
     if (options?.fromHistory === '1') {
       const { scrollTop: lastScrollTop } = getLastPosition(c.toUpperCase());
       lastScrollTargetRef.current = lastScrollTop;
-    }
-    // 从保存进度卡片进入时恢复保存状态
-    if (options?.fromDownload === '1') {
-      const task = useTaskStore.getState().downloads[c.toUpperCase()];
-      if (task && task.status === 'downloading') {
-        setSaving(true);
-        setSaveProgress({ done: task.done, total: task.total });
-      }
     }
   });
 
@@ -333,7 +324,6 @@ export default function ViewerPage() {
     // 全局任务追踪
     useTaskStore.getState().startDownload(code, totalCount);
     setSaving(true);
-    setSaveProgress({ done: 0, total: totalCount });
 
     let allPhotos = [...album.photos];
     if (allPhotos.length < totalCount) {
@@ -357,7 +347,6 @@ export default function ViewerPage() {
           done++;
         } else { failed++; }
       } catch { failed++; }
-      setSaveProgress({ done: done + failed, total: totalCount });
       useTaskStore.getState().updateDownload(code, done + failed, failed);
     }
     useTaskStore.getState().finishDownload(code);
@@ -496,16 +485,6 @@ export default function ViewerPage() {
             <Text className="loadmore-btn-text">
               {loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? `${(album as any).totalPhotos - photos.length} 张剩余` : ''}`}
             </Text>
-          </View>
-        </View>
-      )}
-
-      {/* 进度条 */}
-      {saving && (
-        <View className="progress-bar">
-          <Text className="progress-text">保存到相册中 · {saveProgress.done}/{saveProgress.total}</Text>
-          <View className="progress-track">
-            <View className="progress-fill" style={{ width: `${saveProgress.total ? Math.round((saveProgress.done / saveProgress.total) * 100) : 0}%` }} />
           </View>
         </View>
       )}

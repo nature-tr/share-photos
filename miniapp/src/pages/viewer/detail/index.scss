@@ -75,11 +75,6 @@
 }
 .join-btn-sm-text { color: #fff; font-size: 22rpx; font-weight: 600; line-height: 1; }
 
-.progress-bar { position: fixed; left: 32rpx; right: 32rpx; bottom: 32rpx; background: var(--color-surface); border-radius: 28rpx; padding: 32rpx; box-shadow: 0 8rpx 32rpx rgba(15,23,42,0.15); z-index: 200; }
-.progress-text { font-size: 24rpx; color: var(--color-text2); margin-bottom: 12rpx; line-height: 1.4; }
-.progress-track { height: 8rpx; background: #f1f5f9; border-radius: 4rpx; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--color-primary); border-radius: 4rpx; }
-
 .loadmore-row { display: flex; justify-content: center; padding: 24rpx; }
 .loadmore-btn { padding: 16rpx 48rpx; background: var(--color-surface); border: 2rpx solid var(--color-border); border-radius: 9999rpx; display: flex; align-items: center; justify-content: center; }
 .loadmore-btn-text { font-size: 24rpx; color: var(--color-text2); line-height: 1; }
