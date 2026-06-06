@@ -3,6 +3,7 @@ import { View, Text, Input, Image } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare, uploadPhoto } from '@/api/share.api';
+import { useTaskStore } from '@/stores/task.store';
 import QrSheet from '@/components/QrSheet';
 import './index.scss';
 
@@ -79,7 +80,6 @@ export default function NewSharePage() {
     }
     setSubmitting(true);
     try {
-      // 1. 创建分享
       const shareRes = await createShare(ttl, title.trim() || undefined);
       if (shareRes.error || !shareRes.data) {
         Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
@@ -89,27 +89,35 @@ export default function NewSharePage() {
       const share = shareRes.data;
       setCreated({ id: share.id, code: share.code });
 
-      // 2. 逐张上传
+      // 全局任务追踪
+      const totalCount = items.length;
+      useTaskStore.getState().startUpload(share.id, totalCount);
+      let done = 0, failed = 0;
+
       for (const it of items) {
-        if (it.status === 'done') continue;
         setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading', error: undefined } : x)));
         try {
           if (it.size && it.size > MAX_FILE_SIZE) {
-            throw new Error(`文件过大（${formatBytes(it.size)}），单文件需 ≤ ${formatBytes(MAX_FILE_SIZE)}`);
+            throw new Error(`文件过大（${formatBytes(it.size)}）`);
           }
           const uploadRes = await uploadPhoto(share.id, it.path);
           if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
             setItems((arr) => arr.map((x) => (x.id === it.id ? { ...x, status: 'done' } : x)));
+            done++;
+            useTaskStore.getState().updateUpload(share.id, done, failed);
           } else {
             throw new Error('上传失败');
           }
         } catch (err: any) {
+          failed++;
           setItems((arr) =>
             arr.map((x) => (x.id === it.id ? { ...x, status: 'error', error: err?.message || '上传失败' } : x)),
           );
+          useTaskStore.getState().updateUpload(share.id, done, failed);
         }
       }
-      Taro.showToast({ title: '上传完成', icon: 'success', duration: 2000 });
+      useTaskStore.getState().finishUpload(share.id);
+      Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success', duration: 2000 });
     } catch {
       Taro.showToast({ title: '创建分享失败', icon: 'none' });
     } finally {

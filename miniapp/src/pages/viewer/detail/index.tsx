@@ -3,6 +3,7 @@ import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto, deletePhotos } from '@/api/share.api';
 import { useAuth, API_BASE } from '@/stores/auth.store';
+import { useTaskStore } from '@/stores/task.store';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
@@ -180,6 +181,8 @@ export default function ViewerPage() {
           sizeType: compressed ? ['compressed'] : ['original'],
           success: async (chooseRes) => {
             setUploadingMore(true);
+            const total = chooseRes.tempFiles.length;
+            useTaskStore.getState().startUpload(album!.id, total);
             let done = 0, failed = 0;
             for (const f of chooseRes.tempFiles) {
               try {
@@ -192,7 +195,9 @@ export default function ViewerPage() {
                 if (uploadRes.statusCode === 201 || uploadRes.statusCode === 200) done++;
                 else failed++;
               } catch { failed++; }
+              useTaskStore.getState().updateUpload(album!.id, done, failed);
             }
+            useTaskStore.getState().finishUpload(album!.id);
             setUploadingMore(false);
             Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success' });
             getViewerShare(code, 1, PAGE_SIZE).then((res) => {
@@ -315,10 +320,12 @@ export default function ViewerPage() {
       content: `共 ${totalCount} 张 · ${formatBytes(totalBytes)}\n下载并写入手机相册`,
     });
     if (!confirmed.confirm) return;
+
+    // 全局任务追踪
+    useTaskStore.getState().startDownload(code, totalCount);
     setSaving(true);
     setSaveProgress({ done: 0, total: totalCount });
 
-    // 如果还有未加载的照片，先后台获取全部ID（不渲染到UI）
     let allPhotos = [...album.photos];
     if (allPhotos.length < totalCount) {
       const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -342,7 +349,9 @@ export default function ViewerPage() {
         } else { failed++; }
       } catch { failed++; }
       setSaveProgress({ done: done + failed, total: totalCount });
+      useTaskStore.getState().updateDownload(code, done + failed);
     }
+    useTaskStore.getState().finishDownload(code);
     setSaving(false);
     if (failed === 0) Taro.showToast({ title: `已保存 ${done} 张`, icon: 'success' });
     else Taro.showToast({ title: `完成 ${done}，失败 ${failed}`, icon: 'none' });
