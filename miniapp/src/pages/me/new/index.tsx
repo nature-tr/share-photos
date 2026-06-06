@@ -80,7 +80,7 @@ export default function NewSharePage() {
     setSubmitting(true);
     try {
       // 1. 创建分享
-      const shareRes = await createShare(ttl);
+      const shareRes = await createShare(ttl, title.trim() || undefined);
       if (shareRes.error || !shareRes.data) {
         Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
         setSubmitting(false);

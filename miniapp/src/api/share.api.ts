@@ -29,10 +29,10 @@ export async function getMyShares() {
 }
 
 /** 创建分享 */
-export async function createShare(ttlSeconds: number) {
+export async function createShare(ttlSeconds: number, title?: string) {
   return api<ShareDetail>('/api/shares', {
     method: 'POST',
-    body: { ttlSeconds },
+    body: { ttlSeconds, title: title || undefined },
   });
 }
 
