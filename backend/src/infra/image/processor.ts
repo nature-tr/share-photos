@@ -1,17 +1,15 @@
 import sharp from 'sharp';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import { Errors } from '../../common/errors.js';
 import { previewPath, mediumPath, previewWebpPath, mediumWebpPath } from '../storage/paths.js';
-
-// sharp.concurrency 在 0.33.x 已废弃，移除避免出错
-
 
 export interface ProcessedImage {
   width: number;
   height: number;
   format: string;
 }
+
+const MAX_PIXELS = 268435456; // 268MP 像素上限
 
 /**
  * 读取已落盘的原图，生成缩略图(短边400)与中等图(长边1600)的 JPEG + WebP。
@@ -24,7 +22,6 @@ export async function processImage(
 ): Promise<ProcessedImage> {
   let base: sharp.Sharp;
   try {
-    // 读取原图并自动旋转 EXIF
     base = sharp(origPath).rotate();
   } catch {
     throw Errors.invalidImage();
@@ -34,6 +31,9 @@ export async function processImage(
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
   if (!width || !height) throw Errors.invalidImage();
+
+  // 像素上限检查（sharp 0.33 移除了 limitInputPixels 链式方法）
+  if (width * height > MAX_PIXELS) throw Errors.invalidImage();
 
   // -- 缩略图尺寸计算 --
   const thumbSize = 400;
