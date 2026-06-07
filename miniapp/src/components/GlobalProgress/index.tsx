@@ -95,6 +95,8 @@ export default function GlobalProgress() {
   const [ballX, setBallX] = useState<number>(
     init?.ballX != null ? init.ballX : WIN_W - BALL_HITAREA - MARGIN,
   );
+  /** 拖拽中标记：用于挂全屏遮罩阻断页面内置滚动 */
+  const [dragging, setDragging] = useState(false);
 
   const yRef = useRef(y); yRef.current = y;
   const ballXRef = useRef(ballX); ballXRef.current = ballX;
@@ -136,6 +138,7 @@ export default function GlobalProgress() {
     const dy = curY - dragRef.current.startY;
     if (Math.abs(dx) + Math.abs(dy) < TAP_THRESHOLD) return;
     dragRef.current.moved = true;
+    setDragging(true); // 挂全屏遮罩阻断页面内置滚动
 
     const h = collapsed ? BALL_HITAREA : EXPANDED_DEFAULT_H;
     setY(clamp(dragRef.current.originY + dy, SAFE_TOP, WIN_H - h - SAFE_BOTTOM));
@@ -150,9 +153,18 @@ export default function GlobalProgress() {
       savePos({ y: yRef.current, ballX: ballXRef.current, collapsed });
     }
     dragRef.current.dragging = false;
+    setDragging(false);
   };
 
   if (tasks.length === 0) return null;
+
+  /* 拖拽全屏遮罩：小程序内置页面滚动不受 catchMove 影响，需要全屏遮罩额外阻断 */
+  const dragOverlay = dragging ? (
+    <View
+      catchMove
+      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 998 }}
+    />
+  ) : null;
 
   /* ────────────────── 折叠态：悬浮小球 ────────────────── */
 
@@ -163,35 +175,37 @@ export default function GlobalProgress() {
     const totalCount = tasks.length;
 
     return (
-      <View
-        className="gp-portal gp-portal-ball"
-        style={{ top: `${y}px`, left: `${ballX}px` }}
-      >
-        {/* 外层：扩大热区确保 catchMove 可靠；内层小球视觉不变 */}
+      <>
+        {dragOverlay}
         <View
-          className="gp-ball-hitarea"
-          catchMove
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onClick={() => {
-            if (dragRef.current.moved) return;
-            setCollapsed(false);
-          }}
+          className="gp-portal gp-portal-ball"
+          style={{ top: `${y}px`, left: `${ballX}px` }}
         >
-          <View className={`gp-ball ${head.status === 'paused' ? 'gp-ball-paused' : ''}`}>
-            <Image
-              src={isUp ? iconUpload('#ffffff') : iconDownload('#ffffff')}
-              className="gp-ball-icon"
-            />
-            {totalCount > 1 && (
-              <View className="gp-ball-badge">
-                <Text className="gp-ball-badge-text">{totalCount}</Text>
-              </View>
-            )}
+          <View
+            className="gp-ball-hitarea"
+            catchMove
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onClick={() => {
+              if (dragRef.current.moved) return;
+              setCollapsed(false);
+            }}
+          >
+            <View className={`gp-ball ${head.status === 'paused' ? 'gp-ball-paused' : ''}`}>
+              <Image
+                src={isUp ? iconUpload('#ffffff') : iconDownload('#ffffff')}
+                className="gp-ball-icon"
+              />
+              {totalCount > 1 && (
+                <View className="gp-ball-badge">
+                  <Text className="gp-ball-badge-text">{totalCount}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
+      </>
     );
   }
 
@@ -200,10 +214,12 @@ export default function GlobalProgress() {
   const pages = Taro.getCurrentPages();
 
   return (
-    <View
-      className="gp-portal gp-portal-card"
-      style={{ top: `${y}px` }}
-    >
+    <>
+      {dragOverlay}
+      <View
+        className="gp-portal gp-portal-card"
+        style={{ top: `${y}px` }}
+      >
       <View className="gp-card">
         {/* 抓手栏：仅这个区域响应拖动；折叠按钮独立 */}
         <View
@@ -319,5 +335,6 @@ export default function GlobalProgress() {
         })}
       </View>
     </View>
-  );
+  </>
+);
 }
