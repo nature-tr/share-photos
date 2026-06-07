@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Input, Image } from '@tarojs/components';
+import { View, Text, Input, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, useLoad } from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
 import { createShare } from '@/api/share.api';
@@ -139,7 +139,7 @@ export default function NewSharePage() {
   /* ── 全部完成的成功页 ── */
   if (created && created.code && taskStatus === 'done' && stats.error === 0) {
     return (
-      <View className="success-page">
+      <ScrollView className="success-page" scrollY enhanced showScrollbar={false}>
         <View className="success-icon-box"><Text className="success-icon">✓</Text></View>
         <Text className="success-title">上传完成！</Text>
         <Text className="success-desc">把分享码或二维码发给朋友</Text>
@@ -169,7 +169,7 @@ export default function NewSharePage() {
           title={title.trim() || '未命名相册'}
           onClose={() => setQrVisible(false)}
         />
-      </View>
+      </ScrollView>
     );
   }
 
@@ -180,7 +180,8 @@ export default function NewSharePage() {
     taskStatus === 'paused';
 
   return (
-    <View className="page">
+    <>
+      <ScrollView className="page" scrollY enhanced showScrollbar={false}>
       {/* 表单 */}
       <View className="card">
         <Text className="label">相册标题</Text>
@@ -299,8 +300,9 @@ export default function NewSharePage() {
           </Text>
         </View>
       </View>
+      </ScrollView>
       <GlobalProgress />
-    </View>
+    </>
   );
 }
 

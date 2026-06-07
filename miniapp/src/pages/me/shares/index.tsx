@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { getMyShares, endShare, extendShare, renameShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
@@ -43,6 +43,7 @@ export default function MySharesPage() {
   const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
   const [manageOpen, setManageOpen] = useState<{ shareId: string; code: string } | null>(null);
   const [contributors, setContributors] = useState<ContributorInfo[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -50,15 +51,15 @@ export default function MySharesPage() {
       const res = await getMyShares();
       if (res.data?.items) setItems(res.data.items);
     } catch { /* ignore */ }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   }
 
   useDidShow(() => { void load(); });
 
-  usePullDownRefresh(async () => {
+  async function onRefresherRefresh() {
+    setRefreshing(true);
     await load();
-    Taro.stopPullDownRefresh();
-  });
+  }
 
   function statusInfo(item: ShareSummary) {
     if (item.status === 'cleaned') return { text: '已清理', color: colors.text3, bg: colors.surfaceMuted };
@@ -185,11 +186,18 @@ export default function MySharesPage() {
   }
 
   if (loading && items.length === 0) {
-    return <View className="page"><View className="center"><Text>加载中…</Text></View></View>;
+    return <ScrollView className="page" scrollY enhanced showScrollbar={false}><View className="center"><Text>加载中…</Text></View></ScrollView>;
   }
 
   return (
-    <View className="page">
+    <>
+      <ScrollView
+        className="page"
+        scrollY enhanced showScrollbar={false}
+        refresherEnabled
+        refresherTriggered={refreshing}
+        onRefresherRefresh={onRefresherRefresh}
+      >
       {items.length === 0 ? (
         <View className="center">
           <View className="empty-icon">
@@ -356,7 +364,8 @@ export default function MySharesPage() {
         title={qrItem?.title || '未命名相册'}
         onClose={() => setQrItem(null)}
       />
+      </ScrollView>
       <GlobalProgress />
-    </View>
+    </>
   );
 }

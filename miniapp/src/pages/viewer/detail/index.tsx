@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
-import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
+import { View, Text, Image, Swiper, SwiperItem, ScrollView } from '@tarojs/components';
+import Taro, { useLoad, useDidHide } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto, deletePhotos } from '@/api/share.api';
 import { useAuth } from '@/stores/auth.store';
 import { useTaskStore } from '@/stores/task.store';
@@ -46,6 +46,7 @@ export default function ViewerPage() {
   const scrollTopRef = useRef(0);
   const lastScrollTargetRef = useRef(0);
   const scrolledOnceRef = useRef(false);
+  const [svScrollTop, setSvScrollTop] = useState<number | undefined>(undefined);
   const PAGE_SIZE = 50;
 
   // 派生：是否正在保存（由 manager 任务状态驱动）
@@ -143,7 +144,7 @@ export default function ViewerPage() {
     return () => { cancelled = true; };
   }, [code, user?.id]);
 
-  // ── 滚动恢复：用 useEffect 监听 !loading && album，DOM 已提交后执行 ──
+  // ── 滚动恢复：改由 ScrollView scrollTop 受控属性驱动 ──
   useEffect(() => {
     if (loading || !album || lastScrollTargetRef.current <= 0 || scrolledOnceRef.current) return;
     scrolledOnceRef.current = true;
@@ -151,26 +152,26 @@ export default function ViewerPage() {
     let cancelled = false;
     const doScroll = () => {
       if (cancelled) return;
-      Taro.pageScrollTo({ scrollTop: target, duration: 0 });
+      setSvScrollTop(target);
     };
-    // 一次 nextTick 等 DOM 提交，再用一次短延迟兜底图片高度引起的位移
     if (typeof Taro.nextTick === 'function') Taro.nextTick(doScroll);
     else doScroll();
     const fallback = setTimeout(doScroll, 500);
     return () => { cancelled = true; clearTimeout(fallback); };
   }, [loading, album]);
 
-  // ── 跟踪滚动位置 + 防抖保存 ──
+  // ── ScrollView onScroll：跟踪滚动位置 + 防抖保存 ──
   const saveDebounce = useRef<any>(undefined);
-  usePageScroll((e) => {
-    if (e.scrollTop === 0) return;
-    scrollTopRef.current = e.scrollTop;
+  const handleScroll = (e: any) => {
+    const st = e.detail?.scrollTop ?? 0;
+    if (st === 0) return;
+    scrollTopRef.current = st;
     if (!album) return;
     if (saveDebounce.current !== undefined) clearTimeout(saveDebounce.current);
     saveDebounce.current = setTimeout(() => {
-      updateLastPosition(code, album.photos.length, e.scrollTop);
+      updateLastPosition(code, album.photos.length, st);
     }, 1000);
-  });
+  };
 
   // ── 离开页面前立即写入 + 清理 debounce ──
   useDidHide(() => {
@@ -184,12 +185,7 @@ export default function ViewerPage() {
   });
 
   // 组件卸载也清理 debounce timer
-  useEffect(
-    () => () => {
-      if (saveDebounce.current !== undefined) clearTimeout(saveDebounce.current);
-    },
-    [],
-  );
+  useEffect(() => () => { if (saveDebounce.current !== undefined) clearTimeout(saveDebounce.current); }, []);
 
   /** 加载更多照片 */
   async function handleLoadMore() {
@@ -343,11 +339,11 @@ export default function ViewerPage() {
     taskManager.startDownload(code, allPhotos.map((p) => ({ id: p.id })));
   }
 
-  if (loading) return <View className="page"><View className="center"><Text>加载中…</Text></View></View>;
+  if (loading) return <ScrollView className="page" scrollY enhanced showScrollbar={false}><View className="center"><Text>加载中…</Text></View></ScrollView>;
 
   if (error || !album) {
     return (
-      <View className="page">
+      <ScrollView className="page" scrollY enhanced showScrollbar={false}>
         <View className="center">
           <Text style={{ fontSize: '80rpx', marginBottom: '24rpx' }}>🚫</Text>
           <Text style={{ fontSize: '36rpx', fontWeight: 700 }}>{error ?? '加载失败'}</Text>
@@ -358,7 +354,7 @@ export default function ViewerPage() {
             <Text className="back-btn-text">返回首页</Text>
           </View>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -366,7 +362,13 @@ export default function ViewerPage() {
   const expired = album.expiresAt - now <= 0;
 
   return (
-    <View className="page">
+    <>
+      <ScrollView
+        className="page"
+        scrollY enhanced showScrollbar={false}
+      scrollTop={svScrollTop}
+      onScroll={handleScroll}
+    >
       {/* 顶栏 */}
       <View className="nav-bar">
         <View className="nav-info">
@@ -513,8 +515,9 @@ export default function ViewerPage() {
           onDelete={user ? (photoId) => deleteCurrent(photoId) : undefined}
         />
       )}
+      </ScrollView>
       <GlobalProgress />
-    </View>
+    </>
   );
 }
 

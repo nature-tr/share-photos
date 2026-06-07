@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Input, Image } from '@tarojs/components';
+import { View, Text, Input, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';
 import { getHistory, saveHistoryList } from '@/utils/history';
@@ -76,7 +76,7 @@ export default function IndexPage() {
   }
 
   return (
-    <View className="page-root">
+    <ScrollView className="page-root" scrollY enhanced showScrollbar={false}>
       {/* 顶栏：左 头像+用户名 / logo，右 新建/我的/退出 */}
       <View className="top-bar">
         <View className="top-left">
@@ -155,6 +155,6 @@ export default function IndexPage() {
       <View style={{ height: '64rpx' }} />
       <Text className="footer-text">格子橱窗 · v0.1</Text>
       <GlobalProgress />
-    </View>
+    </ScrollView>
   );
 }

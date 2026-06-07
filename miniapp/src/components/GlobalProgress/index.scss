@@ -1,21 +1,37 @@
-/* movable-area 必须有明确宽高才能定位子 movable-view；
-   其本身不拦截 touch 事件，仅 movable-view 上的 touchmove 由原生层接管 */
-.gp-area {
+/* ─────── 容器（fixed，位置由内联 style 控制） ─────── */
+
+.gp-portal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   z-index: 999;
 }
 
-.gp-mv-ball {
-  width: 128rpx;
-  height: 128rpx;
+/* 全屏遮罩：z-index 必须写在 class 里，Taro inline style 不序列化 zIndex */
+.gp-shield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 998;
+  overflow: hidden;
 }
 
-.gp-mv-card {
-  width: calc(100% - 64rpx);
+.gp-portal-card {
+  left: 32rpx;
+  right: 32rpx;
+}
+
+/* 悬浮球外层：left 由 JS 控制，不做 right 固定 */
+.gp-portal-ball {
+  /* left / top 由 inline style 控制 */
+}
+
+/* ─────── 悬浮球热区（比球大一圈，保证 catchMove 可靠） ─────── */
+
+.gp-ball-hitarea {
+  width: 128rpx;
+  height: 128rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ─────── 大卡片 ─────── */
@@ -131,19 +147,18 @@
   height: 32rpx;
 }
 
-/* ─────── 悬浮球本体 ─────── */
+/* ─────── 悬浮球本体（视觉 96rpx，比热区小） ─────── */
 
 .gp-ball {
+  position: relative;
   width: 96rpx;
   height: 96rpx;
-  margin: 16rpx;
   border-radius: 48rpx;
   background: var(--color-primary, #3b82f6);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.36);
-  position: relative;
 }
 
 .gp-ball:active {
