@@ -31,6 +31,16 @@ interface TaskState {
   uploads: Record<string, UploadTask>;
   downloads: Record<string, DownloadTask>;
 
+  /** GlobalProgress 全局状态（跨页面共享，避免每个页面实例孤立） */
+  gpCollapsed: boolean;
+  gpY: number;
+  gpBallX: number;
+  setGpCollapsed: (v: boolean) => void;
+  setGpY: (v: number) => void;
+  setGpBallX: (v: number) => void;
+  /** 批量设置位置参数，跳过无变化 */
+  setGpPos: (y: number, ballX: number, collapsed: boolean, fn?: (y: number, bx: number, c: boolean) => void) => void;
+
   startUpload: (shareId: string, total: number) => void;
   updateUpload: (shareId: string, done: number, failed: number) => void;
   pauseUpload: (shareId: string) => void;
@@ -74,6 +84,19 @@ function patchDownload<S extends TaskState>(s: S, id: string, patch: Partial<Dow
 export const useTaskStore = create<TaskState>((set) => ({
   uploads: {},
   downloads: {},
+
+  gpCollapsed: false,
+  gpY: 0,
+  gpBallX: 0,
+  setGpCollapsed: (v) => set((s) => (s.gpCollapsed === v ? s : { ...s, gpCollapsed: v })),
+  setGpY: (v) => set((s) => (s.gpY === v ? s : { ...s, gpY: v })),
+  setGpBallX: (v) => set((s) => (s.gpBallX === v ? s : { ...s, gpBallX: v })),
+  setGpPos: (y, bx, c, persist) =>
+    set((s) => {
+      if (s.gpY === y && s.gpBallX === bx && s.gpCollapsed === c) return s;
+      if (persist) persist(y, bx, c);
+      return { ...s, gpY: y, gpBallX: bx, gpCollapsed: c };
+    }),
 
   startUpload: (shareId, total) =>
     set((s) => ({

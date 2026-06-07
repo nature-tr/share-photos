@@ -43,20 +43,34 @@ function useActiveTasks(): AT[] {
 
 export default function GlobalProgress() {
   const tasks   = useActiveTasks();
-  const init    = useRef(loadPos()).current;
   const pages   = Taro.getCurrentPages();
 
-  const [collapsed, setCollapsed] = useState(init?.collapsed ?? false);
-  const [y, setY] = useState(init?.y ?? Math.max(SAFE_T, H - 240));
-  const [bx, setBx] = useState(init?.ballX ?? W - BALL_H - MARGIN);
+  /* 从全局 store 读取/写入，所有页面共享同一份 collapsed / 位置 */
+  const collapsed = useTaskStore((s) => s.gpCollapsed);
+  const y = useTaskStore((s) => s.gpY);
+  const bx = useTaskStore((s) => s.gpBallX);
+  const setCollapsed = useTaskStore((s) => s.setGpCollapsed);
+  const setGpPos = useTaskStore((s) => s.setGpPos);
   const [shield, setShield] = useState(false);
 
-  const yR = useRef(y); yR.current = y;
-  const xR = useRef(bx); xR.current = bx;
-
+  /* 初次挂载时从 storage 恢复（仅对当前组件实例初始值，store 里已有默认 0） */
+  const initDone = useRef(false);
   useEffect(() => {
-    setY((p) => clamp(p, SAFE_T, H - (collapsed ? BALL_H : CARD_H) - SAFE_B));
-    savePos({ y: yR.current, ballX: xR.current, collapsed });
+    if (initDone.current) return;
+    initDone.current = true;
+    const saved = loadPos();
+    if (saved) {
+      setGpPos(saved.y ?? Math.max(SAFE_T, H - 240), saved.ballX ?? W - BALL_H - MARGIN, saved.collapsed ?? false);
+    } else {
+      setGpPos(Math.max(SAFE_T, H - 240), W - BALL_H - MARGIN, false);
+    }
+  }, []);
+
+  /* collapsed 变化时夹 y 到合法范围 */
+  useEffect(() => {
+    const newY = clamp(y, SAFE_T, H - (collapsed ? BALL_H : CARD_H) - SAFE_B);
+    if (newY !== y) setGpPos(newY, bx, collapsed, savePos);
+    else savePos({ y, ballX: bx, collapsed });
   }, [collapsed]);
 
   /* ─── 拖动 ─── */
@@ -66,8 +80,8 @@ export default function GlobalProgress() {
     const t = e.touches?.[0]; if (!t) return;
     dr.current.sx = t.pageX ?? t.clientX ?? 0;
     dr.current.sy = t.pageY ?? t.clientY ?? 0;
-    dr.current.ox = xR.current;
-    dr.current.oy = yR.current;
+    dr.current.ox = bx;
+    dr.current.oy = y;
     dr.current.moved = false;
     dr.current.on = true;
     setShield(true);
@@ -80,12 +94,13 @@ export default function GlobalProgress() {
     const dy = (t.pageY ?? t.clientY ?? 0) - dr.current.sy;
     if (Math.abs(dx) + Math.abs(dy) < TAP_D) return;
     dr.current.moved = true;
-    setY(clamp(dr.current.oy + dy, SAFE_T, H - (collapsed ? BALL_H : CARD_H) - SAFE_B));
-    if (collapsed) setBx(clamp(dr.current.ox + dx, MARGIN, W - BALL_H - MARGIN));
+    const newY = clamp(dr.current.oy + dy, SAFE_T, H - (collapsed ? BALL_H : CARD_H) - SAFE_B);
+    const newX = collapsed ? clamp(dr.current.ox + dx, MARGIN, W - BALL_H - MARGIN) : bx;
+    setGpPos(newY, newX, collapsed);
   };
 
   const te = () => {
-    if (dr.current.on && dr.current.moved) savePos({ y: yR.current, ballX: xR.current, collapsed });
+    if (dr.current.on && dr.current.moved) savePos({ y, ballX: bx, collapsed });
     dr.current.on = false;
     setShield(false);
   };
