@@ -158,13 +158,14 @@ export default function GlobalProgress() {
 
   if (tasks.length === 0) return null;
 
-  /* 拖拽全屏遮罩：小程序内置页面滚动不受 catchMove 影响，需要全屏遮罩额外阻断 */
-  const dragOverlay = dragging ? (
+  /* 拖拽全屏遮罩：始终渲染，用 hidden 切显隐，避免 mount/unmount 开销 */
+  const dragOverlay = (
     <View
+      hidden={!dragging}
       catchMove
       style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 998 }}
     />
-  ) : null;
+  );
 
   /* ────────────────── 折叠态：悬浮小球 ────────────────── */
 
