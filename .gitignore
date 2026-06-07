@@ -55,3 +55,7 @@ Thumbs.db
 
 # Test
 coverage/
+
+# 防止 tsc 误把 shared/src/*.ts 编译产出 .js 进 src
+shared/src/**/*.js
+shared/src/**/*.d.ts
