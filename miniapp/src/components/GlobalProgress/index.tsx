@@ -94,11 +94,11 @@ export default function GlobalProgress() {
 
   /* 遮罩：始终在 DOM，catchMove 永不断开。静止 1px 锚角，拖拽撑满全屏 */
   const shieldView = (
-    <View catchMove style={{
-      position: 'fixed', top: 0, left: 0, zIndex: 998,
-      width: shield ? '100%' : '1px', height: shield ? '100%' : '1px',
-      overflow: 'hidden',
-    }} />
+    <View
+      className="gp-shield"
+      catchMove
+      style={{ width: shield ? '100%' : '1px', height: shield ? '100%' : '1px' }}
+    />
   );
 
   /* ─── 小球 ─── */

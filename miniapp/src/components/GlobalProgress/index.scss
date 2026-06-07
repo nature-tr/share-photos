@@ -5,6 +5,15 @@
   z-index: 999;
 }
 
+/* 全屏遮罩：z-index 必须写在 class 里，Taro inline style 不序列化 zIndex */
+.gp-shield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 998;
+  overflow: hidden;
+}
+
 .gp-portal-card {
   left: 32rpx;
   right: 32rpx;
