@@ -2,7 +2,7 @@
 
 > 轻量、自部署的在线图片分享应用：上传 → 限时分享码 → 凭码查看 → 一键存相册 → 到期自动清理。
 >
-> 三端覆盖：Web 前端 + Android App + 微信小程序。
+> 三端覆盖：Web 前端 + App（React Native） + 微信小程序。
 
 ## 下载 📱
 
@@ -15,7 +15,7 @@ Latest：**[gezi-chuchuang.apk](https://www.dolmo.top/gezi-chuchuang.apk)**
 | 端 | 技术 |
 |---|---|
 | **Web 前端** | Vite + Vue 3 + TypeScript + Pinia + TDesign Vue Next + UnoCSS + PhotoSwipe |
-| **Android App** | Expo SDK 54 + React Native 0.81 + expo-router + Zustand |
+| **App（iOS / Android）** | Expo SDK 54 + React Native 0.81 + expo-router + Zustand |
 | **微信小程序** | Taro 4 + React + Zustand + SCSS + 自建 SVG 图标库 |
 | **后端** | Node.js 20 + Fastify 5 + TypeScript + better-sqlite3 + Drizzle ORM + Zod + JWT + sharp + argon2 |
 | **工程** | pnpm workspace monorepo（`frontend/` + `app/` + `miniapp/` + `backend/` + `shared/`） |
@@ -28,7 +28,7 @@ Latest：**[gezi-chuchuang.apk](https://www.dolmo.top/gezi-chuchuang.apk)**
 photo/
 ├── docs/          # 需求 / 选型 / 架构 / API / 移动端适配 / 待做清单
 ├── frontend/      # Vue 3 Web 前端
-├── app/           # Expo + React Native Android App
+├── app/           # Expo + React Native App（iOS / Android）
 ├── miniapp/       # Taro 4 微信小程序
 ├── backend/       # Fastify 服务
 ├── shared/        # 前后端共享类型与常量
