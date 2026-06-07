@@ -146,9 +146,10 @@ export default function GlobalProgress() {
       <View
         className="gp-portal gp-portal-ball"
         style={{ top: `${y}px` }}
-        catchTouchStart={onTouchStart}
-        catchTouchMove={onTouchMove}
-        catchTouchEnd={onTouchEnd}
+        catchMove
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         onClick={() => {
           if (dragRef.current.moved) return;
           setCollapsed(false);
@@ -182,9 +183,10 @@ export default function GlobalProgress() {
         {/* 抓手栏：仅这个区域响应拖动；折叠按钮独立 */}
         <View
           className="gp-handle"
-          catchTouchStart={onTouchStart}
-          catchTouchMove={onTouchMove}
-          catchTouchEnd={onTouchEnd}
+          catchMove
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           <View className="gp-handle-bar" />
         </View>
