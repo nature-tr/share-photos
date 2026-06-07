@@ -18,9 +18,9 @@ import './index.scss';
 const STORAGE_KEY = 'gp_pos_v1';
 
 interface Position {
-  /** 距离屏幕顶部的 px */
   y: number;
-  /** 是否折叠为悬浮球 */
+  /** 悬浮球的 left 位置（卡片忽略此字段） */
+  ballX?: number;
   collapsed: boolean;
 }
 
@@ -36,17 +36,22 @@ function savePos(p: Position) {
   try { Taro.setStorageSync(STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
 }
 
-function getWindowHeight(): number {
-  try { return Taro.getSystemInfoSync().windowHeight; }
-  catch { return 667; }
-}
+const { windowHeight: _wh, windowWidth: _ww } = (() => {
+  try { const s = Taro.getSystemInfoSync(); return { windowHeight: s.windowHeight, windowWidth: s.windowWidth }; }
+  catch { return { windowHeight: 667, windowWidth: 375 }; }
+})();
+const WIN_H = _wh;
+const WIN_W = _ww;
 
 /* ────────────────── 主体 ────────────────── */
 
 const COLLAPSED_SIZE = 56;
+const BALL_VISUAL = 48;   // 小球视觉尺寸 px（≈96rpx）
+const BALL_HITAREA = 64;   // 小球触摸热区 px（≈128rpx），比视觉大确保 catchMove 可靠
 const EXPANDED_DEFAULT_H = 120;
 const SAFE_TOP = 80;
 const SAFE_BOTTOM = 12;
+const MARGIN = 16;          // 小球距屏幕边缘最小距离
 const TAP_THRESHOLD = 8;
 
 type ActiveUpload = UploadTask & { kind: 'upload' };
@@ -80,34 +85,42 @@ function clamp(v: number, min: number, max: number) {
 export default function GlobalProgress() {
   const tasks = useActiveTasks();
 
-  const [winH] = useState(getWindowHeight);
   const init = useRef(loadPos()).current;
 
   const [collapsed, setCollapsed] = useState<boolean>(init?.collapsed ?? false);
   const [y, setY] = useState<number>(
-    init?.y != null ? init.y : Math.max(SAFE_TOP, winH - 240),
+    init?.y != null ? init.y : Math.max(SAFE_TOP, WIN_H - 240),
+  );
+  /** 悬浮球水平位置（卡片忽略） */
+  const [ballX, setBallX] = useState<number>(
+    init?.ballX != null ? init.ballX : WIN_W - BALL_HITAREA - MARGIN,
   );
 
-  /** 通过 ref 同步当前 y，便于 onTouchEnd 时 savePos 取最新值 */
-  const yRef = useRef(y);
-  yRef.current = y;
+  const yRef = useRef(y); yRef.current = y;
+  const ballXRef = useRef(ballX); ballXRef.current = ballX;
 
-  /** 折叠态切换时把 y 夹到合法范围 */
+  /** 折叠态切换时调整 y 不超出底部 */
   useEffect(() => {
-    const h = collapsed ? COLLAPSED_SIZE : EXPANDED_DEFAULT_H;
-    setY((prev) => clamp(prev, SAFE_TOP, winH - h - SAFE_BOTTOM));
-    savePos({ y: yRef.current, collapsed });
+    const h = collapsed ? BALL_HITAREA : EXPANDED_DEFAULT_H;
+    setY((prev) => clamp(prev, SAFE_TOP, WIN_H - h - SAFE_BOTTOM));
+    savePos({ y: yRef.current, ballX: ballXRef.current, collapsed });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [collapsed, winH]);
+  }, [collapsed]);
 
   /* ─── 拖动 ─── */
 
-  const dragRef = useRef({ startY: 0, originY: 0, moved: false, dragging: false });
+  const dragRef = useRef({
+    startX: 0, startY: 0,
+    originX: 0, originY: 0,
+    moved: false, dragging: false,
+  });
 
   const onTouchStart = (e: any) => {
     const t = e.touches?.[0];
     if (!t) return;
+    dragRef.current.startX = t.pageX ?? t.clientX ?? 0;
     dragRef.current.startY = t.pageY ?? t.clientY ?? 0;
+    dragRef.current.originX = ballXRef.current;
     dragRef.current.originY = yRef.current;
     dragRef.current.moved = false;
     dragRef.current.dragging = true;
@@ -117,17 +130,24 @@ export default function GlobalProgress() {
     if (!dragRef.current.dragging) return;
     const t = e.touches?.[0];
     if (!t) return;
-    const cur = t.pageY ?? t.clientY ?? 0;
-    const delta = cur - dragRef.current.startY;
-    if (Math.abs(delta) < TAP_THRESHOLD) return; // 未达阈值 → 不动，让小程序 tap 事件正常触发
+    const curX = t.pageX ?? t.clientX ?? 0;
+    const curY = t.pageY ?? t.clientY ?? 0;
+    const dx = curX - dragRef.current.startX;
+    const dy = curY - dragRef.current.startY;
+    if (Math.abs(dx) + Math.abs(dy) < TAP_THRESHOLD) return;
     dragRef.current.moved = true;
-    const h = collapsed ? COLLAPSED_SIZE : EXPANDED_DEFAULT_H;
-    setY(clamp(dragRef.current.originY + delta, SAFE_TOP, winH - h - SAFE_BOTTOM));
+
+    const h = collapsed ? BALL_HITAREA : EXPANDED_DEFAULT_H;
+    setY(clamp(dragRef.current.originY + dy, SAFE_TOP, WIN_H - h - SAFE_BOTTOM));
+    // 悬浮球还支持横向拖动
+    if (collapsed) {
+      setBallX(clamp(dragRef.current.originX + dx, MARGIN, WIN_W - BALL_HITAREA - MARGIN));
+    }
   };
 
   const onTouchEnd = () => {
     if (dragRef.current.dragging && dragRef.current.moved) {
-      savePos({ y: yRef.current, collapsed });
+      savePos({ y: yRef.current, ballX: ballXRef.current, collapsed });
     }
     dragRef.current.dragging = false;
   };
@@ -145,26 +165,31 @@ export default function GlobalProgress() {
     return (
       <View
         className="gp-portal gp-portal-ball"
-        style={{ top: `${y}px` }}
-        catchMove
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onClick={() => {
-          if (dragRef.current.moved) return;
-          setCollapsed(false);
-        }}
+        style={{ top: `${y}px`, left: `${ballX}px` }}
       >
-        <View className={`gp-ball ${head.status === 'paused' ? 'gp-ball-paused' : ''}`}>
-          <Image
-            src={isUp ? iconUpload('#ffffff') : iconDownload('#ffffff')}
-            className="gp-ball-icon"
-          />
-          {totalCount > 1 && (
-            <View className="gp-ball-badge">
-              <Text className="gp-ball-badge-text">{totalCount}</Text>
-            </View>
-          )}
+        {/* 外层：扩大热区确保 catchMove 可靠；内层小球视觉不变 */}
+        <View
+          className="gp-ball-hitarea"
+          catchMove
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onClick={() => {
+            if (dragRef.current.moved) return;
+            setCollapsed(false);
+          }}
+        >
+          <View className={`gp-ball ${head.status === 'paused' ? 'gp-ball-paused' : ''}`}>
+            <Image
+              src={isUp ? iconUpload('#ffffff') : iconDownload('#ffffff')}
+              className="gp-ball-icon"
+            />
+            {totalCount > 1 && (
+              <View className="gp-ball-badge">
+                <Text className="gp-ball-badge-text">{totalCount}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     );

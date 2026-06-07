@@ -1,5 +1,4 @@
-/* ─────── 容器（fixed，y 由内联 style 控制） ─────── */
-/* 不使用 pointer-events，小程序 wxss 不支持 */
+/* ─────── 容器（fixed，位置由内联 style 控制） ─────── */
 
 .gp-portal {
   position: fixed;
@@ -11,9 +10,19 @@
   right: 32rpx;
 }
 
+/* 悬浮球外层：left 由 JS 控制，不做 right 固定 */
 .gp-portal-ball {
-  right: 24rpx;
-  width: 96rpx;
+  /* left / top 由 inline style 控制 */
+}
+
+/* ─────── 悬浮球热区（比球大一圈，保证 catchMove 可靠） ─────── */
+
+.gp-ball-hitarea {
+  width: 128rpx;
+  height: 128rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ─────── 大卡片 ─────── */
@@ -129,7 +138,7 @@
   height: 32rpx;
 }
 
-/* ─────── 折叠悬浮球 ─────── */
+/* ─────── 悬浮球本体（视觉 96rpx，比热区小） ─────── */
 
 .gp-ball {
   position: relative;
