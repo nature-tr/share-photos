@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
@@ -36,131 +36,105 @@ function savePos(p: Position) {
   try { Taro.setStorageSync(STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
 }
 
-/* ────────────────── 屏幕尺寸（同步一次） ────────────────── */
-
 function getWindowHeight(): number {
-  try {
-    return Taro.getSystemInfoSync().windowHeight;
-  } catch {
-    return 667;
-  }
+  try { return Taro.getSystemInfoSync().windowHeight; }
+  catch { return 667; }
 }
 
 /* ────────────────── 主体 ────────────────── */
 
-const COLLAPSED_SIZE = 56;     // 悬浮球尺寸 px
-const SAFE_TOP = 80;           // 不要遮挡顶部导航
-const SAFE_BOTTOM = 12;        // 与屏幕底部最小间距
-const TAP_THRESHOLD = 6;       // 拖动 vs 点击的阈值（px）
+const COLLAPSED_SIZE = 56;
+const EXPANDED_DEFAULT_H = 120;
+const SAFE_TOP = 80;
+const SAFE_BOTTOM = 12;
+const TAP_THRESHOLD = 8;
 
-type ActiveTask =
-  | (UploadTask & { kind: 'upload'; title?: string })
-  | (DownloadTask & { kind: 'download'; title?: string });
+type ActiveUpload = UploadTask & { kind: 'upload' };
+type ActiveDownload = DownloadTask & { kind: 'download' };
+type ActiveTask = ActiveUpload | ActiveDownload;
 
-/** 用 useShallow 仅订阅"活动任务的关键标量"，避免任意 setState 都重渲。 */
+/** 仅订阅 store 标量；title 在渲染阶段从 manager 现取，不混进 selector。 */
 function useActiveTasks(): ActiveTask[] {
-  return useTaskStore(
-    useShallow((s) => {
-      const ups: ActiveTask[] = [];
-      for (const t of Object.values(s.uploads)) {
-        if (t.status === 'cancelled') continue;
-        ups.push({ ...t, kind: 'upload', title: taskManager.getUploadCtx(t.shareId)?.meta.title });
-      }
-      const dls: ActiveTask[] = [];
-      for (const t of Object.values(s.downloads)) {
-        if (t.status === 'cancelled') continue;
-        dls.push({ ...t, kind: 'download' });
-      }
-      return [...ups, ...dls];
-    }),
-  );
+  const uploadIds = useTaskStore(useShallow((s) => Object.keys(s.uploads)));
+  const downloadIds = useTaskStore(useShallow((s) => Object.keys(s.downloads)));
+  const uploads = useTaskStore((s) => s.uploads);
+  const downloads = useTaskStore((s) => s.downloads);
+
+  const tasks: ActiveTask[] = [];
+  for (const id of uploadIds) {
+    const t = uploads[id];
+    if (t && t.status !== 'cancelled') tasks.push({ ...t, kind: 'upload' });
+  }
+  for (const id of downloadIds) {
+    const t = downloads[id];
+    if (t && t.status !== 'cancelled') tasks.push({ ...t, kind: 'download' });
+  }
+  return tasks;
+}
+
+function clamp(v: number, min: number, max: number) {
+  if (max < min) return min;
+  return Math.min(Math.max(v, min), max);
 }
 
 export default function GlobalProgress() {
   const tasks = useActiveTasks();
 
-  /* 屏幕高度（仅取一次） */
-  const winH = useMemo(() => getWindowHeight(), []);
+  const [winH] = useState(getWindowHeight);
+  const init = useRef(loadPos()).current;
 
-  /* 初始位置：lazy init 仅在挂载时读 storage 一次 */
-  const [collapsed, setCollapsed] = useState<boolean>(() => loadPos()?.collapsed ?? false);
-  const [y, setY] = useState<number>(() => {
-    const init = loadPos();
-    if (init?.y != null) return init.y;
-    return Math.max(SAFE_TOP, winH - 240);
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(init?.collapsed ?? false);
+  const [y, setY] = useState<number>(
+    init?.y != null ? init.y : Math.max(SAFE_TOP, winH - 240),
+  );
 
-  /* 元素自身高度（用于限制拖动边界） */
-  const [elH, setElH] = useState<number>(collapsed ? COLLAPSED_SIZE : 120);
+  /** 通过 ref 同步当前 y，便于 onTouchEnd 时 savePos 取最新值 */
+  const yRef = useRef(y);
+  yRef.current = y;
 
-  /* 折叠态切换时调整 y 不超出底部 */
+  /** 折叠态切换时把 y 夹到合法范围 */
   useEffect(() => {
-    const h = collapsed ? COLLAPSED_SIZE : Math.max(elH, 80);
+    const h = collapsed ? COLLAPSED_SIZE : EXPANDED_DEFAULT_H;
     setY((prev) => clamp(prev, SAFE_TOP, winH - h - SAFE_BOTTOM));
-  }, [collapsed, elH, winH]);
+    savePos({ y: yRef.current, collapsed });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [collapsed, winH]);
 
-  /* 拖动状态（写入 ref 避免重渲；仅在 onTouchEnd 持久化一次） */
-  const dragRef = useRef({
-    startY: 0,
-    originY: 0,
-    moved: false,
-    dragging: false,
-  });
+  /* ─── 拖动 ─── */
+
+  const dragRef = useRef({ startY: 0, originY: 0, moved: false, dragging: false });
 
   const onTouchStart = (e: any) => {
     const t = e.touches?.[0];
     if (!t) return;
-    dragRef.current = {
-      startY: t.clientY ?? t.pageY ?? 0,
-      originY: y,
-      moved: false,
-      dragging: true,
-    };
+    dragRef.current.startY = t.pageY ?? t.clientY ?? 0;
+    dragRef.current.originY = yRef.current;
+    dragRef.current.moved = false;
+    dragRef.current.dragging = true;
   };
 
   const onTouchMove = (e: any) => {
     if (!dragRef.current.dragging) return;
     const t = e.touches?.[0];
     if (!t) return;
-    const cur = t.clientY ?? t.pageY ?? 0;
+    const cur = t.pageY ?? t.clientY ?? 0;
     const delta = cur - dragRef.current.startY;
-    if (Math.abs(delta) > TAP_THRESHOLD) dragRef.current.moved = true;
-    const h = collapsed ? COLLAPSED_SIZE : Math.max(elH, 80);
+    if (Math.abs(delta) < TAP_THRESHOLD) return; // 未达阈值 → 不动，让小程序 tap 事件正常触发
+    dragRef.current.moved = true;
+    const h = collapsed ? COLLAPSED_SIZE : EXPANDED_DEFAULT_H;
     setY(clamp(dragRef.current.originY + delta, SAFE_TOP, winH - h - SAFE_BOTTOM));
   };
 
   const onTouchEnd = () => {
     if (dragRef.current.dragging && dragRef.current.moved) {
-      // 仅拖动结束保存一次
-      savePos({ y, collapsed });
+      savePos({ y: yRef.current, collapsed });
     }
     dragRef.current.dragging = false;
   };
 
-  /* collapsed 变化时单独持久化（折叠/展开切换） */
-  useEffect(() => { savePos({ y, collapsed }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [collapsed]);
-
-  /* 测量元素实际高度：用 nextTick 等 DOM 提交 */
-  useEffect(() => {
-    if (collapsed) return;
-    const measure = () => {
-      const q = Taro.createSelectorQuery();
-      q.select('.global-progress-portal .gp-card-inner')
-        .boundingClientRect((rect: any) => {
-          if (rect && rect.height && Math.abs(rect.height - elH) > 4) {
-            setElH(rect.height);
-          }
-        })
-        .exec();
-    };
-    if (typeof Taro.nextTick === 'function') Taro.nextTick(measure);
-    else setTimeout(measure, 50);
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [collapsed, tasks.length]);
-
   if (tasks.length === 0) return null;
 
-  /* ────────────────── 折叠态 ────────────────── */
+  /* ────────────────── 折叠态：悬浮小球 ────────────────── */
 
   if (collapsed) {
     const active = tasks.find((t) => t.status === 'uploading' || t.status === 'downloading');
@@ -170,8 +144,8 @@ export default function GlobalProgress() {
 
     return (
       <View
-        className="global-progress-portal"
-        style={{ top: `${y}px`, right: '24rpx' }}
+        className="gp-portal gp-portal-ball"
+        style={{ top: `${y}px` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -201,11 +175,11 @@ export default function GlobalProgress() {
 
   return (
     <View
-      className="global-progress-portal"
-      style={{ top: `${y}px`, left: '32rpx', right: '32rpx' }}
+      className="gp-portal gp-portal-card"
+      style={{ top: `${y}px` }}
     >
-      <View className="gp-card-inner">
-        {/* 抓手 + 折叠按钮 */}
+      <View className="gp-card">
+        {/* 抓手栏：仅这个区域响应拖动；折叠按钮独立 */}
         <View
           className="gp-handle"
           onTouchStart={onTouchStart}
@@ -213,17 +187,14 @@ export default function GlobalProgress() {
           onTouchEnd={onTouchEnd}
         >
           <View className="gp-handle-bar" />
-          <View
-            className="gp-collapse-btn"
-            onClick={(e: any) => {
-              e.stopPropagation();
-              setCollapsed(true);
-            }}
-            onTouchStart={(e: any) => e.stopPropagation()}
-            onTouchMove={(e: any) => e.stopPropagation()}
-          >
-            <Image src={iconChevronDown('#94a3b8')} className="gp-collapse-icon" />
-          </View>
+        </View>
+        <View
+          className="gp-collapse-btn"
+          hoverClass="gp-collapse-btn-hover"
+          hoverStayTime={120}
+          onClick={() => setCollapsed(true)}
+        >
+          <Image src={iconChevronDown('#94a3b8')} className="gp-collapse-icon" />
         </View>
 
         {tasks.map((t) => {
@@ -233,6 +204,7 @@ export default function GlobalProgress() {
           const total = t.total;
           const pct = total > 0 ? Math.round((t.done / total) * 100) : 0;
           const id = isUpload ? t.shareId : t.shareCode;
+          const title = isUpload ? taskManager.getUploadCtx(t.shareId)?.meta.title : '';
 
           const onRowClick = () => {
             const current = pages[pages.length - 1];
@@ -254,7 +226,7 @@ export default function GlobalProgress() {
                 <Text className="gp-row-label">
                   {isUpload ? '↑' : '↓'}{' '}
                   {isUpload ? `上传 ${t.done}/${total}` : `保存 ${t.done}/${total}`}
-                  {t.title ? ` · ${t.title}` : ''}
+                  {title ? ` · ${title}` : ''}
                   {isPaused ? ' 已暂停' : ''}
                   {t.failed > 0 ? ` (失败${t.failed})` : ''}
                 </Text>
@@ -267,15 +239,18 @@ export default function GlobalProgress() {
                   </View>
                 )}
               </View>
-              <View className="gp-row-actions" onClick={(e: any) => e.stopPropagation()}>
+              <View className="gp-row-actions">
                 {isActive && (
                   <View
                     className="gp-row-btn"
-                    onClick={() =>
-                      isUpload
-                        ? taskManager.pauseUpload(t.shareId)
-                        : taskManager.pauseDownload(t.shareCode)
-                    }
+                    hoverClass="gp-row-btn-hover"
+                    hoverStayTime={120}
+                    catchMove
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                      if (isUpload) taskManager.pauseUpload(t.shareId);
+                      else taskManager.pauseDownload(t.shareCode);
+                    }}
                   >
                     <Image src={iconPause('#475569')} className="gp-row-btn-icon" />
                   </View>
@@ -283,11 +258,14 @@ export default function GlobalProgress() {
                 {isPaused && (
                   <View
                     className="gp-row-btn"
-                    onClick={() =>
-                      isUpload
-                        ? taskManager.resumeUpload(t.shareId)
-                        : taskManager.resumeDownload(t.shareCode)
-                    }
+                    hoverClass="gp-row-btn-hover"
+                    hoverStayTime={120}
+                    catchMove
+                    onClick={(e: any) => {
+                      e.stopPropagation();
+                      if (isUpload) taskManager.resumeUpload(t.shareId);
+                      else taskManager.resumeDownload(t.shareCode);
+                    }}
                   >
                     <Image
                       src={isUpload ? iconUpload('#3b82f6') : iconDownload('#3b82f6')}
@@ -297,11 +275,14 @@ export default function GlobalProgress() {
                 )}
                 <View
                   className="gp-row-btn"
-                  onClick={() =>
-                    isUpload
-                      ? taskManager.cancelUpload(t.shareId)
-                      : taskManager.cancelDownload(t.shareCode)
-                  }
+                  hoverClass="gp-row-btn-hover"
+                  hoverStayTime={120}
+                  catchMove
+                  onClick={(e: any) => {
+                    e.stopPropagation();
+                    if (isUpload) taskManager.cancelUpload(t.shareId);
+                    else taskManager.cancelDownload(t.shareCode);
+                  }}
                 >
                   <Image src={iconXMark('#94a3b8')} className="gp-row-btn-icon" />
                 </View>
@@ -312,9 +293,4 @@ export default function GlobalProgress() {
       </View>
     </View>
   );
-}
-
-function clamp(v: number, min: number, max: number) {
-  if (max < min) return min;
-  return Math.min(Math.max(v, min), max);
 }
