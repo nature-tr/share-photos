@@ -1,21 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Input, Image } from '@tarojs/components';
 import Taro, { useDidShow, useLoad } from '@tarojs/taro';
 import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared';
-import { createShare, uploadPhoto } from '@/api/share.api';
+import { createShare } from '@/api/share.api';
 import { useTaskStore } from '@/stores/task.store';
+import { taskManager, type UploadItem } from '@/stores/task.manager';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
 import './index.scss';
-
-interface PickedItem {
-  id: string;
-  path: string;
-  name: string;
-  size?: number;
-  status: 'pending' | 'uploading' | 'done' | 'error';
-  error?: string;
-}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -25,44 +17,47 @@ function formatBytes(bytes: number) {
 export default function NewSharePage() {
   const [title, setTitle] = useState('');
   const [ttl, setTtl] = useState<number>(TTL_PRESETS[2]!.seconds);
-  const [items, setItems] = useState<PickedItem[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+  const [items, setItems] = useState<UploadItem[]>([]);
+  const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ id: string; code: string } | null>(null);
+  const [qrVisible, setQrVisible] = useState(false);
   const [restoreShareId, setRestoreShareId] = useState<string | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  // 从 URL 参数读取 restoreShareId（仅点击进度卡片时传入）
+  /* ── URL 参数：仅当从全局进度卡片跳进来时携带 ── */
   useLoad((options) => {
-    if (options?.restoreShareId) {
-      setRestoreShareId(options.restoreShareId as string);
-    }
+    if (options?.restoreShareId) setRestoreShareId(options.restoreShareId as string);
   });
 
-  // 仅当从进度卡片进入时才恢复表单状态
+  /* ── 恢复模式：从 manager 读取上下文 + 订阅 ── */
   useDidShow(() => {
     if (!restoreShareId) return;
-    const task = useTaskStore.getState().uploads[restoreShareId];
-    if (!task || task.status !== 'uploading') return;
-    if (task.formTitle) setTitle(task.formTitle);
-    if (task.formTtl) setTtl(task.formTtl);
-    setSubmitting(true);
+    const ctx = taskManager.getUploadCtx(restoreShareId);
+    if (!ctx) return;
+
+    setTitle(ctx.meta.title);
+    setTtl(ctx.meta.ttl);
+    setItems(ctx.items.map((i) => ({ ...i })));
     setCreated({ id: restoreShareId, code: '' });
 
-    const saved = Taro.getStorageSync(`upload_items_${task.shareId}`);
-    if (saved) {
-      try {
-        const savedItems = JSON.parse(saved) as PickedItem[];
-        setItems(savedItems);
-      } catch { /* ignore */ }
-    }
+    // 订阅后续变化
+    unsubRef.current?.();
+    unsubRef.current = taskManager.subscribeUpload(restoreShareId, () => {
+      const c = taskManager.getUploadCtx(restoreShareId);
+      if (c) setItems(c.items.map((i) => ({ ...i })));
+    });
   });
 
-  // 监听任务状态：从 paused 恢复到 uploading 时自动继续
-  const taskStatus = useTaskStore((s) => created?.id ? s.uploads[created.id]?.status : undefined);
-  useEffect(() => {
-    if (!created?.id || taskStatus !== 'uploading') return;
-    void start();
-  }, [taskStatus]);
+  // 卸载时取消订阅
+  useEffect(() => () => {
+    unsubRef.current?.();
+    unsubRef.current = null;
+  }, []);
 
+  /* ── 任务状态（仅用于 UI 文案） ── */
+  const taskStatus = useTaskStore((s) => (created?.id ? s.uploads[created.id]?.status : undefined));
+
+  /* ── 统计 ── */
   const stats = useMemo(() => {
     const total = items.length;
     const done = items.filter((i) => i.status === 'done').length;
@@ -71,6 +66,7 @@ export default function NewSharePage() {
     return { total, done, error, totalBytes };
   }, [items]);
 
+  /* ── 选图 ── */
   function pickImages() {
     const remaining = MAX_PHOTOS_PER_SHARE - items.length;
     if (remaining <= 0) {
@@ -86,7 +82,7 @@ export default function NewSharePage() {
           mediaType: ['image'],
           sizeType: compressed ? ['compressed'] : ['original'],
           success: (res) => {
-            const newItems: PickedItem[] = res.tempFiles.map((f) => {
+            const newItems: UploadItem[] = res.tempFiles.map((f) => {
               const name = f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`;
               return {
                 id: Math.random().toString(36).slice(2),
@@ -107,100 +103,54 @@ export default function NewSharePage() {
     setItems((arr) => arr.filter((i) => i.id !== id));
   }
 
+  /* ── 创建并启动上传（仅首次发起） ── */
   async function start() {
     if (items.length === 0) {
       Taro.showToast({ title: '请先选择图片', icon: 'none' });
       return;
     }
-    setSubmitting(true);
+    setCreating(true);
     try {
-      let shareId: string;
-
-      // 恢复模式：share 已创建则复用
-      if (created?.id) {
-        shareId = created.id;
-      } else {
-        const shareRes = await createShare(ttl, title.trim() || undefined);
-        if (shareRes.error || !shareRes.data) {
-          Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
-          setSubmitting(false);
-          return;
-        }
-        const share = shareRes.data;
-        setCreated({ id: share.id, code: share.code });
-        shareId = share.id;
-
-        // 首次启动才初始化任务
-        useTaskStore.getState().startUpload(shareId, items.length);
-        useTaskStore.getState().saveFormState(shareId, title.trim(), ttl, items.length, stats.totalBytes);
-        Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(items));
-      }
-
-      // 恢复时重设状态为 uploading
-      const taskState = useTaskStore.getState().uploads[shareId];
-      if (taskState?.status === 'paused' || taskState?.status === 'done' || taskState?.status === 'cancelled') {
-        useTaskStore.setState((s) => ({
-          uploads: { ...s.uploads, [shareId]: { ...s.uploads[shareId]!, status: 'uploading' } },
-        }));
-      }
-
-      let done = 0, failed = 0;
-
-      for (const it of items) {
-        if (it.status === 'done') { done++; continue; }
-
-        const tState = useTaskStore.getState().uploads[shareId];
-        if (!tState || tState.status === 'paused' || tState.status === 'cancelled') break;
-
-        setItems((arr) => {
-          const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'uploading' as const, error: undefined } : x));
-          Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
-          return next;
+      // 提前过滤超大文件
+      const oversized = items.find((i) => i.size && i.size > MAX_FILE_SIZE);
+      if (oversized) {
+        Taro.showToast({
+          title: `${oversized.name} 过大（${formatBytes(oversized.size!)}）`,
+          icon: 'none',
         });
-        try {
-          if (it.size && it.size > MAX_FILE_SIZE) {
-            throw new Error(`文件过大（${formatBytes(it.size)}）`);
-          }
-          const uploadRes = await uploadPhoto(shareId, it.path);
-          const tState2 = useTaskStore.getState().uploads[shareId];
-          if (!tState2 || tState2.status === 'paused' || tState2.status === 'cancelled') break;
+        setCreating(false);
+        return;
+      }
 
-          if (uploadRes.statusCode === 200 || uploadRes.statusCode === 201) {
-            setItems((arr) => {
-              const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'done' as const } : x));
-              Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
-              return next;
-            });
-            done++;
-            useTaskStore.getState().updateUpload(shareId, done, failed);
-          } else {
-            throw new Error('上传失败');
-          }
-        } catch (err: any) {
-          failed++;
-          setItems((arr) => {
-            const next = arr.map((x) => (x.id === it.id ? { ...x, status: 'error', error: err?.message || '上传失败' } : x));
-            Taro.setStorageSync(`upload_items_${shareId}`, JSON.stringify(next));
-            return next;
-          });
-          useTaskStore.getState().updateUpload(shareId, done, failed);
-        }
+      const shareRes = await createShare(ttl, title.trim() || undefined);
+      if (shareRes.error || !shareRes.data) {
+        Taro.showToast({ title: shareRes.error?.message ?? '创建失败', icon: 'none' });
+        setCreating(false);
+        return;
       }
-      const finalTask = useTaskStore.getState().uploads[shareId];
-      if (finalTask && finalTask.status !== 'cancelled' && finalTask.status !== 'paused') {
-        useTaskStore.getState().finishUpload(shareId);
-      }
-      Taro.removeStorageSync(`upload_items_${shareId}`);
-      Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success', duration: 2000 });
-    } catch {
-      Taro.showToast({ title: '创建分享失败', icon: 'none' });
+      const share = shareRes.data;
+      setCreated({ id: share.id, code: share.code });
+
+      // 交给 manager 接管
+      taskManager.startUpload(share.id, items, {
+        title: title.trim(),
+        ttl,
+        totalBytes: stats.totalBytes,
+      });
+
+      // 订阅 items 变化以驱动缩略图状态
+      unsubRef.current?.();
+      unsubRef.current = taskManager.subscribeUpload(share.id, () => {
+        const c = taskManager.getUploadCtx(share.id);
+        if (c) setItems(c.items.map((i) => ({ ...i })));
+      });
     } finally {
-      setSubmitting(false);
+      setCreating(false);
     }
   }
 
-  // 创建成功页
-  if (created && stats.done === stats.total && stats.error === 0) {
+  /* ── 全部完成的成功页 ── */
+  if (created && created.code && taskStatus === 'done' && stats.error === 0) {
     return (
       <View className="success-page">
         <View className="success-icon-box"><Text className="success-icon">✓</Text></View>
@@ -236,6 +186,12 @@ export default function NewSharePage() {
     );
   }
 
+  // 是否处于正在上传（含暂停态）的进行中状态：禁用编辑
+  const inProgress =
+    creating ||
+    taskStatus === 'uploading' ||
+    taskStatus === 'paused';
+
   return (
     <View className="page">
       {/* 表单 */}
@@ -246,7 +202,7 @@ export default function NewSharePage() {
           value={title}
           onInput={(e) => setTitle(e.detail.value)}
           placeholder="例如：周末聚会（可选）"
-          disabled={submitting}
+          disabled={inProgress}
         />
 
         <Text className="label mt-lg">有效期</Text>
@@ -255,7 +211,7 @@ export default function NewSharePage() {
             <View
               key={p.seconds}
               className={`ttl-chip ${ttl === p.seconds ? 'ttl-chip-active' : ''}`}
-              onClick={() => !submitting && setTtl(p.seconds)}
+              onClick={() => !inProgress && setTtl(p.seconds)}
             >
               <Text className={`ttl-chip-text ${ttl === p.seconds ? 'ttl-chip-text-active' : ''}`}>
                 {p.label}
@@ -272,7 +228,7 @@ export default function NewSharePage() {
             图片 <Text className="label-hint">{items.length}/{MAX_PHOTOS_PER_SHARE}</Text>
           </Text>
           <View style={{ flex: 1 }} />
-          {items.length > 0 && !submitting && (
+          {items.length > 0 && !inProgress && (
             <Text className="clear-link" onClick={() => setItems([])}>清空</Text>
           )}
         </View>
@@ -292,21 +248,25 @@ export default function NewSharePage() {
                   <View className="thumb-overlay"><Text style={{ color: '#fff' }}>⏳</Text></View>
                 )}
                 {it.status === 'done' && (
-                  <View className="thumb-overlay thumb-overlay-done"><Text style={{ color: '#fff', fontSize: '44rpx', fontWeight: 700 }}>✓</Text></View>
+                  <View className="thumb-overlay thumb-overlay-done">
+                    <Text style={{ color: '#fff', fontSize: '44rpx', fontWeight: 700 }}>✓</Text>
+                  </View>
                 )}
                 {it.status === 'error' && (
                   <View className="thumb-overlay thumb-overlay-error">
-                    <Text style={{ color: '#fff', fontSize: '18rpx', textAlign: 'center', padding: '4rpx' }}>{it.error || '失败'}</Text>
+                    <Text style={{ color: '#fff', fontSize: '18rpx', textAlign: 'center', padding: '4rpx' }}>
+                      {it.error || '失败'}
+                    </Text>
                   </View>
                 )}
-                {it.status === 'pending' && !submitting && (
+                {it.status === 'pending' && !inProgress && (
                   <View className="thumb-close" onClick={() => removeItem(it.id)}>
                     <Text style={{ color: '#fff', fontSize: '24rpx', fontWeight: 600 }}>×</Text>
                   </View>
                 )}
               </View>
             ))}
-            {!submitting && items.length < MAX_PHOTOS_PER_SHARE && (
+            {!inProgress && items.length < MAX_PHOTOS_PER_SHARE && (
               <View className="add-thumb" onClick={pickImages}>
                 <Text style={{ fontSize: '48rpx', color: colorsText3, fontWeight: 300 }}>＋</Text>
               </View>
@@ -319,21 +279,37 @@ export default function NewSharePage() {
       <View className="bottom-bar">
         <View style={{ flex: 1 }}>
           <Text className="bb-info">
-            {submitting
-              ? `上传中 · ${stats.done}/${stats.total}${stats.error ? ` · 失败 ${stats.error}` : ''}`
+            {inProgress
+              ? `${taskStatus === 'paused' ? '已暂停' : '上传中'} · ${stats.done}/${stats.total}${stats.error ? ` · 失败 ${stats.error}` : ''}`
               : `${items.length} 张 · ${formatBytes(stats.totalBytes)}`}
           </Text>
-          {submitting && stats.total > 0 && (
+          {inProgress && stats.total > 0 && (
             <View className="progress-track">
-              <View className="progress-fill" style={{ width: `${Math.round((stats.done / stats.total) * 100)}%` }} />
+              <View
+                className="progress-fill"
+                style={{
+                  width: `${Math.round((stats.done / stats.total) * 100)}%`,
+                  background: taskStatus === 'paused' ? '#94a3b8' : undefined,
+                }}
+              />
             </View>
           )}
         </View>
         <View
-          className={`btn ${(items.length === 0 || submitting || !!restoreShareId) ? 'btn-disabled' : ''}`}
-          onClick={() => !submitting && !restoreShareId && items.length > 0 && start()}
+          className={`btn ${(items.length === 0 || inProgress || !!restoreShareId) ? 'btn-disabled' : ''}`}
+          onClick={() => !inProgress && !restoreShareId && items.length > 0 && start()}
         >
-          <Text className="btn-text">{restoreShareId ? '正在上传中' : submitting ? '上传中' : '创建并上传'}</Text>
+          <Text className="btn-text">
+            {restoreShareId
+              ? taskStatus === 'paused' ? '已暂停' : '正在上传中'
+              : creating
+              ? '创建中…'
+              : taskStatus === 'uploading'
+              ? '上传中'
+              : taskStatus === 'paused'
+              ? '已暂停'
+              : '创建并上传'}
+          </Text>
         </View>
       </View>
       <GlobalProgress />

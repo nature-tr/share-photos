@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components';
 import Taro, { useLoad, useDidHide, usePageScroll } from '@tarojs/taro';
 import { getViewerShare, getThumbUrl, getMediumUrl, getOriginalUrl, requestJoin, deletePhoto, deletePhotos } from '@/api/share.api';
-import { useAuth, API_BASE } from '@/stores/auth.store';
+import { useAuth } from '@/stores/auth.store';
 import { useTaskStore } from '@/stores/task.store';
+import { taskManager, type UploadItem } from '@/stores/task.manager';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
@@ -32,14 +33,12 @@ export default function ViewerPage() {
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [now, setNow] = useState(Date.now());
-  const [saving, setSaving] = useState(false);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
   const [loadMore, setLoadMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
-  const [uploadingMore, setUploadingMore] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -47,6 +46,15 @@ export default function ViewerPage() {
   const lastScrollTargetRef = useRef(0);
   const scrolledOnceRef = useRef(false);
   const PAGE_SIZE = 50;
+
+  // 派生：是否正在保存（由 manager 任务状态驱动）
+  const dlStatus = useTaskStore((s) => s.downloads[code]?.status);
+  const saving = dlStatus === 'downloading' || dlStatus === 'paused';
+
+  // 上传任务状态：完成时刷新 album
+  const upStatus = useTaskStore((s) => (album?.id ? s.uploads[album.id]?.status : undefined));
+  const lastUpStatusRef = useRef<typeof upStatus>(undefined);
+  const uploadingMore = upStatus === 'uploading' || upStatus === 'paused';
 
   useLoad((options) => {
     const c = (options?.code as string) ?? '';
@@ -59,12 +67,21 @@ export default function ViewerPage() {
   });
 
   // 监听下载任务状态：从 paused 恢复到 downloading 时自动继续
-  const dlStatus = useTaskStore((s) => s.downloads[code]?.status);
+  // ── manager 自驱动，page 不再需要触发恢复 ──
+  // 上传完成 → 刷新 album
   useEffect(() => {
-    if (!album || album.photos.length === 0 || dlStatus !== 'downloading') return;
-    if (saving) return;
-    void saveAll();
-  }, [dlStatus]);
+    const prev = lastUpStatusRef.current;
+    lastUpStatusRef.current = upStatus;
+    if (prev === 'uploading' && upStatus === 'done') {
+      getViewerShare(code, 1, PAGE_SIZE).then((res) => {
+        if (res.data) {
+          setAlbum(res.data as ShareDetail);
+          setPage(1);
+          setHasMore((res.data as any).hasMore ?? false);
+        }
+      });
+    }
+  }, [upStatus, code]);
 
   useEffect(() => {
     if (!code) return;
@@ -187,33 +204,18 @@ export default function ViewerPage() {
           count: 9,
           mediaType: ['image'],
           sizeType: compressed ? ['compressed'] : ['original'],
-          success: async (chooseRes) => {
-            setUploadingMore(true);
-            const total = chooseRes.tempFiles.length;
-            useTaskStore.getState().startUpload(album!.id, total);
-            let done = 0, failed = 0;
-            for (const f of chooseRes.tempFiles) {
-              try {
-                const uploadRes = await Taro.uploadFile({
-                  url: `${API_BASE}/api/shares/${album!.id}/photos`,
-                  filePath: f.tempFilePath,
-                  name: 'file',
-                  header: user ? { Authorization: `Bearer ${await useAuth.getState().getAccessToken()}` } : {},
-                });
-                if (uploadRes.statusCode === 201 || uploadRes.statusCode === 200) done++;
-                else failed++;
-              } catch { failed++; }
-              useTaskStore.getState().updateUpload(album!.id, done, failed);
-            }
-            useTaskStore.getState().finishUpload(album!.id);
-            setUploadingMore(false);
-            Taro.showToast({ title: `完成 ${done}${failed ? `，失败 ${failed}` : ''}`, icon: 'success' });
-            getViewerShare(code, 1, PAGE_SIZE).then((res) => {
-              if (res.data) {
-                setAlbum(res.data as ShareDetail);
-                setPage(1);
-                setHasMore((res.data as any).hasMore ?? false);
-              }
+          success: (chooseRes) => {
+            const items: UploadItem[] = chooseRes.tempFiles.map((f) => ({
+              id: Math.random().toString(36).slice(2),
+              path: f.tempFilePath,
+              name: f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`,
+              size: f.size,
+              status: 'pending',
+            }));
+            taskManager.startUpload(album!.id, items, {
+              title: album!.title || '相册',
+              ttl: 0,
+              totalBytes: items.reduce((s, i) => s + (i.size ?? 0), 0),
             });
           },
         });
@@ -329,10 +331,7 @@ export default function ViewerPage() {
     });
     if (!confirmed.confirm) return;
 
-    // 全局任务追踪
-    useTaskStore.getState().startDownload(code, totalCount);
-    setSaving(true);
-
+    // 收齐所有 photoId（manager 不发请求拉取分页）
     let allPhotos = [...album.photos];
     if (allPhotos.length < totalCount) {
       const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -344,32 +343,7 @@ export default function ViewerPage() {
       }
     }
 
-    let done = 0;
-    let failed = 0;
-    for (const p of allPhotos) {
-      const dlTask = useTaskStore.getState().downloads[code];
-      if (!dlTask || dlTask.status === 'paused' || dlTask.status === 'cancelled') break;
-
-      try {
-        const url = getOriginalUrl(code, p.id);
-        const downloadRes = await Taro.downloadFile({ url });
-        const dlTask2 = useTaskStore.getState().downloads[code];
-        if (!dlTask2 || dlTask2.status === 'paused' || dlTask2.status === 'cancelled') break;
-
-        if (downloadRes.statusCode === 200) {
-          await Taro.saveImageToPhotosAlbum({ filePath: downloadRes.tempFilePath });
-          done++;
-        } else { failed++; }
-      } catch { failed++; }
-      useTaskStore.getState().updateDownload(code, done + failed, failed);
-    }
-    const finalTask = useTaskStore.getState().downloads[code];
-    if (finalTask && finalTask.status !== 'cancelled') {
-      useTaskStore.getState().finishDownload(code);
-    }
-    setSaving(false);
-    if (failed === 0) Taro.showToast({ title: `已保存 ${done} 张`, icon: 'success' });
-    else Taro.showToast({ title: `完成 ${done}，失败 ${failed}`, icon: 'none' });
+    taskManager.startDownload(code, allPhotos.map((p) => ({ id: p.id })));
   }
 
   if (loading) return <View className="page"><View className="center"><Text>加载中…</Text></View></View>;
@@ -416,7 +390,10 @@ export default function ViewerPage() {
       <View className="action-bar">
         {user && !expired && (
           <>
-            <View className="add-photo-btn" onClick={handleOwnerUpload}>
+            <View
+              className={`add-photo-btn ${uploadingMore ? 'save-all-disabled' : ''}`}
+              onClick={() => !uploadingMore && handleOwnerUpload()}
+            >
               <Image src={iconImagePlus('#475569')} className="action-bar-icon" />
             </View>
             <View className="add-photo-btn" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}>
@@ -428,7 +405,9 @@ export default function ViewerPage() {
           className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
           onClick={() => !saving && photos.length > 0 && saveAll()}
         >
-          <Text className="save-all-btn-text">{saving ? '保存中…' : '一键存到相册'}</Text>
+          <Text className="save-all-btn-text">
+            {dlStatus === 'paused' ? '已暂停' : saving ? '保存中…' : '一键存到相册'}
+          </Text>
         </View>
       </View>
 

@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
 import { useTaskStore } from '@/stores/task.store';
+import { taskManager } from '@/stores/task.manager';
 import { iconPause, iconUpload, iconDownload, iconXMark } from '@/assets/icons';
 import './index.scss';
 
@@ -56,26 +57,40 @@ export default function GlobalProgress() {
               </View>
               <View className="gp-row-actions" onClick={(e: any) => e.stopPropagation()}>
                 {isActive && (
-                  <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().pauseUpload(t.shareId) : useTaskStore.getState().pauseDownload(t.shareCode)}>
+                  <View
+                    className="gp-row-btn"
+                    onClick={() =>
+                      isUpload
+                        ? taskManager.pauseUpload(t.shareId)
+                        : taskManager.pauseDownload(t.shareCode)
+                    }
+                  >
                     <Image src={iconPause('#475569')} className="gp-row-btn-icon" />
                   </View>
                 )}
                 {isPaused && (
-                  <View className="gp-row-btn" onClick={() => {
-                    if (isUpload) {
-                      useTaskStore.setState((s) => ({
-                        uploads: { ...s.uploads, [t.shareId]: { ...s.uploads[t.shareId]!, status: 'uploading' } },
-                      }));
-                    } else {
-                      useTaskStore.setState((s) => ({
-                        downloads: { ...s.downloads, [t.shareCode]: { ...s.downloads[t.shareCode]!, status: 'downloading' } },
-                      }));
+                  <View
+                    className="gp-row-btn"
+                    onClick={() =>
+                      isUpload
+                        ? taskManager.resumeUpload(t.shareId)
+                        : taskManager.resumeDownload(t.shareCode)
                     }
-                  }}>
-                    <Image src={isUpload ? iconUpload('#3b82f6') : iconDownload('#3b82f6')} className="gp-row-btn-icon" />
+                  >
+                    <Image
+                      src={isUpload ? iconUpload('#3b82f6') : iconDownload('#3b82f6')}
+                      className="gp-row-btn-icon"
+                    />
                   </View>
                 )}
-                <View className="gp-row-btn" onClick={() => isUpload ? useTaskStore.getState().cancelUpload(t.shareId) : useTaskStore.getState().cancelDownload(t.shareCode)}>
+                <View
+                  className="gp-row-btn"
+                  onClick={() =>
+                    isUpload
+                      ? taskManager.cancelUpload(t.shareId)
+                      : taskManager.cancelDownload(t.shareCode)
+                  }
+                >
                   <Image src={iconXMark('#94a3b8')} className="gp-row-btn-icon" />
                 </View>
               </View>
