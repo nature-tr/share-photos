@@ -17,21 +17,77 @@ function resolvePath(p: string): string {
   return path.isAbsolute(p) ? p : path.resolve(baseDir, p);
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+/* ─────────── JWT 密钥校验 ─────────── */
+/**
+ * 生产环境：必须显式提供 JWT_ACCESS_SECRET / JWT_REFRESH_SECRET，且长度 ≥ 32；
+ * 开发环境：缺失时使用本地默认值（**仅供开发**）。
+ */
+function requireSecret(name: string, devDefault: string): string {
+  const v = process.env[name];
+  if (!v || v.length < 32) {
+    if (isProduction) {
+      // 生产强退出，避免用弱密钥签发 token
+      // eslint-disable-next-line no-console
+      console.error(
+        `[config] FATAL: ${name} 必须在生产环境中设置且长度 ≥ 32 字符`,
+      );
+      process.exit(1);
+    }
+    return devDefault;
+  }
+  return v;
+}
+
+/* ─────────── 受信代理 IP 解析 ─────────── */
+/**
+ * 仅在 TRUSTED_PROXY_IPS 显式配置时启用 trustProxy（白名单形式）。
+ * 多个 IP/CIDR 用逗号分隔；缺省（包括开发态）一律 false，避免 X-Forwarded-For 伪造。
+ */
+function parseTrustProxy(): boolean | string[] {
+  const raw = process.env.TRUSTED_PROXY_IPS?.trim();
+  if (!raw) return false;
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/* ─────────── CORS 白名单 ─────────── */
+function parseCorsOrigins(): string[] {
+  const raw = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction,
 
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret-change-me',
-    refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-me',
+    accessSecret: requireSecret(
+      'JWT_ACCESS_SECRET',
+      'dev-access-secret-please-change-me-in-production-32chars',
+    ),
+    refreshSecret: requireSecret(
+      'JWT_REFRESH_SECRET',
+      'dev-refresh-secret-please-change-me-in-production-32chars',
+    ),
   },
 
   dbPath: resolvePath(process.env.DB_PATH ?? './data/app.db'),
   storageDir: resolvePath(process.env.STORAGE_DIR ?? './storage'),
 
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  /** CORS 允许的 origin 列表（不接受通配符 true） */
+  corsOrigins: parseCorsOrigins(),
+  /** 受信代理白名单，false 表示不信任任何代理头 */
+  trustProxy: parseTrustProxy(),
+
   cookieSecure: process.env.COOKIE_SECURE === '1',
 
   baseDir,

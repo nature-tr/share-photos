@@ -46,8 +46,11 @@ function buildAccessToken(app: FastifyInstance, userId: string, email: string) {
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
-  // 注册
-  app.post('/register', async (req, reply) => {
+  // 注册（限流：防垃圾注册）
+  app.post(
+    '/register',
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    async (req, reply) => {
     const body = registerSchema.parse(req.body);
     const user = await authService.register(body);
     const ctx = { userAgent: req.headers['user-agent'] ?? undefined, ip: req.ip };
@@ -85,7 +88,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // 刷新 token（兼容 cookie / X-Refresh-Token header / body.refreshToken）
-  app.post('/refresh', async (req, reply) => {
+  // 限流：每分钟最多 30 次，防止重放/穷举
+  app.post(
+    '/refresh',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (req, reply) => {
     const token = pickRefreshToken(req);
     if (!token) throw Errors.refreshInvalid();
     const ctx = { userAgent: req.headers['user-agent'] ?? undefined, ip: req.ip };

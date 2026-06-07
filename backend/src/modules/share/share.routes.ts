@@ -3,12 +3,13 @@ import {
   createShareSchema,
   extendShareSchema,
   shareListQuerySchema,
+  entityIdSchema,
 } from '@photo/shared';
 import { z } from 'zod';
 import { shareService } from './share.service.js';
 import { contributorService } from './contributor.service.js';
 
-const shareIdParamSchema = z.object({ shareId: z.string().min(1) });
+const shareIdParamSchema = z.object({ shareId: entityIdSchema });
 const reviewBodySchema = z.object({ action: z.enum(['accepted', 'rejected']) });
 
 export async function shareRoutes(app: FastifyInstance): Promise<void> {
@@ -86,7 +87,7 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
   // 审核申请
   app.patch('/:shareId/contributors/:userId', async (req) => {
     const { shareId, userId: targetUserId } = z
-      .object({ shareId: z.string().min(1), userId: z.string().min(1) })
+      .object({ shareId: entityIdSchema, userId: entityIdSchema })
       .parse(req.params);
     const { action } = reviewBodySchema.parse(req.body);
     const ownerId = req.currentUser!.sub;

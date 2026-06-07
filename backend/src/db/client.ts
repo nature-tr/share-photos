@@ -12,31 +12,6 @@ const sqlite = new Database(config.dbPath);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
-// 自动创建缺失的表和列（供开发/升级用）
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS contributors (
-    id TEXT PRIMARY KEY,
-    share_id TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected')),
-    role   TEXT NOT NULL DEFAULT 'contributor' CHECK(role IN ('contributor')),
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_contributor_share_user ON contributors(share_id, user_id);
-  CREATE INDEX IF NOT EXISTS idx_contributor_status ON contributors(share_id, status);
-`);
-
-// 添加 uploaded_by 列（兼容老数据库）
-try {
-  sqlite.exec(`ALTER TABLE photos ADD COLUMN uploaded_by TEXT REFERENCES users(id)`);
-} catch { /* 列已存在 */ }
-
-// 添加 exif 列
-try {
-  sqlite.exec(`ALTER TABLE photos ADD COLUMN exif TEXT`);
-} catch { /* 列已存在 */ }
-
 export const db = drizzle(sqlite, { schema });
 export const rawDb = sqlite;
 export { schema };

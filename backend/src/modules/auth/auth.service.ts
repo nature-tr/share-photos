@@ -1,4 +1,5 @@
 import { eq, and, isNull } from 'drizzle-orm';
+import { timingSafeEqual } from 'node:crypto';
 import { db } from '../../db/client.js';
 import { users, refreshTokens } from '../../db/schema.js';
 import { Errors } from '../../common/errors.js';
@@ -8,6 +9,14 @@ import { hashPassword, verifyPassword } from '../../infra/auth/password.js';
 import { sha256, generateRefreshTokenPlain } from '../../infra/auth/tokens.js';
 import { REFRESH_TOKEN_TTL_MS, ACCESS_TOKEN_TTL_MS } from '@photo/shared';
 import type { UserDTO } from '@photo/shared';
+
+/** 等长字节串的常时比较；长度不等直接 false（不会泄漏长度信息以外的内容）。 */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return timingSafeEqual(ab, bb);
+}
 
 export interface RegisterParams {
   email: string;
@@ -134,7 +143,7 @@ export const authService = {
       .where(eq(refreshTokens.id, id))
       .get();
     if (!record) throw Errors.refreshInvalid();
-    if (record.tokenHash !== tokenHash) throw Errors.refreshInvalid();
+    if (!safeEqual(record.tokenHash, tokenHash)) throw Errors.refreshInvalid();
     if (record.expiresAt <= now()) throw Errors.refreshInvalid();
 
     if (record.revokedAt !== null) {

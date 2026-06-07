@@ -1,15 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { uploadedAsSchema } from '@photo/shared';
+import { uploadedAsSchema, entityIdSchema } from '@photo/shared';
 import { photoService } from './photo.service.js';
 import { Errors } from '../../common/errors.js';
 
 const paramsSchema = z.object({
-  shareId: z.string().min(1),
+  shareId: entityIdSchema,
 });
 const photoParamsSchema = z.object({
-  shareId: z.string().min(1),
-  photoId: z.string().min(1),
+  shareId: entityIdSchema,
+  photoId: entityIdSchema,
 });
 
 export async function photoRoutes(app: FastifyInstance): Promise<void> {
@@ -42,7 +42,7 @@ export async function photoRoutes(app: FastifyInstance): Promise<void> {
   // 批量删除
   app.post('/:shareId/photos/batch-delete', async (req, reply) => {
     const { shareId } = paramsSchema.parse(req.params);
-    const body = z.object({ photoIds: z.array(z.string().min(1)).min(1) }).parse(req.body);
+    const body = z.object({ photoIds: z.array(entityIdSchema).min(1).max(500) }).parse(req.body);
     const userId = req.currentUser!.sub;
     await photoService.deleteBatch(shareId, body.photoIds, userId);
     reply.code(204).send();

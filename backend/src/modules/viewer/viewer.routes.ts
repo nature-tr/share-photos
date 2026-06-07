@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { shareCodeSchema } from '@photo/shared';
+import { shareCodeSchema, entityIdSchema } from '@photo/shared';
 import { shareService } from '../share/share.service.js';
 import { photoService } from '../photo/photo.service.js';
 import { contributorService } from '../share/contributor.service.js';
@@ -17,12 +17,11 @@ import {
 } from '../../infra/storage/paths.js';
 import { createZipStream, appendFile } from '../../infra/archive/zip.js';
 import { Errors } from '../../common/errors.js';
-import type { ViewerAlbum, PhotoMeta } from '@photo/shared';
 
 const codeParamSchema = z.object({ code: shareCodeSchema });
 const codePhotoParamSchema = z.object({
   code: shareCodeSchema,
-  photoId: z.string().min(1),
+  photoId: entityIdSchema,
 });
 
 /** 带 Accept 协商 + Content-Length 的图片流式响应 */
@@ -65,7 +64,14 @@ async function tryAuth(req: import('fastify').FastifyRequest, reply: import('fas
 export async function viewerRoutes(app: FastifyInstance): Promise<void> {
   // 凭码获取相册元数据（含已接受的贡献者列表，支持照片分页；可选检测 owner）
   // 向后兼容：不带 page 参数时返回全部照片（老客户端行为）
-  app.get('/:code', { preHandler: [tryAuth] }, async (req) => {
+  // 限流：防止暴力穷举 share code
+  app.get(
+    '/:code',
+    {
+      preHandler: [tryAuth],
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (req) => {
     const { code } = codeParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
     const contributorList = await contributorService.listAccepted(share.id);
@@ -147,8 +153,9 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
   // 缩略图（支持 Accept: image/webp 自动返回 WebP 格式）
   app.get('/:code/photos/:photoId/thumb', async (req, reply) => {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
-    // 只查 share 存在性，跳过 photo 单条查询减少 DB 往返
     const share = await shareService.getByCodeForViewer(code);
+    // 必须查表确认 photo 属于该 share，防止越权 / 路径穿越深度防御
+    await photoService.getOne(share.id, photoId);
     return streamImage(reply, previewPath(share.id, photoId), previewWebpPath(share.id, photoId), req);
   });
 
@@ -156,6 +163,7 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/:code/photos/:photoId/medium', async (req, reply) => {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
+    await photoService.getOne(share.id, photoId);
     return streamImage(reply, mediumPath(share.id, photoId), mediumWebpPath(share.id, photoId), req);
   });
 
@@ -198,8 +206,11 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     reply.code(200).send({ data: result });
   });
 
-  // 全量 zip 下载
-  app.get('/:code/download', async (req, reply) => {
+  // 全量 zip 下载（限流：每 IP 每分钟最多 3 次，防止恶意拉满流量）
+  app.get(
+    '/:code/download',
+    { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } },
+    async (req, reply) => {
     const { code } = codeParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
     const photoList = await photoService.listByShare(share.id);

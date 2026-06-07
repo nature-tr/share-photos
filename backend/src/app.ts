@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
+import cors, { type OriginFunction } from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
@@ -13,6 +13,34 @@ import { viewerRoutes } from './modules/viewer/viewer.routes.js';
 import { startCleanupCron } from './modules/cleanup/cleanup.cron.js';
 import { MAX_FILE_SIZE } from '@photo/shared';
 
+/* ───────── CORS origin 校验：白名单 + 局域网（仅开发） ───────── */
+
+/** 是否为本地/局域网 origin（仅开发态放行） */
+function isLanOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    const h = u.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
+    if (/^10\./.test(h)) return true;
+    if (/^192\.168\./.test(h)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function makeCorsOriginCheck(): OriginFunction {
+  const allow = new Set(config.corsOrigins);
+  return (origin, cb) => {
+    // 同源 / 直连（如 curl、移动端 webview）：origin 为空，放行
+    if (!origin) { cb(null, true); return; }
+    if (allow.has(origin)) { cb(null, true); return; }
+    if (!config.isProduction && isLanOrigin(origin)) { cb(null, true); return; }
+    cb(new Error('Not allowed by CORS'), false);
+  };
+}
+
 export async function buildApp() {
   const app = Fastify({
     logger: {
@@ -24,7 +52,8 @@ export async function buildApp() {
             options: { colorize: true, translateTime: 'HH:MM:ss.l' },
           },
     },
-    trustProxy: true,
+    // 仅当 TRUSTED_PROXY_IPS 显式配置时才信任代理头
+    trustProxy: config.trustProxy as any,
     bodyLimit: 2 * 1024 * 1024,
   });
 
@@ -32,10 +61,7 @@ export async function buildApp() {
   await app.register(errorHandlerPlugin);
 
   await app.register(cors, {
-    // 开发模式：允许任何 origin（含局域网 IP），方便手机调试；生产严格按 .env 配置
-    origin: config.isProduction
-      ? config.corsOrigin.split(',').map((s) => s.trim())
-      : true,
+    origin: makeCorsOriginCheck(),
     credentials: true,
   });
 
@@ -51,6 +77,12 @@ export async function buildApp() {
     limits: {
       fileSize: MAX_FILE_SIZE,
       files: 1,
+      // 防御 multipart fields 撑爆内存
+      fields: 16,
+      fieldNameSize: 100,
+      fieldSize: 1024 * 100, // 100KB / field
+      headerPairs: 200,
+      parts: 32,
     },
   });
 
