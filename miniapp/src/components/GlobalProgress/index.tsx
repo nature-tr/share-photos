@@ -126,6 +126,7 @@ export default function GlobalProgress() {
     dragRef.current.originY = yRef.current;
     dragRef.current.moved = false;
     dragRef.current.dragging = true;
+    setDragging(true); // 预展开遮罩：手指落下即撑满，拖拽开始前已就位
   };
 
   const onTouchMove = (e: any) => {
@@ -138,7 +139,6 @@ export default function GlobalProgress() {
     const dy = curY - dragRef.current.startY;
     if (Math.abs(dx) + Math.abs(dy) < TAP_THRESHOLD) return;
     dragRef.current.moved = true;
-    setDragging(true); // 挂全屏遮罩阻断页面内置滚动
 
     const h = collapsed ? BALL_HITAREA : EXPANDED_DEFAULT_H;
     setY(clamp(dragRef.current.originY + dy, SAFE_TOP, WIN_H - h - SAFE_BOTTOM));
@@ -158,12 +158,23 @@ export default function GlobalProgress() {
 
   if (tasks.length === 0) return null;
 
-  /* 拖拽全屏遮罩：始终渲染，用 hidden 切显隐，避免 mount/unmount 开销 */
+  /**
+   * 拖拽遮罩：始终在 DOM，永不 mount/unmount。
+   * 静止：1×1px 锚在左上角，几乎不干扰页面触点。
+   * 拖拽中（touchStart 触发 setDragging）：撑满全屏，catchMove 拦截内置滚动。
+   */
+  const oW = dragging ? '100%' : '1px';
+  const oH = dragging ? '100%' : '1px';
   const dragOverlay = (
     <View
-      hidden={!dragging}
       catchMove
-      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 998 }}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0,
+        width: oW, height: oH,
+        zIndex: 998,
+        overflow: 'hidden',
+      }}
     />
   );
 
