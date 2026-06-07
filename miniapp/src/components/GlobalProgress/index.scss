@@ -1,57 +1,172 @@
-.global-progress {
-  position: fixed; left: 32rpx; right: 32rpx; bottom: 36rpx;
+/* ─────── 容器（支持悬浮+拖动+收起） ─────── */
+
+.global-progress-portal {
+  position: fixed;
   z-index: 999;
-  pointer-events: none;
+  pointer-events: auto;
+  /* y 位置由内联 style 控制 */
 }
 
-.gp-card {
+.gp-card-inner {
   background: var(--color-surface);
   border-radius: 24rpx;
-  padding: 12rpx 8rpx;
-  box-shadow: 0 6rpx 24rpx rgba(15,23,42,0.12);
-  pointer-events: auto;
+  padding: 4rpx 8rpx 12rpx;
+  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.16);
+  overflow: hidden;
 }
 
+/* ─────── 顶部抓手栏 ─────── */
+
+.gp-handle {
+  position: relative;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gp-handle-bar {
+  width: 64rpx;
+  height: 6rpx;
+  border-radius: 3rpx;
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.gp-collapse-btn {
+  position: absolute;
+  right: 4rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gp-collapse-btn:active {
+  background: var(--color-surface-hover);
+}
+
+.gp-collapse-icon {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+/* ─────── 行 ─────── */
+
 .gp-row {
-  display: flex; flex-direction: row; align-items: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   padding: 16rpx 16rpx;
   border-radius: 16rpx;
   gap: 16rpx;
 }
 
 .gp-row-left {
-  flex: 1; min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .gp-row-label {
-  font-size: 24rpx; font-weight: 600; color: var(--color-text1);
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--color-text1);
   line-height: 1.4;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: block;
 }
 
 .gp-row-track {
-  height: 6rpx; background: rgba(15,23,42,0.06);
-  border-radius: 3rpx; overflow: hidden;
+  height: 6rpx;
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 3rpx;
+  overflow: hidden;
   margin-top: 10rpx;
 }
 
 .gp-row-fill {
-  height: 100%; border-radius: 3rpx;
+  height: 100%;
+  border-radius: 3rpx;
   background: var(--color-primary);
   transition: width 0.3s ease;
 }
 
 .gp-row-actions {
-  display: flex; flex-direction: row; gap: 4rpx;
+  display: flex;
+  flex-direction: row;
+  gap: 4rpx;
   flex-shrink: 0;
 }
 
 .gp-row-btn {
-  width: 56rpx; height: 56rpx; border-radius: 14rpx;
-  display: flex; align-items: center; justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.gp-row-btn:active { background: var(--color-surface-hover); }
+.gp-row-btn:active {
+  background: var(--color-surface-hover);
+}
 
-.gp-row-btn-icon { width: 32rpx; height: 32rpx; }
+.gp-row-btn-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* ─────── 折叠悬浮球 ─────── */
+
+.gp-ball {
+  position: relative;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: var(--color-primary, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(59, 130, 246, 0.36);
+}
+
+.gp-ball:active {
+  opacity: 0.9;
+}
+
+.gp-ball-paused {
+  background: #94a3b8;
+  box-shadow: 0 8rpx 24rpx rgba(148, 163, 184, 0.36);
+}
+
+.gp-ball-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.gp-ball-badge {
+  position: absolute;
+  top: -6rpx;
+  right: -6rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid var(--color-surface, #fff);
+}
+
+.gp-ball-badge-text {
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+}

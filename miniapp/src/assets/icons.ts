@@ -81,6 +81,7 @@ const P = {
   xMark:
     '<line x1="18" y1="6" x2="6" y2="18"/>' +
     '<line x1="6" y1="6" x2="18" y2="18"/>',
+  chevronDown: '<polyline points="6 9 12 15 18 9"/>',
 };
 
 // 默认色（接近 TDesign text-2 / slate-600）
@@ -102,3 +103,4 @@ export const iconUser = (c: string = DEFAULT_COLOR) => svgUrl(P.user, c);
 export const iconTrash = (c: string = DEFAULT_COLOR) => svgUrl(P.trash, c);
 export const iconPause = (c: string = DEFAULT_COLOR) => svgUrl(P.pause, c);
 export const iconXMark = (c: string = DEFAULT_COLOR) => svgUrl(P.xMark, c);
+export const iconChevronDown = (c: string = DEFAULT_COLOR) => svgUrl(P.chevronDown, c);
