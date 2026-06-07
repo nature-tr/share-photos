@@ -35,9 +35,11 @@ interface TaskState {
   gpCollapsed: boolean;
   gpY: number;
   gpBallX: number;
+  gpShield: boolean;
   setGpCollapsed: (v: boolean) => void;
   setGpY: (v: number) => void;
   setGpBallX: (v: number) => void;
+  setGpShield: (v: boolean) => void;
   /** 批量设置位置参数，跳过无变化 */
   setGpPos: (y: number, ballX: number, collapsed: boolean, fn?: (y: number, bx: number, c: boolean) => void) => void;
 
@@ -88,9 +90,11 @@ export const useTaskStore = create<TaskState>((set) => ({
   gpCollapsed: false,
   gpY: 0,
   gpBallX: 0,
+  gpShield: false,
   setGpCollapsed: (v) => set((s) => (s.gpCollapsed === v ? s : { ...s, gpCollapsed: v })),
   setGpY: (v) => set((s) => (s.gpY === v ? s : { ...s, gpY: v })),
   setGpBallX: (v) => set((s) => (s.gpBallX === v ? s : { ...s, gpBallX: v })),
+  setGpShield: (v) => set((s) => (s.gpShield === v ? s : { ...s, gpShield: v })),
   setGpPos: (y, bx, c, persist) =>
     set((s) => {
       if (s.gpY === y && s.gpBallX === bx && s.gpCollapsed === c) return s;

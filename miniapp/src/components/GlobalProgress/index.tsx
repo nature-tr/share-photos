@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
@@ -51,7 +51,8 @@ export default function GlobalProgress() {
   const bx = useTaskStore((s) => s.gpBallX);
   const setCollapsed = useTaskStore((s) => s.setGpCollapsed);
   const setGpPos = useTaskStore((s) => s.setGpPos);
-  const [shield, setShield] = useState(false);
+  const shield = useTaskStore((s) => s.gpShield);
+  const setShield = useTaskStore((s) => s.setGpShield);
 
   /* 初次挂载时从 storage 恢复（仅对当前组件实例初始值，store 里已有默认 0） */
   const initDone = useRef(false);
