@@ -22,4 +22,11 @@ export const shareListQuerySchema = z.object({
     status: z.enum(['active', 'ended', 'cleaned']).optional(),
 });
 export const shareCodeSchema = z.string().regex(SHARE_CODE_REGEX, '分享码格式不正确');
+/**
+ * 实体 ID 校验：与 backend/common/id.ts 中 nanoid 字符集对齐（[a-zA-Z0-9]，长度 8~32）。
+ * 用于 :shareId / :photoId / :userId 等路径参数，防止路径穿越或字符注入。
+ */
+export const entityIdSchema = z
+    .string()
+    .regex(/^[A-Za-z0-9]{8,32}$/, 'ID 格式不正确');
 export const uploadedAsSchema = z.enum(['original', 'compressed']);

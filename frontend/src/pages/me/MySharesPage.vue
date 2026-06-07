@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
 import { shareApi } from '@/api/share.api';
@@ -7,6 +7,7 @@ import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes, formatDateTime, TTL_PRESETS } from '@photo/shared';
 import type { ShareSummary, ContributorInfo } from '@photo/shared';
 import { copyText } from '@/utils/clipboard';
+import { useNow } from '@/composables/useNow';
 import ShareQrDialog from '@/components/ShareQrDialog.vue';
 
 const router = useRouter();
@@ -17,8 +18,7 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
 
-const tick = ref(0);
-let timer: number | null = null;
+const now = useNow();
 
 const qrVisible = ref(false);
 const qrCode = ref('');
@@ -51,26 +51,18 @@ async function load() {
 
 onMounted(() => {
   load();
-  timer = window.setInterval(() => {
-    tick.value++;
-  }, 1000);
-});
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
 });
 
 function statusInfo(s: ShareSummary): { text: string; cls: string } {
   if (s.status === 'cleaned') return { text: '已清理', cls: 'st-cleaned' };
   if (s.status === 'ended') return { text: '已结束', cls: 'st-ended' };
-  if (s.expiresAt <= Date.now()) return { text: '已过期', cls: 'st-expired' };
+  if (s.expiresAt <= now.value) return { text: '已过期', cls: 'st-expired' };
   return { text: '生效中', cls: 'st-active' };
 }
 
 function remaining(s: ShareSummary): string {
-  void tick.value;
   if (s.status !== 'active') return '—';
-  return formatRemaining(s.expiresAt - Date.now());
+  return formatRemaining(s.expiresAt - now.value);
 }
 
 async function copyCode(code: string) {
@@ -258,8 +250,8 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
             <t-button size="medium" variant="outline" @click="openManage(s.id, s.code)">
               <template #icon><span class="i-tdesign:usergroup"></span></template>
               管理
-              <span v-if="(s as any).pendingContributorCount > 0" class="pending-badge">
-                {{ (s as any).pendingContributorCount }}
+              <span v-if="(s.pendingContributorCount ?? 0) > 0" class="pending-badge">
+                {{ s.pendingContributorCount }}
               </span>
             </t-button>
             <t-dropdown

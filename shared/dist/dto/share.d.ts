@@ -1,5 +1,7 @@
 export type ShareStatus = 'active' | 'ended' | 'cleaned';
 export type UploadedAs = 'original' | 'compressed';
+export type ContributorStatus = 'pending' | 'accepted' | 'rejected';
+export type ContributorRole = 'contributor';
 export interface PhotoMeta {
     id: string;
     originalName: string;
@@ -8,6 +10,19 @@ export interface PhotoMeta {
     height: number;
     sizeBytes: number;
     uploadedAs: UploadedAs;
+    uploadedBy?: string | null;
+    uploadedByName?: string | null;
+    exif?: Record<string, any> | null;
+    createdAt: number;
+}
+export interface ContributorInfo {
+    id: string;
+    shareId: string;
+    userId: string;
+    displayName: string | null;
+    email: string;
+    status: ContributorStatus;
+    role: ContributorRole;
     createdAt: number;
 }
 export interface ShareSummary {
@@ -20,16 +35,27 @@ export interface ShareSummary {
     endedAt: number | null;
     photoCount: number;
     totalBytes: number;
+    firstPhotoId?: string | null;
+    pendingContributorCount?: number;
 }
 export interface ShareDetail extends ShareSummary {
     photos: PhotoMeta[];
+    contributors?: ContributorInfo[];
 }
 /** 查看者侧凭码访问的相册（不包含 owner 信息） */
 export interface ViewerAlbum {
+    id: string;
     code: string;
     title: string | null;
     expiresAt: number;
+    totalBytes: number;
     photos: PhotoMeta[];
+    contributors: ContributorInfo[];
+    totalPhotos?: number;
+    page?: number;
+    pageSize?: number;
+    hasMore?: boolean;
+    isOwner?: boolean;
 }
 export interface ShareListResponse {
     items: ShareSummary[];

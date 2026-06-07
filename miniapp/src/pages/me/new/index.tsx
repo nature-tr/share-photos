@@ -5,6 +5,7 @@ import { MAX_PHOTOS_PER_SHARE, MAX_FILE_SIZE, TTL_PRESETS } from '@photo/shared'
 import { createShare } from '@/api/share.api';
 import { useTaskStore } from '@/stores/task.store';
 import { taskManager, type UploadItem } from '@/stores/task.manager';
+import { pickImagesFromAlbum } from '@/utils/hooks';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
 import './index.scss';
@@ -67,36 +68,22 @@ export default function NewSharePage() {
   }, [items]);
 
   /* ── 选图 ── */
-  function pickImages() {
+  async function pickImages() {
     const remaining = MAX_PHOTOS_PER_SHARE - items.length;
     if (remaining <= 0) {
       Taro.showToast({ title: `最多 ${MAX_PHOTOS_PER_SHARE} 张`, icon: 'none' });
       return;
     }
-    Taro.showActionSheet({
-      itemList: ['原图', '压缩'],
-      success: (sheet) => {
-        const compressed = sheet.tapIndex === 1;
-        Taro.chooseMedia({
-          count: remaining,
-          mediaType: ['image'],
-          sizeType: compressed ? ['compressed'] : ['original'],
-          success: (res) => {
-            const newItems: UploadItem[] = res.tempFiles.map((f) => {
-              const name = f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`;
-              return {
-                id: Math.random().toString(36).slice(2),
-                path: f.tempFilePath,
-                name,
-                size: f.size,
-                status: 'pending',
-              };
-            });
-            setItems((arr) => [...arr, ...newItems]);
-          },
-        });
-      },
-    });
+    const picked = await pickImagesFromAlbum({ count: remaining });
+    if (picked.length === 0) return;
+    const newItems: UploadItem[] = picked.map((p) => ({
+      id: Math.random().toString(36).slice(2),
+      path: p.path,
+      name: p.path.split('/').pop() || `photo-${Date.now()}.jpg`,
+      size: p.size,
+      status: 'pending',
+    }));
+    setItems((arr) => [...arr, ...newItems]);
   }
 
   function removeItem(id: string) {

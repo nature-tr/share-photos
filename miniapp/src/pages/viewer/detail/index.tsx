@@ -6,6 +6,7 @@ import { useAuth } from '@/stores/auth.store';
 import { useTaskStore } from '@/stores/task.store';
 import { taskManager, type UploadItem } from '@/stores/task.manager';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
+import { useNow, pickImagesFromAlbum } from '@/utils/hooks';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
@@ -32,7 +33,7 @@ export default function ViewerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
-  const [now, setNow] = useState(Date.now());
+  const now = useNow();
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const [joinStatus, setJoinStatus] = useState<'none' | 'loading' | 'pending' | 'accepted' | 'rejected'>('none');
   const [loadMore, setLoadMore] = useState(false);
@@ -68,11 +69,11 @@ export default function ViewerPage() {
 
   // 监听下载任务状态：从 paused 恢复到 downloading 时自动继续
   // ── manager 自驱动，page 不再需要触发恢复 ──
-  // 上传完成 → 刷新 album
+  // 上传完成 → 刷新 album（status 任意态变为 done 都触发一次刷新）
   useEffect(() => {
     const prev = lastUpStatusRef.current;
     lastUpStatusRef.current = upStatus;
-    if (prev === 'uploading' && upStatus === 'done') {
+    if (prev && prev !== 'done' && upStatus === 'done') {
       getViewerShare(code, 1, PAGE_SIZE).then((res) => {
         if (res.data) {
           setAlbum(res.data as ShareDetail);
@@ -140,43 +141,55 @@ export default function ViewerPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [code, user]);
+  }, [code, user?.id]);
 
   // ── 滚动恢复：用 useEffect 监听 !loading && album，DOM 已提交后执行 ──
   useEffect(() => {
-    if (!loading && album && lastScrollTargetRef.current > 0 && !scrolledOnceRef.current) {
-      scrolledOnceRef.current = true;
-      const target = lastScrollTargetRef.current;
-      // 清理之前的定时器避免 timeout
-      const timers: number[] = [];
-      [100, 400, 800].forEach((delay) => {
-        timers.push(setTimeout(() => {
-          Taro.pageScrollTo({ scrollTop: target, duration: 0 });
-        }, delay) as unknown as number);
-      });
-      return () => timers.forEach(clearTimeout);
-    }
+    if (loading || !album || lastScrollTargetRef.current <= 0 || scrolledOnceRef.current) return;
+    scrolledOnceRef.current = true;
+    const target = lastScrollTargetRef.current;
+    let cancelled = false;
+    const doScroll = () => {
+      if (cancelled) return;
+      Taro.pageScrollTo({ scrollTop: target, duration: 0 });
+    };
+    // 一次 nextTick 等 DOM 提交，再用一次短延迟兜底图片高度引起的位移
+    if (typeof Taro.nextTick === 'function') Taro.nextTick(doScroll);
+    else doScroll();
+    const fallback = setTimeout(doScroll, 500);
+    return () => { cancelled = true; clearTimeout(fallback); };
   }, [loading, album]);
 
-  // ── 跟踪滚动位置 + 防抖保存（useDidHide 单独取 ref 不可靠）──
-  const saveDebounce = useRef(0);
+  // ── 跟踪滚动位置 + 防抖保存 ──
+  const saveDebounce = useRef<any>(undefined);
   usePageScroll((e) => {
     if (e.scrollTop === 0) return;
     scrollTopRef.current = e.scrollTop;
     if (!album) return;
-    clearTimeout(saveDebounce.current);
+    if (saveDebounce.current !== undefined) clearTimeout(saveDebounce.current);
     saveDebounce.current = setTimeout(() => {
       updateLastPosition(code, album.photos.length, e.scrollTop);
-    }, 1000) as unknown as number;
+    }, 1000);
   });
 
-  // ── 离开页面前立即写入 ──
+  // ── 离开页面前立即写入 + 清理 debounce ──
   useDidHide(() => {
+    if (saveDebounce.current !== undefined) {
+      clearTimeout(saveDebounce.current);
+      saveDebounce.current = undefined;
+    }
     if (!album) return;
-    clearTimeout(saveDebounce.current);
     const top = scrollTopRef.current;
     if (top > 0) updateLastPosition(code, album.photos.length, top);
   });
+
+  // 组件卸载也清理 debounce timer
+  useEffect(
+    () => () => {
+      if (saveDebounce.current !== undefined) clearTimeout(saveDebounce.current);
+    },
+    [],
+  );
 
   /** 加载更多照片 */
   async function handleLoadMore() {
@@ -196,30 +209,19 @@ export default function ViewerPage() {
   /** 上传新照片（owner 或 accepted 贡献者均可） */
   async function handleOwnerUpload() {
     if (!album || !user) return;
-    Taro.showActionSheet({
-      itemList: ['原图', '压缩'],
-      success: (sheet) => {
-        const compressed = sheet.tapIndex === 1;
-        Taro.chooseMedia({
-          count: 9,
-          mediaType: ['image'],
-          sizeType: compressed ? ['compressed'] : ['original'],
-          success: (chooseRes) => {
-            const items: UploadItem[] = chooseRes.tempFiles.map((f) => ({
-              id: Math.random().toString(36).slice(2),
-              path: f.tempFilePath,
-              name: f.tempFilePath.split('/').pop() || `photo-${Date.now()}.jpg`,
-              size: f.size,
-              status: 'pending',
-            }));
-            taskManager.startUpload(album!.id, items, {
-              title: album!.title || '相册',
-              ttl: 0,
-              totalBytes: items.reduce((s, i) => s + (i.size ?? 0), 0),
-            });
-          },
-        });
-      },
+    const picked = await pickImagesFromAlbum({ count: 9 });
+    if (picked.length === 0) return;
+    const items: UploadItem[] = picked.map((p) => ({
+      id: Math.random().toString(36).slice(2),
+      path: p.path,
+      name: p.path.split('/').pop() || `photo-${Date.now()}.jpg`,
+      size: p.size,
+      status: 'pending',
+    }));
+    taskManager.startUpload(album.id, items, {
+      title: album.title || '相册',
+      ttl: 0,
+      totalBytes: items.reduce((s, i) => s + (i.size ?? 0), 0),
     });
   }
 
@@ -244,11 +246,6 @@ export default function ViewerPage() {
       Taro.showToast({ title: '申请失败', icon: 'none' });
     }
   }
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   const totalBytes = useMemo(() => (album as any)?.totalBytes ?? album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
 

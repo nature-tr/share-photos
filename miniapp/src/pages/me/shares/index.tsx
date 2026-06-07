@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
 import { getMyShares, endShare, extendShare, renameShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
@@ -10,6 +10,7 @@ import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconCopy, iconLink, iconFolder, iconUser, iconTrash } from '@/assets/icons';
 import type { ShareSummary } from '@photo/shared/dto';
 import { TTL_PRESETS } from '@photo/shared';
+import { useNow } from '@/utils/hooks';
 import './index.scss';
 
 function formatBytes(bytes: number) {
@@ -38,7 +39,7 @@ export default function MySharesPage() {
   const logout = useAuth((s) => s.logout);
   const [items, setItems] = useState<ShareSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(Date.now());
+  const now = useNow();
   const [qrItem, setQrItem] = useState<ShareSummary | null>(null);
   const [manageOpen, setManageOpen] = useState<{ shareId: string; code: string } | null>(null);
   const [contributors, setContributors] = useState<ContributorInfo[]>([]);
@@ -58,11 +59,6 @@ export default function MySharesPage() {
     await load();
     Taro.stopPullDownRefresh();
   });
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   function statusInfo(item: ShareSummary) {
     if (item.status === 'cleaned') return { text: '已清理', color: colors.text3, bg: colors.surfaceMuted };

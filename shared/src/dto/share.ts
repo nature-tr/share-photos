@@ -47,11 +47,13 @@ export interface ShareDetail extends ShareSummary {
   contributors?: ContributorInfo[];
 }
 
-/** 查看着侧凭码访问的相册（不包含 owner 信息） */
+/** 查看者侧凭码访问的相册（不包含 owner 信息） */
 export interface ViewerAlbum {
+  id: string;
   code: string;
   title: string | null;
   expiresAt: number;
+  totalBytes: number;
   photos: PhotoMeta[];
   contributors: ContributorInfo[];
   totalPhotos?: number;

@@ -20,6 +20,9 @@ export declare const ErrorCode: {
     readonly UNSUPPORTED_MEDIA_TYPE: "UNSUPPORTED_MEDIA_TYPE";
     readonly PHOTO_LIMIT_EXCEEDED: "PHOTO_LIMIT_EXCEEDED";
     readonly INVALID_IMAGE: "INVALID_IMAGE";
+    readonly CONTRIBUTOR_ALREADY_EXISTS: "CONTRIBUTOR_ALREADY_EXISTS";
+    readonly CONTRIBUTOR_NOT_FOUND: "CONTRIBUTOR_NOT_FOUND";
+    readonly NOT_SHARE_MEMBER: "NOT_SHARE_MEMBER";
 };
 export type ErrorCodeKey = keyof typeof ErrorCode;
 export type ErrorCodeValue = (typeof ErrorCode)[ErrorCodeKey];

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
-import { useTaskStore } from '@/stores/task.store';
+import { useTaskStore, type UploadTask, type DownloadTask } from '@/stores/task.store';
 import { taskManager } from '@/stores/task.manager';
 import {
   iconPause,
@@ -35,12 +36,11 @@ function savePos(p: Position) {
   try { Taro.setStorageSync(STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
 }
 
-/* ────────────────── 屏幕尺寸（同步） ────────────────── */
+/* ────────────────── 屏幕尺寸（同步一次） ────────────────── */
 
 function getWindowHeight(): number {
   try {
-    const sys = Taro.getSystemInfoSync();
-    return sys.windowHeight;
+    return Taro.getSystemInfoSync().windowHeight;
   } catch {
     return 667;
   }
@@ -53,30 +53,44 @@ const SAFE_TOP = 80;           // 不要遮挡顶部导航
 const SAFE_BOTTOM = 12;        // 与屏幕底部最小间距
 const TAP_THRESHOLD = 6;       // 拖动 vs 点击的阈值（px）
 
+type ActiveTask =
+  | (UploadTask & { kind: 'upload'; title?: string })
+  | (DownloadTask & { kind: 'download'; title?: string });
+
+/** 用 useShallow 仅订阅"活动任务的关键标量"，避免任意 setState 都重渲。 */
+function useActiveTasks(): ActiveTask[] {
+  return useTaskStore(
+    useShallow((s) => {
+      const ups: ActiveTask[] = [];
+      for (const t of Object.values(s.uploads)) {
+        if (t.status === 'cancelled') continue;
+        ups.push({ ...t, kind: 'upload', title: taskManager.getUploadCtx(t.shareId)?.meta.title });
+      }
+      const dls: ActiveTask[] = [];
+      for (const t of Object.values(s.downloads)) {
+        if (t.status === 'cancelled') continue;
+        dls.push({ ...t, kind: 'download' });
+      }
+      return [...ups, ...dls];
+    }),
+  );
+}
+
 export default function GlobalProgress() {
-  const allUploads = useTaskStore((s) => s.uploads);
-  const allDownloads = useTaskStore((s) => s.downloads);
+  const tasks = useActiveTasks();
 
-  /* 任务列表（去掉 cancelled） */
-  const tasks = useMemo(() => {
-    return [
-      ...Object.values(allUploads).map((t) => ({ ...t, kind: 'upload' as const })),
-      ...Object.values(allDownloads).map((t) => ({ ...t, kind: 'download' as const })),
-    ].filter((t) => t.status !== 'cancelled');
-  }, [allUploads, allDownloads]);
+  /* 屏幕高度（仅取一次） */
+  const winH = useMemo(() => getWindowHeight(), []);
 
-  const winH = useRef(getWindowHeight()).current;
-
-  /* 初始位置：底部偏上 */
-  const init = loadPos();
-  const [collapsed, setCollapsed] = useState<boolean>(init?.collapsed ?? false);
-  /** 元素 top 在屏幕中的位置（px） */
+  /* 初始位置：lazy init 仅在挂载时读 storage 一次 */
+  const [collapsed, setCollapsed] = useState<boolean>(() => loadPos()?.collapsed ?? false);
   const [y, setY] = useState<number>(() => {
+    const init = loadPos();
     if (init?.y != null) return init.y;
     return Math.max(SAFE_TOP, winH - 240);
   });
 
-  /* 元素自身高度（dynamic）：用于限制拖动边界 */
+  /* 元素自身高度（用于限制拖动边界） */
   const [elH, setElH] = useState<number>(collapsed ? COLLAPSED_SIZE : 120);
 
   /* 折叠态切换时调整 y 不超出底部 */
@@ -85,12 +99,7 @@ export default function GlobalProgress() {
     setY((prev) => clamp(prev, SAFE_TOP, winH - h - SAFE_BOTTOM));
   }, [collapsed, elH, winH]);
 
-  /* 持久化 */
-  useEffect(() => { savePos({ y, collapsed }); }, [y, collapsed]);
-
-  /* 任务消失时重置（下次任务进来时从默认位置开始也行，这里不做） */
-
-  /* 拖动状态 */
+  /* 拖动状态（写入 ref 避免重渲；仅在 onTouchEnd 持久化一次） */
   const dragRef = useRef({
     startY: 0,
     originY: 0,
@@ -121,34 +130,39 @@ export default function GlobalProgress() {
   };
 
   const onTouchEnd = () => {
+    if (dragRef.current.dragging && dragRef.current.moved) {
+      // 仅拖动结束保存一次
+      savePos({ y, collapsed });
+    }
     dragRef.current.dragging = false;
   };
 
-  /* 用 onLayout 等价物：通过 ref 测量元素高度 */
-  const cardSelector = '.global-progress-portal .gp-card-inner';
+  /* collapsed 变化时单独持久化（折叠/展开切换） */
+  useEffect(() => { savePos({ y, collapsed }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [collapsed]);
+
+  /* 测量元素实际高度：用 nextTick 等 DOM 提交 */
   useEffect(() => {
     if (collapsed) return;
-    // 多次延迟测量，等 DOM 渲染稳定
-    const timers: any[] = [];
-    [80, 250, 600].forEach((d) => {
-      timers.push(setTimeout(() => {
-        const q = Taro.createSelectorQuery();
-        q.select(cardSelector).boundingClientRect((rect: any) => {
+    const measure = () => {
+      const q = Taro.createSelectorQuery();
+      q.select('.global-progress-portal .gp-card-inner')
+        .boundingClientRect((rect: any) => {
           if (rect && rect.height && Math.abs(rect.height - elH) > 4) {
             setElH(rect.height);
           }
-        }).exec();
-      }, d));
-    });
-    return () => { timers.forEach(clearTimeout); };
+        })
+        .exec();
+    };
+    if (typeof Taro.nextTick === 'function') Taro.nextTick(measure);
+    else setTimeout(measure, 50);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [collapsed, tasks.length]);
 
   if (tasks.length === 0) return null;
 
-  /* ────────────────── 渲染：折叠态 ────────────────── */
+  /* ────────────────── 折叠态 ────────────────── */
 
   if (collapsed) {
-    /* 决定显示的图标：优先 active 上传，其次 active 下载，否则取首个任务 */
     const active = tasks.find((t) => t.status === 'uploading' || t.status === 'downloading');
     const head = active ?? tasks[0]!;
     const isUp = head.kind === 'upload';
@@ -181,7 +195,7 @@ export default function GlobalProgress() {
     );
   }
 
-  /* ────────────────── 渲染：展开大卡片 ────────────────── */
+  /* ────────────────── 展开大卡片 ────────────────── */
 
   const pages = Taro.getCurrentPages();
 
@@ -191,7 +205,7 @@ export default function GlobalProgress() {
       style={{ top: `${y}px`, left: '32rpx', right: '32rpx' }}
     >
       <View className="gp-card-inner">
-        {/* 顶部抓手栏（拖动 + 折叠） */}
+        {/* 抓手 + 折叠按钮 */}
         <View
           className="gp-handle"
           onTouchStart={onTouchStart}
@@ -218,6 +232,7 @@ export default function GlobalProgress() {
           const isPaused = t.status === 'paused';
           const total = t.total;
           const pct = total > 0 ? Math.round((t.done / total) * 100) : 0;
+          const id = isUpload ? t.shareId : t.shareCode;
 
           const onRowClick = () => {
             const current = pages[pages.length - 1];
@@ -234,12 +249,12 @@ export default function GlobalProgress() {
           };
 
           return (
-            <View key={isUpload ? t.shareId : t.shareCode} className="gp-row" onClick={onRowClick}>
+            <View key={id} className="gp-row" onClick={onRowClick}>
               <View className="gp-row-left">
                 <Text className="gp-row-label">
-                  {isUpload ? '↑' : '↓'}
-                  {' '}{isUpload ? `上传 ${t.done}/${total}` : `保存 ${t.done}/${total}`}
-                  {t.formTitle ? ` · ${t.formTitle}` : ''}
+                  {isUpload ? '↑' : '↓'}{' '}
+                  {isUpload ? `上传 ${t.done}/${total}` : `保存 ${t.done}/${total}`}
+                  {t.title ? ` · ${t.title}` : ''}
                   {isPaused ? ' 已暂停' : ''}
                   {t.failed > 0 ? ` (失败${t.failed})` : ''}
                 </Text>
@@ -298,8 +313,6 @@ export default function GlobalProgress() {
     </View>
   );
 }
-
-/* ────────────────── 工具 ────────────────── */
 
 function clamp(v: number, min: number, max: number) {
   if (max < min) return min;

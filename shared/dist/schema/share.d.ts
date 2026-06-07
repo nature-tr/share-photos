@@ -30,6 +30,11 @@ export declare const shareListQuerySchema: z.ZodObject<{
     pageSize?: number | undefined;
 }>;
 export declare const shareCodeSchema: z.ZodString;
+/**
+ * 实体 ID 校验：与 backend/common/id.ts 中 nanoid 字符集对齐（[a-zA-Z0-9]，长度 8~32）。
+ * 用于 :shareId / :photoId / :userId 等路径参数，防止路径穿越或字符注入。
+ */
+export declare const entityIdSchema: z.ZodString;
 export declare const uploadedAsSchema: z.ZodEnum<["original", "compressed"]>;
 export type CreateShareInput = z.infer<typeof createShareSchema>;
 export type ExtendShareInput = z.infer<typeof extendShareSchema>;

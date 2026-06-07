@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next';
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
@@ -10,6 +10,7 @@ import { ApiException } from '@/api/client';
 import { formatRemaining, formatBytes } from '@photo/shared';
 import type { ViewerAlbum, ContributorInfo } from '@photo/shared';
 import { useDevice, canShareFiles, isInAppWebView, isWeChatBrowser } from '@/composables/useDevice';
+import { useNow } from '@/composables/useNow';
 import { saveImage } from '@/utils/download';
 import { copyText } from '@/utils/clipboard';
 import { useAuthStore } from '@/stores/auth.store';
@@ -23,7 +24,7 @@ const auth = useAuthStore();
 const album = ref<ViewerAlbum | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const tick = ref(0);
+const now = useNow();
 const loadMore = ref(false);
 const page = ref(1);
 const hasMore = ref(false);
@@ -31,7 +32,6 @@ const isOwner = ref(false);
 const uploadingMore = ref(false);
 const savedScroll = ref(0);
 const PAGE = 50;
-let timer: number | null = null;
 let lightbox: PhotoSwipeLightbox | null = null;
 
 const supportsShare = canShareFiles();
@@ -45,18 +45,17 @@ const qrVisible = ref(false);
 
 const acceptedContributors = computed(() => {
   if (!album.value?.contributors) return [];
-  return album.value.contributors.filter((c: ContributorInfo) => c.status === 'accepted');
+  return album.value.contributors.filter((c) => c.status === 'accepted');
 });
 
 const remaining = computed(() => {
-  void tick.value;
   if (!album.value) return '';
-  return formatRemaining(album.value.expiresAt - Date.now());
+  return formatRemaining(album.value.expiresAt - now.value);
 });
 
 const totalBytes = computed(() => {
   if (!album.value) return 0;
-  return (album.value as any).totalBytes ?? album.value.photos.reduce((s, p) => s + p.sizeBytes, 0);
+  return album.value.totalBytes ?? album.value.photos.reduce((s, p) => s + p.sizeBytes, 0);
 });
 
 /** 浏览器外打开的提示文案 */
@@ -73,11 +72,10 @@ async function load() {
   try {
     const data = await shareApi.getByCode(props.code, 1, PAGE);
     album.value = data;
-    hasMore.value = (data as any).hasMore ?? false;
-    isOwner.value = (data as any).isOwner ?? false;
+    hasMore.value = data.hasMore ?? false;
+    isOwner.value = data.isOwner ?? false;
     saveHistory();
     checkContributor(data);
-    // 恢复滚动 + 自动加载到上次位置
     if (savedScroll.value > 0) restoreScrollAndPages(data);
   } catch (err) {
     if (err instanceof ApiException) error.value = err.message;
@@ -89,7 +87,12 @@ async function load() {
 
 function saveHistory() {
   const list = JSON.parse(localStorage.getItem('browse_history') || '[]').filter((h: any) => h.code !== props.code);
-  list.unshift({ code: props.code, title: album.value?.title || '未命名相册', photoCount: (album.value as any)?.totalPhotos ?? album.value?.photos.length ?? 0, time: Date.now() });
+  list.unshift({
+    code: props.code,
+    title: album.value?.title || '未命名相册',
+    photoCount: album.value?.totalPhotos ?? album.value?.photos.length ?? 0,
+    time: Date.now(),
+  });
   if (list.length > 20) list.length = 20;
   localStorage.setItem('browse_history', JSON.stringify(list));
 }
@@ -102,17 +105,18 @@ function checkContributor(data: ViewerAlbum) {
 
 async function restoreScrollAndPages(data: ViewerAlbum) {
   const target = savedScroll.value;
-  const total = (data as any).totalPhotos ?? data.photos.length;
+  const total = data.totalPhotos ?? data.photos.length;
   const need = Math.ceil(Math.max(target / 200, 1) * 3 / PAGE); // estimate pages needed
   for (let pg = 2; pg <= Math.min(need, Math.ceil(total / PAGE)); pg++) {
     const p = await shareApi.getByCode(props.code, pg, PAGE);
     if (p.photos) {
       album.value = { ...album.value!, photos: [...album.value!.photos, ...p.photos] };
-      hasMore.value = (p as any).hasMore ?? false;
+      hasMore.value = p.hasMore ?? false;
       page.value = pg;
     }
   }
-  setTimeout(() => window.scrollTo({ top: target, behavior: 'instant' as any }), 200);
+  await nextTick();
+  window.scrollTo({ top: target, behavior: 'instant' as any });
 }
 
 async function handleLoadMore() {
@@ -123,7 +127,7 @@ async function handleLoadMore() {
   if (data.photos) {
     album.value = { ...album.value, photos: [...album.value.photos, ...data.photos] };
     page.value = nextPg;
-    hasMore.value = (data as any).hasMore ?? false;
+    hasMore.value = data.hasMore ?? false;
   }
   loadMore.value = false;
 }
@@ -137,7 +141,7 @@ async function handleOwnerUpload() {
   input.onchange = async () => {
     if (!input.files || input.files.length === 0) return;
     uploadingMore.value = true;
-    const shareId = (album.value as any).id;
+    const shareId = album.value!.id;
     let done = 0, failed = 0;
     for (const f of Array.from(input.files)) {
       try {
@@ -151,7 +155,7 @@ async function handleOwnerUpload() {
     if (fresh) {
       album.value = fresh;
       page.value = 1;
-      hasMore.value = (fresh as any).hasMore ?? false;
+      hasMore.value = fresh.hasMore ?? false;
     }
   };
   input.click();
@@ -197,7 +201,7 @@ function attachDeletePhotoButton(pswp: PhotoSwipe) {
       const idx = pswp.currIndex;
       const photo = album.value.photos[idx];
       if (!photo) return;
-      const shareId = (album.value as any).id;
+      const shareId = album.value.id;
       if (!shareId) return;
       if (!confirm('确认删除该照片？')) return;
       try {
@@ -262,15 +266,12 @@ function initLightbox() {
 onMounted(async () => {
   await load();
   if (album.value && album.value.photos.length > 0) {
-    setTimeout(initLightbox, 0);
+    await nextTick();
+    initLightbox();
   }
-  timer = window.setInterval(() => {
-    tick.value++;
-  }, 1000);
 });
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer);
   if (lightbox) lightbox.destroy();
   sessionStorage.setItem(`scroll_${props.code}`, String(window.scrollY));
 });
@@ -343,7 +344,7 @@ async function copyShareLink() {
           <div class="sub" v-if="album">
             <code>{{ props.code }}</code>
             <span class="dot">·</span>
-            <span>{{ (album as any)?.totalPhotos ?? album.photos.length }} 张</span>
+            <span>{{ album.totalPhotos ?? album.photos.length }} 张</span>
             <span class="dot hide-sm">·</span>
             <span class="hide-sm">{{ formatBytes(totalBytes) }}</span>
             <span class="dot hide-sm">·</span>
@@ -499,7 +500,7 @@ async function copyShareLink() {
           <!-- 加载更多 -->
           <div v-if="hasMore" class="loadmore-row">
             <t-button variant="outline" :loading="loadMore" @click="handleLoadMore">
-              {{ loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? ((album as any).totalPhotos - album.photos.length) : '?'} 张剩余` }}
+              {{ loadMore ? '加载中…' : `加载更多 · ${album.totalPhotos ? (album.totalPhotos - album.photos.length) : '?'} 张剩余` }}
             </t-button>
           </div>
         </div>

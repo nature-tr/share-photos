@@ -97,9 +97,12 @@ function isAbortError(errMsg?: string) {
 
 /* ────────────────── 上传执行 ────────────────── */
 
-function uploadOne(ctx: UploadCtx, item: UploadItem): Promise<{ ok: boolean; aborted: boolean; error?: string }> {
-  return new Promise(async (resolve) => {
-    const token = await useAuth.getState().getAccessToken();
+async function uploadOne(
+  ctx: UploadCtx,
+  item: UploadItem,
+): Promise<{ ok: boolean; aborted: boolean; error?: string }> {
+  const token = await useAuth.getState().getAccessToken();
+  return new Promise<{ ok: boolean; aborted: boolean; error?: string }>((resolve) => {
     let settled = false;
     const wx = Taro.uploadFile({
       url: `${API_BASE}/api/shares/${ctx.shareId}/photos`,
@@ -137,9 +140,7 @@ async function runUpload(ctx: UploadCtx) {
     return;
   }
   if (cur.status !== 'uploading') {
-    useTaskStore.setState((s) => ({
-      uploads: { ...s.uploads, [ctx.shareId]: { ...s.uploads[ctx.shareId]!, status: 'uploading' } },
-    }));
+    useTaskStore.getState().setUploadStatus(ctx.shareId, 'uploading');
   }
 
   try {
@@ -234,9 +235,7 @@ async function runDownload(ctx: DownloadCtx) {
     return;
   }
   if (cur.status !== 'downloading') {
-    useTaskStore.setState((s) => ({
-      downloads: { ...s.downloads, [ctx.code]: { ...s.downloads[ctx.code]!, status: 'downloading' } },
-    }));
+    useTaskStore.getState().setDownloadStatus(ctx.code, 'downloading');
   }
 
   try {
@@ -300,9 +299,6 @@ export const taskManager = {
     persistUpload(ctx);
 
     useTaskStore.getState().startUpload(shareId, items.length);
-    useTaskStore
-      .getState()
-      .saveFormState(shareId, meta.title, meta.ttl, items.length, meta.totalBytes ?? 0);
 
     void runUpload(ctx);
     return ctx;
