@@ -62,12 +62,7 @@ export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickImag
           },
           fail: (err: any) => {
             const msg: string = err?.errMsg ?? '';
-            Taro.showModal({
-              title: '调试信息',
-              content: `chooseMedia 返回错误：\n${msg}\n\n完整：${JSON.stringify(err)}`,
-              showCancel: false,
-            });
-            if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('permission') >= 0 || msg.indexOf('privacy') >= 0) {
+            if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('permission') >= 0 || msg.indexOf('privacy') >= 0 || msg.indexOf('scope') >= 0) {
               resolve({ items: [], reason: 'denied' });
             } else {
               resolve({ items: [], reason: 'cancel' });
