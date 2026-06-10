@@ -1,75 +1,59 @@
 /**
- * 隐私协议同意弹窗（直接调用 wx 底层 API，跳过 Taro 包装层）
+ * 隐私协议同意弹窗
  *
- * 前几版失败原因：
- *   1. wx.requirePrivacyAuthorize 已废弃，且必须在用户手势中调用
- *   2. Taro 4 的 onNeedPrivacyAuthorization 可能未正确暴露底层 API
- *
- * 本版：直接调用 wx 全局对象，不经过 Taro 中间层。
- * 注册 wx.onNeedPrivacyAuthorization → 用户调 chooseMedia 时
- * 微信底层触发该事件 → 弹窗 → 用户点同意 → resolve({event:'agree'})
+ * 关键：onNeedPrivacyAuthorization 必须在 chooseMedia 被调用前完成注册，
+ * React 的 useEffect 是异步的，太晚。这里把监听器注册放到模块顶层同步执行。
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Text } from '@tarojs/components';
 import './index.scss';
 
-/** 获取原生 wx 对象（不经过 Taro） */
+/* ───── 模块顶层：同步注册隐私监听，早于任何 API 调用 ───── */
+
+let resolveRef: ((res: { event: string }) => void) | null = null;
+let showFn: ((v: boolean) => void) | null = null;
+
 function getWx(): any {
-  return (globalThis as any).wx || (Taro as any).apiready || wx || (Taro as any);
+  try { return (globalThis as any).wx || (Taro as any).apiready; } catch { return (Taro as any); }
 }
+
+const wxNative = getWx();
+
+if (typeof wxNative?.onNeedPrivacyAuthorization === 'function') {
+  wxNative.onNeedPrivacyAuthorization((resolve: (res: { event: string }) => void) => {
+    resolveRef = resolve;
+    showFn?.(true);
+  });
+}
+
+/* ───── 组件 ───── */
 
 export default function PrivacyConsent() {
   const [visible, setVisible] = useState(false);
-  const resolveRef = useRef<((res: { event: string }) => void) | null>(null);
-  const initDone = useRef(false);
 
   useEffect(() => {
-    if (initDone.current) return;
-    initDone.current = true;
-
-    const wxNative = getWx();
-
-    // 总是注册监听（不要检查 storage），让微信底层决定是否需要弹窗
-    if (typeof wxNative?.onNeedPrivacyAuthorization === 'function') {
-      const handler = (resolve: (res: { event: string }) => void) => {
-        resolveRef.current = resolve;
-        setVisible(true);
-      };
-      wxNative.onNeedPrivacyAuthorization(handler);
-    }
-    // 无 onNeedPrivacyAuthorization 时降级：首次启动弹一次自定义弹窗
-    else {
-      try {
-        if (Taro.getStorageSync('privacy_agreed_v3')) return;
-      } catch { /* */ }
-      setVisible(true);
-    }
+    showFn = setVisible;
+    return () => { showFn = null; };
   }, []);
 
   const handleAgree = () => {
-    // 通知微信底层：用户已同意
-    if (resolveRef.current) {
-      resolveRef.current({ event: 'agree' });
-      resolveRef.current = null;
+    if (resolveRef) {
+      resolveRef({ event: 'agree' });
+      resolveRef = null;
     }
     try { Taro.setStorageSync('privacy_agreed_v3', true); } catch { /* */ }
     setVisible(false);
   };
 
   const handleDisagree = () => {
-    if (resolveRef.current) {
-      resolveRef.current({ event: 'disagree' });
-      resolveRef.current = null;
+    if (resolveRef) {
+      resolveRef({ event: 'disagree' });
+      resolveRef = null;
     }
     setVisible(false);
-    Taro.showModal({
-      title: '提示',
-      content: '需要同意隐私保护指引才能使用选图和保存功能。',
-      showCancel: false,
-      confirmText: '我知道了',
-    });
+    Taro.showToast({ title: '需同意隐私指引才能使用选图功能', icon: 'none', duration: 2000 });
   };
 
   if (!visible) return null;
@@ -80,27 +64,29 @@ export default function PrivacyConsent() {
         <Text className="privacy-title">隐私保护指引</Text>
         <View className="privacy-content-scroll">
           <Text className="privacy-content">
-格子橱窗尊重并保护您的隐私。为提供相册分享服务，我们将按照以下原则处理您的信息：
+感谢您使用格子橱窗。我们深知个人信息对您的重要性，并会尽全力保护您的个人信息安全可靠。
 
-1. 账号信息（邮箱、昵称）
-   用于创建和管理您的账户，仅存储在我们的服务器上。
+本指引将帮助您了解以下内容：
 
-2. 您上传的图片
-   仅存储在您指定的分享中，到期自动删除且不可恢复。
+1. 我们收集的信息
+    - 账号信息（邮箱、昵称）：创建和管理您的账户
+    - 上传的图片：存储在您创建的分享相册中，到期自动删除
 
-3. 相册权限（读取 + 写入）
-   仅在您主动选图上传或保存图片时使用，不会在后台访问。
+2. 权限申请
+    - 相册（读取）：从手机相册选择图片上传到分享
+    - 相册（写入）：将网络图片保存到您的手机相册
+    这些权限仅在您主动使用时请求，不会后台获取。
 
-4. 本地存储
-   用于保存登录状态和浏览记录，仅本地保存，不上传至服务器。
+3. 信息安全
+    我们采取加密传输等措施保护您的数据，不会共享给任何第三方。
 
-同意后即可正常使用选图和保存功能。
+点击「同意」即表示您已阅读并同意以上条款。
           </Text>
         </View>
         <View className="privacy-links">
-          <Text className="privacy-link" onClick={() => Taro.navigateTo({ url: '/pages/me/privacy/index' })}>查看隐私政策</Text>
+          <Text className="privacy-link" onClick={() => Taro.navigateTo({ url: '/pages/me/privacy/index' })}>隐私政策</Text>
           <Text className="privacy-link-sep">|</Text>
-          <Text className="privacy-link" onClick={() => Taro.navigateTo({ url: '/pages/me/terms/index' })}>查看用户协议</Text>
+          <Text className="privacy-link" onClick={() => Taro.navigateTo({ url: '/pages/me/terms/index' })}>用户协议</Text>
         </View>
         <View className="privacy-buttons">
           <View className="privacy-btn privacy-btn-reject" onClick={handleDisagree}>

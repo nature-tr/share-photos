@@ -79,7 +79,7 @@ export default function NewSharePage() {
       if (picked.reason === 'denied') {
         Taro.showModal({
           title: '相册权限未开启',
-          content: '请前往手机「设置」→「微信」→ 开启「照片」权限，然后重新打开小程序。',
+          content: '请先同意隐私保护指引（退出小程序重新进入即可看到弹窗），方可使用选图功能。',
           confirmText: '我知道了',
           showCancel: false,
         });
