@@ -66,8 +66,8 @@
 .success-desc { font-size: 26rpx; color: var(--color-text3); margin-top: 8rpx; margin-bottom: 40rpx; line-height: 1.4; flex-shrink: 0; }
 
 .code-box {
-  align-self: stretch;
-  max-width: 520rpx;
+  width: 100%;
+  max-width: 480rpx;
   background: var(--color-surface);
   border-radius: 32rpx;
   padding: 40rpx 24rpx;
@@ -75,6 +75,7 @@
   margin-bottom: 40rpx;
   box-shadow: 0 2rpx 8rpx rgba(15,23,42,0.04);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 .code-box-label { font-size: 22rpx; font-weight: 600; color: var(--color-text3); text-transform: uppercase; letter-spacing: 1.6rpx; margin-bottom: 10rpx; line-height: 1.4; }
 .code-big { font-size: 56rpx; font-weight: 700; color: var(--color-primary); letter-spacing: 12rpx; line-height: 1.3; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -82,7 +83,7 @@
 
 /* 展示二维码按钮 */
 .btn-primary {
-  align-self: stretch; max-width: 520rpx;
+  width: 100%; max-width: 480rpx;
   height: 96rpx;
   background: var(--color-primary); border-radius: 28rpx;
   display: flex; align-items: center; justify-content: center;
@@ -94,9 +95,10 @@
 /* 底部两个按钮（我的分享 / 查看相册） */
 .btn-outline-group {
   display: flex; flex-direction: row; gap: 24rpx;
-  align-self: stretch; max-width: 520rpx;
+  width: 100%; max-width: 480rpx;
   padding-bottom: env(safe-area-inset-bottom, 0);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 .btn-outline {
   flex: 1; height: 92rpx;
