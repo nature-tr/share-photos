@@ -62,7 +62,8 @@ export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickImag
           },
           fail: (err: any) => {
             const msg: string = err?.errMsg ?? '';
-            if (msg.indexOf('auth deny') >= 0 || msg.indexOf('not authorized') >= 0) {
+            console.warn('[pickImages] chooseMedia fail:', msg);
+            if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('permission') >= 0 || msg.indexOf('privacy') >= 0) {
               resolve({ items: [], reason: 'denied' });
             } else {
               resolve({ items: [], reason: 'cancel' });
