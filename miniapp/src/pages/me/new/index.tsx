@@ -139,7 +139,7 @@ export default function NewSharePage() {
   /* ── 全部完成的成功页 ── */
   if (created && created.code && taskStatus === 'done' && stats.error === 0) {
     return (
-      <ScrollView className="success-page" scrollY enhanced showScrollbar={false}>
+      <View className="success-page">
         <View className="success-icon-box"><Text className="success-icon">✓</Text></View>
         <Text className="success-title">上传完成！</Text>
         <Text className="success-desc">把分享码或二维码发给朋友</Text>
@@ -151,7 +151,7 @@ export default function NewSharePage() {
         <View className="btn-primary" onClick={() => setQrVisible(true)}>
           <Text className="btn-primary-text">展示二维码</Text>
         </View>
-        <View className="success-actions">
+        <View className="btn-outline-group">
           <View className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
             <Text className="btn-outline-text">我的分享</Text>
           </View>
@@ -169,7 +169,7 @@ export default function NewSharePage() {
           title={title.trim() || '未命名相册'}
           onClose={() => setQrVisible(false)}
         />
-      </ScrollView>
+      </View>
     );
   }
 
