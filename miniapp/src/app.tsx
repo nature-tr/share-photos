@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { useLaunch } from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
-import GlobalProgress from '@/components/GlobalProgress';
+import PrivacyConsent from '@/components/PrivacyConsent';
 import './app.scss';
 
 function App({ children }: PropsWithChildren) {
@@ -11,7 +11,12 @@ function App({ children }: PropsWithChildren) {
     void checkAuth();
   });
 
-  return children;
+  return (
+    <>
+      {children}
+      <PrivacyConsent />
+    </>
+  );
 }
 
 export default App;

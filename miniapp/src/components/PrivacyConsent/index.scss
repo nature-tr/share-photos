@@ -1,0 +1,96 @@
+.privacy-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+}
+
+.privacy-card {
+  background: var(--color-surface, #fff);
+  border-radius: 28rpx;
+  max-height: 80vh;
+  width: 100%;
+  max-width: 600rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.privacy-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--color-text1, #1e293b);
+  text-align: center;
+  padding: 32rpx 32rpx 16rpx;
+}
+
+.privacy-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32rpx;
+}
+
+.privacy-content {
+  font-size: 26rpx;
+  color: var(--color-text2, #475569);
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+.privacy-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 32rpx;
+}
+
+.privacy-link {
+  font-size: 24rpx;
+  color: var(--color-primary, #3b82f6);
+  text-decoration: underline;
+}
+
+.privacy-link-sep {
+  color: var(--color-border, #e2e8f0);
+  font-size: 24rpx;
+}
+
+.privacy-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 16rpx 32rpx 32rpx;
+}
+
+.privacy-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.privacy-btn-reject {
+  background: var(--color-surface-soft, #f1f5f9);
+  border: 1rpx solid var(--color-border, #e2e8f0);
+}
+
+.privacy-btn-agree {
+  background: var(--color-primary, #3b82f6);
+}
+
+.privacy-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--color-text1, #1e293b);
+}
+
+.privacy-btn-agree .privacy-btn-text {
+  color: #fff;
+}

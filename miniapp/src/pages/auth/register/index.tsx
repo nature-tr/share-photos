@@ -3,6 +3,7 @@ import { View, Text, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { register } from '@/api/auth.api';
 import { useAuth } from '@/stores/auth.store';
+import AgreementCheckbox from '@/components/AgreementCheckbox';
 import './index.scss';
 
 export default function RegisterPage() {
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   async function onSubmit() {
     if (!email.trim() || !password) {
@@ -19,6 +21,10 @@ export default function RegisterPage() {
     }
     if (password.length < 8) {
       Taro.showToast({ title: '密码至少 8 位', icon: 'none' });
+      return;
+    }
+    if (!agreed) {
+      Taro.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' });
       return;
     }
     setLoading(true);
@@ -81,9 +87,10 @@ export default function RegisterPage() {
             onConfirm={onSubmit}
           />
         </View>
+        <AgreementCheckbox onChange={setAgreed} />
         <View
-          className={`btn ${(!email.trim() || password.length < 8 || loading) ? 'btn-disabled' : ''}`}
-          onClick={() => !loading && email.trim() && password.length >= 8 && onSubmit()}
+          className={`btn ${(!email.trim() || password.length < 8 || !agreed || loading) ? 'btn-disabled' : ''}`}
+          onClick={() => !loading && email.trim() && password.length >= 8 && agreed && onSubmit()}
         >
           <Text className="btn-text">{loading ? '注册中…' : '注册'}</Text>
         </View>

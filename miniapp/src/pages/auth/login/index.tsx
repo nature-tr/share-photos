@@ -3,6 +3,7 @@ import { View, Text, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { login } from '@/api/auth.api';
 import { useAuth } from '@/stores/auth.store';
+import AgreementCheckbox from '@/components/AgreementCheckbox';
 import './index.scss';
 
 export default function LoginPage() {
@@ -10,10 +11,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   async function onSubmit() {
     if (!email.trim() || !password) {
       Taro.showToast({ title: '请填写完整', icon: 'none' });
+      return;
+    }
+    if (!agreed) {
+      Taro.showToast({ title: '请先阅读并同意隐私政策', icon: 'none' });
       return;
     }
     setLoading(true);
@@ -63,9 +69,10 @@ export default function LoginPage() {
             onConfirm={onSubmit}
           />
         </View>
+        <AgreementCheckbox onChange={setAgreed} />
         <View
-          className={`btn ${(!email.trim() || !password || loading) ? 'btn-disabled' : ''}`}
-          onClick={() => !loading && email.trim() && password && onSubmit()}
+          className={`btn ${(!email.trim() || !password || !agreed || loading) ? 'btn-disabled' : ''}`}
+          onClick={() => !loading && email.trim() && password && agreed && onSubmit()}
         >
           <Text className="btn-text">{loading ? '登录中…' : '登录'}</Text>
         </View>
