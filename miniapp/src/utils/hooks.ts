@@ -35,11 +35,18 @@ export interface PickImagesOpts {
   withName?: boolean;
 }
 
+/** 选图结果 */
+export interface PickImagesResult {
+  items: PickedImage[];
+  /** 失败原因（空数组时要看这个区分"取消"还是"没有权限"） */
+  reason?: string;
+}
+
 /**
  * 弹出 actionSheet 让用户选择「原图 / 压缩」，再调用 chooseMedia。
- * 用户取消或拒绝时不会 reject，而是 resolve([])，避免调用方处处写 try-catch。
+ * 始终 resolve，通过 reason 区分是用户取消还是权限被拒绝。
  */
-export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickedImage[]> {
+export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickImagesResult> {
   const { count = 9 } = opts;
   return new Promise((resolve) => {
     Taro.showActionSheet({
@@ -51,12 +58,19 @@ export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickedIm
           mediaType: ['image'],
           sizeType: compressed ? ['compressed'] : ['original'],
           success: (res) => {
-            resolve(res.tempFiles.map((f) => ({ path: f.tempFilePath, size: f.size })));
+            resolve({ items: res.tempFiles.map((f) => ({ path: f.tempFilePath, size: f.size })) });
           },
-          fail: () => resolve([]),
+          fail: (err: any) => {
+            const msg: string = err?.errMsg ?? '';
+            if (msg.indexOf('auth deny') >= 0 || msg.indexOf('not authorized') >= 0) {
+              resolve({ items: [], reason: 'denied' });
+            } else {
+              resolve({ items: [], reason: 'cancel' });
+            }
+          },
         });
       },
-      fail: () => resolve([]),
+      fail: () => resolve({ items: [], reason: 'cancel' }),
     });
   });
 }

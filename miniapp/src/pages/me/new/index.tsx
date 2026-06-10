@@ -75,8 +75,18 @@ export default function NewSharePage() {
       return;
     }
     const picked = await pickImagesFromAlbum({ count: remaining });
-    if (picked.length === 0) return;
-    const newItems: UploadItem[] = picked.map((p) => ({
+    if (picked.items.length === 0) {
+      if (picked.reason === 'denied') {
+        Taro.showModal({
+          title: '相册权限未开启',
+          content: '请前往手机「设置」→「微信」→ 开启「照片」权限，然后重新打开小程序。',
+          confirmText: '我知道了',
+          showCancel: false,
+        });
+      }
+      return;
+    }
+    const newItems: UploadItem[] = picked.items.map((p) => ({
       id: Math.random().toString(36).slice(2),
       path: p.path,
       name: p.path.split('/').pop() || `photo-${Date.now()}.jpg`,

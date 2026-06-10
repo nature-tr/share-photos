@@ -207,8 +207,18 @@ export default function ViewerPage() {
   async function handleOwnerUpload() {
     if (!album || !user) return;
     const picked = await pickImagesFromAlbum({ count: 9 });
-    if (picked.length === 0) return;
-    const items: UploadItem[] = picked.map((p) => ({
+    if (picked.items.length === 0) {
+      if (picked.reason === 'denied') {
+        Taro.showModal({
+          title: '相册权限未开启',
+          content: '请前往手机「设置」→「微信」→ 开启「照片」权限后重试。',
+          confirmText: '我知道了',
+          showCancel: false,
+        });
+      }
+      return;
+    }
+    const items: UploadItem[] = picked.items.map((p) => ({
       id: Math.random().toString(36).slice(2),
       path: p.path,
       name: p.path.split('/').pop() || `photo-${Date.now()}.jpg`,
