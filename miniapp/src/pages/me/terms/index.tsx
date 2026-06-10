@@ -42,7 +42,7 @@ export default function TermsPage() {
 
         <Text className="legal-section-title">6. 联系我们</Text>
         <Text className="legal-body">
-          邮箱：support@dolmo.top{'\n'}
+          邮箱：tianrandolmo@gmail.com{'\n'}
           官网：https://www.dolmo.top
         </Text>
       </View>
