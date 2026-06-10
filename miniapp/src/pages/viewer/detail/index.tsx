@@ -209,12 +209,7 @@ export default function ViewerPage() {
     const picked = await pickImagesFromAlbum({ count: 9 });
     if (picked.items.length === 0) {
       if (picked.reason === 'denied') {
-        Taro.showModal({
-          title: '相册权限未开启',
-          content: '请先同意隐私保护指引（退出小程序重新进入即可看到弹窗），方可使用选图功能。',
-          confirmText: '我知道了',
-          showCancel: false,
-        });
+        Taro.showToast({ title: '已保存授权，请再次点击选图', icon: 'none', duration: 2500 });
       }
       return;
     }

@@ -40,20 +40,21 @@ export default function PrivacyConsent() {
 
   const handleAgree = () => {
     if (resolveRef) {
-      resolveRef({ event: 'agree' });
+      resolveRef({ event: 'agree', buttonId: 'agree' });
       resolveRef = null;
     }
     try { Taro.setStorageSync('privacy_agreed_v3', true); } catch { /* */ }
     setVisible(false);
+    Taro.showToast({ title: '授权成功，请继续操作', icon: 'success', duration: 2000 });
   };
 
   const handleDisagree = () => {
     if (resolveRef) {
-      resolveRef({ event: 'disagree' });
+      resolveRef({ event: 'disagree', buttonId: 'disagree' });
       resolveRef = null;
     }
     setVisible(false);
-    Taro.showToast({ title: '需同意隐私指引才能使用选图功能', icon: 'none', duration: 2000 });
+    Taro.showToast({ title: '需同意隐私指引才能使用选图功能', icon: 'none', duration: 2500 });
   };
 
   if (!visible) return null;
