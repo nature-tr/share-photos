@@ -1,11 +1,13 @@
 /**
- * 隐私协议同意弹窗（微信官方正确模式）
+ * 隐私协议同意弹窗（直接调用 wx 底层 API，跳过 Taro 包装层）
  *
- * 不使用已废弃的 wx.requirePrivacyAuthorize。
- * 通过 wx.onNeedPrivacyAuthorization 监听隐私授权需求事件：
- *   用户调用 chooseMedia / saveImage 等 → 微信触发 onNeedPrivacyAuthorization
- *   → 弹窗展示协议 → 用户点击同意 → 回调 resolve({ event:'agree' })
- *   → 微信完成授权 → 隐私接口可以正常调用
+ * 前几版失败原因：
+ *   1. wx.requirePrivacyAuthorize 已废弃，且必须在用户手势中调用
+ *   2. Taro 4 的 onNeedPrivacyAuthorization 可能未正确暴露底层 API
+ *
+ * 本版：直接调用 wx 全局对象，不经过 Taro 中间层。
+ * 注册 wx.onNeedPrivacyAuthorization → 用户调 chooseMedia 时
+ * 微信底层触发该事件 → 弹窗 → 用户点同意 → resolve({event:'agree'})
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -13,55 +15,47 @@ import Taro from '@tarojs/taro';
 import { View, Text } from '@tarojs/components';
 import './index.scss';
 
-const PRIVACY_STORAGE_KEY = 'privacy_agreed_v3';
+/** 获取原生 wx 对象（不经过 Taro） */
+function getWx(): any {
+  return (globalThis as any).wx || (Taro as any).apiready || wx || (Taro as any);
+}
 
 export default function PrivacyConsent() {
   const [visible, setVisible] = useState(false);
-  const initDone = useRef(false);
-  /** 存储微信传入的 resolve 函数，用户同意时调用 */
   const resolveRef = useRef<((res: { event: string }) => void) | null>(null);
+  const initDone = useRef(false);
 
   useEffect(() => {
     if (initDone.current) return;
     initDone.current = true;
 
-    // 已同意过不再弹
-    try {
-      if (Taro.getStorageSync(PRIVACY_STORAGE_KEY)) return;
-    } catch { /* */ }
+    const wxNative = getWx();
 
-    // 官方模式：监听隐私授权需求事件
-    if (typeof (Taro as any).onNeedPrivacyAuthorization === 'function') {
-      const handler = (resolve: (res: { event: string }) => void, args?: any) => {
+    // 总是注册监听（不要检查 storage），让微信底层决定是否需要弹窗
+    if (typeof wxNative?.onNeedPrivacyAuthorization === 'function') {
+      const handler = (resolve: (res: { event: string }) => void) => {
         resolveRef.current = resolve;
         setVisible(true);
       };
-      (Taro as any).onNeedPrivacyAuthorization(handler);
-      return () => {
-        try { (Taro as any).offNeedPrivacyAuthorization?.(handler); } catch { /* */ }
-      };
+      wxNative.onNeedPrivacyAuthorization(handler);
     }
-
-    // 降级：旧版微信，尝试 requirePrivacyAuthorize（必须在用户手势中调用，否则无效）
-    setTimeout(() => {
+    // 无 onNeedPrivacyAuthorization 时降级：首次启动弹一次自定义弹窗
+    else {
       try {
-        (Taro as any).requirePrivacyAuthorize?.({
-          success: () => onAgreed(),
-          fail: () => setVisible(true),
-        });
-      } catch {
-        setVisible(true);
-      }
-    }, 100);
+        if (Taro.getStorageSync('privacy_agreed_v3')) return;
+      } catch { /* */ }
+      setVisible(true);
+    }
   }, []);
 
   const handleAgree = () => {
-    // 通知微信平台：用户已同意
+    // 通知微信底层：用户已同意
     if (resolveRef.current) {
       resolveRef.current({ event: 'agree' });
       resolveRef.current = null;
     }
-    onAgreed();
+    try { Taro.setStorageSync('privacy_agreed_v3', true); } catch { /* */ }
+    setVisible(false);
   };
 
   const handleDisagree = () => {
@@ -72,15 +66,10 @@ export default function PrivacyConsent() {
     setVisible(false);
     Taro.showModal({
       title: '提示',
-      content: '需要同意隐私保护指引才能使用本服务。您可以稍后在「关于」页面重新同意。',
+      content: '需要同意隐私保护指引才能使用选图和保存功能。',
       showCancel: false,
       confirmText: '我知道了',
     });
-  };
-
-  const onAgreed = () => {
-    try { Taro.setStorageSync(PRIVACY_STORAGE_KEY, true); } catch { /* */ }
-    setVisible(false);
   };
 
   if (!visible) return null;
