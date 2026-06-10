@@ -34,7 +34,7 @@ export default function AgreementCheckbox({ onChange }: Props) {
           className="agreement-link"
           onClick={(e: any) => {
             e.stopPropagation();
-            Taro.setClipboardData({ data: 'https://www.dolmo.top/privacy' });
+            Taro.navigateTo({ url: '/pages/me/privacy/index' });
           }}
         >
           隐私政策
@@ -44,7 +44,7 @@ export default function AgreementCheckbox({ onChange }: Props) {
           className="agreement-link"
           onClick={(e: any) => {
             e.stopPropagation();
-            Taro.setClipboardData({ data: 'https://www.dolmo.top/terms' });
+            Taro.navigateTo({ url: '/pages/me/terms/index' });
           }}
         >
           用户协议

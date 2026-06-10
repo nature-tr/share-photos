@@ -7,6 +7,8 @@ export default defineAppConfig({
     'pages/me/shares/index',
     'pages/me/new/index',
     'pages/me/settings/index',
+    'pages/me/privacy/index',
+    'pages/me/terms/index',
     'pages/viewer/detail/index',
   ],
   window: {

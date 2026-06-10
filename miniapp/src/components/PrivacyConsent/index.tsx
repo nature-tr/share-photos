@@ -117,18 +117,14 @@ export default function PrivacyConsent() {
         <View className="privacy-links">
           <Text
             className="privacy-link"
-            onClick={() => Taro.setClipboardData({
-              data: 'https://www.dolmo.top/privacy',
-            })}
+            onClick={() => Taro.navigateTo({ url: '/pages/me/privacy/index' })}
           >
             查看隐私政策
           </Text>
           <Text className="privacy-link-sep">|</Text>
           <Text
             className="privacy-link"
-            onClick={() => Taro.setClipboardData({
-              data: 'https://www.dolmo.top/terms',
-            })}
+            onClick={() => Taro.navigateTo({ url: '/pages/me/terms/index' })}
           >
             查看用户协议
           </Text>
