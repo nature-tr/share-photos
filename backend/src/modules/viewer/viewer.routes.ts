@@ -24,18 +24,32 @@ const codePhotoParamSchema = z.object({
   photoId: entityIdSchema,
 });
 
-/** 带 Accept 协商 + Content-Length 的图片流式响应 */
+/** 带 Accept 协商 + Content-Length 的图片流式响应。
+ *  如果变体尚未生成（异步处理中），自动降级到原图。 */
 function streamImage(
   reply: import('fastify').FastifyReply,
   jpgPath: string,
   webpPath: string,
   req: import('fastify').FastifyRequest,
+  fallbackPath?: string,
+  fallbackContentType?: string,
 ) {
   const accept = (req.headers['accept'] || '').toLowerCase();
   const preferWebp = accept.includes('image/webp');
   const chosenPath = preferWebp && fs.existsSync(webpPath) ? webpPath : jpgPath;
 
-  if (!fs.existsSync(chosenPath)) throw Errors.photoNotFound();
+  if (!fs.existsSync(chosenPath)) {
+    // 变体还在异步生成中，降级到原图（不返回 404）
+    if (fallbackPath && fs.existsSync(fallbackPath)) {
+      const stats = fs.statSync(fallbackPath);
+      reply.header('Content-Type', fallbackContentType || 'image/jpeg');
+      reply.header('Content-Length', stats.size);
+      reply.header('Cache-Control', 'public, max-age=3600'); // 短缓存，下次走变体
+      reply.header('Vary', 'Accept');
+      return reply.send(fs.createReadStream(fallbackPath));
+    }
+    throw Errors.photoNotFound();
+  }
 
   const isWebp = chosenPath.endsWith('.webp');
   let stats: fs.Stats;
@@ -155,16 +169,18 @@ export async function viewerRoutes(app: FastifyInstance): Promise<void> {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
     // 必须查表确认 photo 属于该 share，防止越权 / 路径穿越深度防御
-    await photoService.getOne(share.id, photoId);
-    return streamImage(reply, previewPath(share.id, photoId), previewWebpPath(share.id, photoId), req);
+    const photo = await photoService.getOne(share.id, photoId);
+    const orig = originalPath(share.id, photoId, photo.ext);
+    return streamImage(reply, previewPath(share.id, photoId), previewWebpPath(share.id, photoId), req, orig, photo.mimeType);
   });
 
   // 中等图（同理支持 WebP 协商）
   app.get('/:code/photos/:photoId/medium', async (req, reply) => {
     const { code, photoId } = codePhotoParamSchema.parse(req.params);
     const share = await shareService.getByCodeForViewer(code);
-    await photoService.getOne(share.id, photoId);
-    return streamImage(reply, mediumPath(share.id, photoId), mediumWebpPath(share.id, photoId), req);
+    const photo = await photoService.getOne(share.id, photoId);
+    const orig = originalPath(share.id, photoId, photo.ext);
+    return streamImage(reply, mediumPath(share.id, photoId), mediumWebpPath(share.id, photoId), req, orig, photo.mimeType);
   });
 
   // 原图（支持 ?download=1 强制下载）

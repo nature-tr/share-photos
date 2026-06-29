@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
+import sharp from 'sharp';
 import { eq, sql, and } from 'drizzle-orm';
 import type { MultipartFile } from '@fastify/multipart';
 import { db } from '../../db/client.js';
@@ -73,19 +74,19 @@ export const photoService = {
       throw Errors.fileTooLarge();
     }
 
-    let processed;
+    // ── 快速读取图片元数据（width/height/EXIF），不生成变体 ──
+    let width = 0;
+    let height = 0;
     let exifRaw: Record<string, any> | null = null;
     try {
-      processed = await processImage(shareId, photoId, dest);
-      // 读取 EXIF（设备型号、拍摄时间等）
-      try {
-        const meta = await sharp(dest).metadata();
-        if (meta.exif) {
-          exifRaw = { hasExif: true };
-        }
-      } catch { /* 无 EXIF */ }
-    } catch (err) {
+      const sMeta = await sharp(dest).metadata();
+      width = sMeta.width ?? 0;
+      height = sMeta.height ?? 0;
+      if (!width || !height) throw new Error('bad image');
+      if (sMeta.exif) exifRaw = { hasExif: true };
+    } catch (err: any) {
       await safeUnlink(dest);
+      if (err?.message === 'bad image') throw Errors.invalidImage();
       throw err;
     }
 
@@ -103,8 +104,8 @@ export const photoService = {
         mimeType: mime,
         ext,
         sizeBytes,
-        width: processed.width,
-        height: processed.height,
+        width,
+        height,
         uploadedAs,
         sortIndex: ts,
         createdAt: ts,
@@ -120,11 +121,21 @@ export const photoService = {
       .where(eq(shares.id, shareId))
       .run();
 
+    // ── 异步生成缩略图/中等图变体，不阻塞上传响应 ──
+    setImmediate(async () => {
+      try {
+        await processImage(shareId, photoId, dest);
+      } catch (err) {
+        // 变体生成失败不阻塞上传；查看者首次访问时会 fallback 到原图
+        console.error(`[photo] variant generation failed for ${shareId}/${photoId}:`, err);
+      }
+    });
+
     return {
       id: photoId,
       originalName: file.filename,
-      width: processed.width,
-      height: processed.height,
+      width,
+      height,
       sizeBytes,
       uploadedAs,
       createdAt: ts,
