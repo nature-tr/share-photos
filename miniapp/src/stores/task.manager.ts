@@ -103,13 +103,24 @@ async function uploadOne(
   item: UploadItem,
 ): Promise<{ ok: boolean; aborted: boolean; error?: string }> {
   const token = await useAuth.getState().getAccessToken();
+
+  // 大文件预压缩：超过 5MB 的图片先压缩，避免超时
+  let filePath = item.path;
+  if (item.size && item.size > 5 * 1024 * 1024) {
+    try {
+      const res = await Taro.compressImage({ src: item.path, quality: 80 });
+      filePath = res.tempFilePath;
+    } catch { /* 压缩失败用原图 */ }
+  }
+
   return new Promise<{ ok: boolean; aborted: boolean; error?: string }>((resolve) => {
     let settled = false;
     const wx = Taro.uploadFile({
       url: `${API_BASE}/api/shares/${ctx.shareId}/photos`,
-      filePath: item.path,
+      filePath,
       name: 'file',
       header: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 300000, // 5 分钟超时（默认 60s，大图容易超）
       success: (res) => {
         if (settled) return;
         settled = true;
@@ -145,44 +156,57 @@ async function runUpload(ctx: UploadCtx) {
   }
 
   try {
-    for (let i = 0; i < ctx.items.length; i++) {
-      const it = ctx.items[i]!;
-      if (it.status === 'done') continue;
+    // 并发上传：收集待处理的图片，限制并发数
+    const pending = ctx.items
+      .map((it, idx) => ({ it, idx }))
+      .filter(({ it }) => it.status !== 'done');
 
-      // 检查暂停 / 取消
-      const t = useTaskStore.getState().uploads[ctx.shareId];
-      if (!t || t.status !== 'uploading') return;
+    const CONCURRENCY = 3;
+    let cursor = 0;
+    let done = ctx.done;
+    let failed = ctx.failed;
 
-      // 标记 uploading
-      ctx.items[i] = { ...it, status: 'uploading', error: undefined };
-      persistUpload(ctx);
-      notifyUpload(ctx);
+    const uploadWorker = async (): Promise<void> => {
+      while (cursor < pending.length) {
+        const pos = cursor++;
+        const { it, idx } = pending[pos]!;
 
-      const r = await uploadOne(ctx, it);
+        const t = useTaskStore.getState().uploads[ctx.shareId];
+        if (!t || t.status !== 'uploading') return;
 
-      // 中断后再确认状态
-      const t2 = useTaskStore.getState().uploads[ctx.shareId];
-      if (!t2) return;
-
-      if (r.aborted || t2.status === 'cancelled' || t2.status === 'paused') {
-        // 当前 item 回滚为 pending，下次恢复时从这张图重传
-        ctx.items[i] = { ...it, status: 'pending' };
+        ctx.items[idx] = { ...it, status: 'uploading', error: undefined };
         persistUpload(ctx);
         notifyUpload(ctx);
-        return;
-      }
 
-      if (r.ok) {
-        ctx.items[i] = { ...ctx.items[i]!, status: 'done' };
-        ctx.done++;
-      } else {
-        ctx.items[i] = { ...ctx.items[i]!, status: 'error', error: r.error };
-        ctx.failed++;
+        const r = await uploadOne(ctx, it);
+
+        const t2 = useTaskStore.getState().uploads[ctx.shareId];
+        if (!t2) return;
+        if (r.aborted || t2.status === 'cancelled' || t2.status === 'paused') {
+          ctx.items[idx] = { ...it, status: 'pending' };
+          persistUpload(ctx);
+          notifyUpload(ctx);
+          return;
+        }
+
+        if (r.ok) {
+          ctx.items[idx] = { ...ctx.items[idx]!, status: 'done' };
+          done++;
+        } else {
+          ctx.items[idx] = { ...ctx.items[idx]!, status: 'error', error: r.error };
+          failed++;
+        }
+        ctx.done = done;
+        ctx.failed = failed;
+        persistUpload(ctx);
+        notifyUpload(ctx);
+        useTaskStore.getState().updateUpload(ctx.shareId, done, failed);
       }
-      persistUpload(ctx);
-      notifyUpload(ctx);
-      useTaskStore.getState().updateUpload(ctx.shareId, ctx.done, ctx.failed);
-    }
+    };
+
+    // 启动并发 worker
+    const workers = Array.from({ length: Math.min(CONCURRENCY, pending.length) }, () => uploadWorker());
+    await Promise.all(workers);
 
     // 完成
     const final = useTaskStore.getState().uploads[ctx.shareId];
