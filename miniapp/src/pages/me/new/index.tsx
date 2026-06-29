@@ -24,10 +24,15 @@ export default function NewSharePage() {
   const [qrVisible, setQrVisible] = useState(false);
   const [restoreShareId, setRestoreShareId] = useState<string | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
+  // 标记是否刚从 GlobalProgress 卡片跳过来（只有这种场景才需要 force resume）
+  const justNavigatedFromProgress = useRef(false);
 
   /* ── URL 参数：仅当从全局进度卡片跳进来时携带 ── */
   useLoad((options) => {
-    if (options?.restoreShareId) setRestoreShareId(options.restoreShareId as string);
+    if (options?.restoreShareId) {
+      setRestoreShareId(options.restoreShareId as string);
+      justNavigatedFromProgress.current = true;
+    }
   });
 
   /* ── 恢复模式：从 manager 读取上下文 + 订阅 ── */
@@ -47,6 +52,17 @@ export default function NewSharePage() {
       const c = taskManager.getUploadCtx(restoreShareId);
       if (c) setItems(c.items.map((i) => ({ ...i })));
     });
+
+    // 只在刚从 GlobalProgress 跳进来时检测卡死并强制恢复。
+    // 普通 useDidShow（比如从首页返回）只是刷新 UI，不干扰正在跑的上传。
+    if (justNavigatedFromProgress.current) {
+      justNavigatedFromProgress.current = false;
+      const storeState = useTaskStore.getState().uploads[restoreShareId];
+      const hasStuck = ctx.items.some((it) => it.status === 'uploading') || ctx.running;
+      if (hasStuck && storeState?.status === 'uploading') {
+        taskManager.forceResumeUpload(restoreShareId);
+      }
+    }
   });
 
   // 卸载时取消订阅
@@ -54,6 +70,18 @@ export default function NewSharePage() {
     unsubRef.current?.();
     unsubRef.current = null;
   }, []);
+
+  // 上传进行中时，防止用户误按返回按钮销毁页面
+  // 微信不支持静默拦截返回，只能用原生 Alert 警告用户
+  useEffect(() => {
+    if (taskStatus !== 'uploading') return;
+    // @ts-expect-error Taro 类型声明可能未包含此 API
+    Taro.enableAlertBeforeUnload?.({ message: '上传正在进行中，直接返回将中断上传。请使用「最小化」按钮切换到后台继续上传。' });
+    return () => {
+      // @ts-expect-error
+      Taro.disableAlertBeforeUnload?.();
+    };
+  }, [taskStatus]);
 
   /* ── 任务状态（仅用于 UI 文案） ── */
   const taskStatus = useTaskStore((s) => (created?.id ? s.uploads[created.id]?.status : undefined));
@@ -157,12 +185,12 @@ export default function NewSharePage() {
           <Text className="btn-primary-text">展示二维码</Text>
         </View>
         <View className="btn-outline-group">
-          <View className="btn-outline" onClick={() => Taro.redirectTo({ url: '/pages/me/shares/index' })}>
+          <View className="btn-outline" onClick={() => Taro.navigateTo({ url: '/pages/me/shares/index' })}>
             <Text className="btn-outline-text">我的分享</Text>
           </View>
           <View
             className="btn-outline"
-            onClick={() => Taro.redirectTo({ url: `/pages/viewer/detail/index?code=${created.code}` })}
+            onClick={() => Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${created.code}` })}
           >
             <Text className="btn-outline-text">查看相册</Text>
           </View>
@@ -288,22 +316,36 @@ export default function NewSharePage() {
             </View>
           )}
         </View>
-        <View
-          className={`btn ${(items.length === 0 || inProgress || !!restoreShareId) ? 'btn-disabled' : ''}`}
-          onClick={() => !inProgress && !restoreShareId && items.length > 0 && start()}
-        >
-          <Text className="btn-text">
-            {restoreShareId
-              ? taskStatus === 'paused' ? '已暂停' : '正在上传中'
-              : creating
-              ? '创建中…'
-              : taskStatus === 'uploading'
-              ? '上传中'
-              : taskStatus === 'paused'
-              ? '已暂停'
-              : '创建并上传'}
-          </Text>
-        </View>
+        {taskStatus === 'uploading' ? (
+          <View
+            className="btn btn-minimize"
+            onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}
+          >
+            <Text className="btn-minimize-text">最小化</Text>
+          </View>
+        ) : taskStatus === 'paused' ? (
+          <View className="btn-group">
+            <View
+              className="btn btn-small"
+              onClick={() => taskManager.resumeUpload(created!.id)}
+            >
+              <Text className="btn-text">继续</Text>
+            </View>
+          </View>
+        ) : (
+          <View
+            className={`btn ${(items.length === 0 || creating || !!restoreShareId) ? 'btn-disabled' : ''}`}
+            onClick={() => !creating && !restoreShareId && items.length > 0 && start()}
+          >
+            <Text className="btn-text">
+              {restoreShareId
+                ? taskStatus === 'paused' ? '已暂停' : '正在上传中'
+                : creating
+                ? '创建中…'
+                : '创建并上传'}
+            </Text>
+          </View>
+        )}
       </View>
       </ScrollView>
       <GlobalProgress />

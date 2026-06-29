@@ -208,9 +208,11 @@ async function runUpload(ctx: UploadCtx) {
     const workers = Array.from({ length: Math.min(CONCURRENCY, pending.length) }, () => uploadWorker());
     await Promise.all(workers);
 
-    // 完成
+    // 只有当所有项都真正完成时才标记 done
+    // （防止页面销毁导致部分项被 abort 后仍误判为"上传完成"）
+    const allDone = ctx.items.every((it) => it.status === 'done');
     const final = useTaskStore.getState().uploads[ctx.shareId];
-    if (final && final.status === 'uploading') {
+    if (allDone && final && final.status === 'uploading') {
       useTaskStore.getState().finishUpload(ctx.shareId);
       Taro.removeStorageSync(UPLOAD_STORAGE_KEY(ctx.shareId));
       notifyUpload(ctx);
@@ -351,6 +353,41 @@ export const taskManager = {
     if (!ctx) return;
     const t = useTaskStore.getState().uploads[shareId];
     if (!t || t.status === 'cancelled' || t.status === 'done') return;
+    void runUpload(ctx);
+  },
+
+  /**
+   * 强制恢复上传：用于页面被销毁（navigateBack/redirectTo）后，
+   * ctx.running 被卡在 true 状态（Promise 被微信运行时废弃），
+   * 导致普通 resumeUpload 直接 return 的情况。
+   *
+   * 会重置 running 标志，将卡在 'uploading' 的项回滚为 'pending' 以便重传。
+   */
+  forceResumeUpload(shareId: string) {
+    const ctx = uploads.get(shareId);
+    if (!ctx) return;
+    const t = useTaskStore.getState().uploads[shareId];
+    if (!t || t.status === 'cancelled' || t.status === 'done') return;
+
+    // 重置可能卡死的 running 标记
+    ctx.running = false;
+    ctx.wxTask = null;
+
+    // 将因页面销毁而卡在 'uploading' 的项回滚为 'pending'
+    let changed = false;
+    for (const item of ctx.items) {
+      if (item.status === 'uploading') {
+        item.status = 'pending';
+        item.error = undefined;
+        changed = true;
+      }
+    }
+    if (changed) {
+      persistUpload(ctx);
+      notifyUpload(ctx);
+    }
+
+    useTaskStore.getState().setUploadStatus(shareId, 'uploading');
     void runUpload(ctx);
   },
 

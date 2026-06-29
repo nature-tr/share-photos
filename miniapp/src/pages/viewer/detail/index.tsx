@@ -54,6 +54,17 @@ export default function ViewerPage() {
   const dlStatus = useTaskStore((s) => s.downloads[code]?.status);
   const saving = dlStatus === 'downloading' || dlStatus === 'paused';
 
+  // 下载进行中时，防止用户误按返回按钮销毁页面
+  useEffect(() => {
+    if (dlStatus !== 'downloading') return;
+    // @ts-expect-error Taro 类型声明可能未包含此 API
+    Taro.enableAlertBeforeUnload?.({ message: '下载正在进行中，直接返回将中断下载。请使用「最小化」按钮切换到后台继续下载。' });
+    return () => {
+      // @ts-expect-error
+      Taro.disableAlertBeforeUnload?.();
+    };
+  }, [dlStatus]);
+
   // 上传任务状态：完成时刷新 album
   const upStatus = useTaskStore((s) => (album?.id ? s.uploads[album.id]?.status : undefined));
   const lastUpStatusRef = useRef<typeof upStatus>(undefined);
@@ -408,14 +419,28 @@ export default function ViewerPage() {
             </View>
           </>
         )}
-        <View
-          className={`save-all-btn ${saving || photos.length === 0 ? 'save-all-disabled' : ''}`}
-          onClick={() => !saving && photos.length > 0 && saveAll()}
-        >
-          <Text className="save-all-btn-text">
-            {dlStatus === 'paused' ? '已暂停' : saving ? '保存中…' : '一键存到相册'}
-          </Text>
-        </View>
+        {dlStatus === 'downloading' ? (
+          <View
+            className="save-all-btn save-all-minimize"
+            onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}
+          >
+            <Text className="save-all-btn-text save-all-minimize-text">最小化</Text>
+          </View>
+        ) : dlStatus === 'paused' ? (
+          <View
+            className="save-all-btn"
+            onClick={() => taskManager.resumeDownload(code)}
+          >
+            <Text className="save-all-btn-text">继续保存</Text>
+          </View>
+        ) : (
+          <View
+            className={`save-all-btn ${photos.length === 0 ? 'save-all-disabled' : ''}`}
+            onClick={() => photos.length > 0 && saveAll()}
+          >
+            <Text className="save-all-btn-text">一键存到相册</Text>
+          </View>
+        )}
       </View>
 
       {/* 申请按钮（非 owner 非过期） */}
