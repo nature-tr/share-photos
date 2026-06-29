@@ -34,31 +34,6 @@ export async function requestWriteAlbumPermission(): Promise<boolean> {
   }
 }
 
-/* ───── 读取相册（选图上传） ───── */
-
-export async function requestReadAlbumPermission(): Promise<boolean> {
-  // 先试一次 chooseMedia，如果已有授权会直接成功
-  try {
-    await Taro.chooseMedia({ count: 1, mediaType: ['image'], sizeType: ['compressed'] });
-    return true;
-  } catch (err: any) {
-    const msg: string = err?.errMsg ?? '';
-
-    // 用户主动取消 → 不需要授权
-    if (msg.indexOf('cancel') >= 0) return false;
-
-    // scope 未被隐私指引声明 → 打开隐私协议页让用户同意
-    if (msg.indexOf('scope') >= 0 || msg.indexOf('privacy') >= 0 || msg.indexOf('declared') >= 0) {
-      try {
-        await Taro.openPrivacyContract?.({});
-      } catch { /* 部分版本不支持 openPrivacyContract */ }
-      return false; // 用户需同意后重试
-    }
-
-    return false;
-  }
-}
-
 /* ───── 通用：拒绝后引导设置页 ───── */
 
 async function guideToSetting(label: string): Promise<boolean> {
