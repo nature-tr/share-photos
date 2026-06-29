@@ -243,6 +243,20 @@ export const shareService = {
       .run();
   },
 
+  /** 批量结束分享 */
+  async batchEnd(ownerId: string, shareIds: string[]): Promise<void> {
+    for (const id of shareIds) {
+      await this.end(id, ownerId);
+    }
+  },
+
+  /** 批量永久删除分享 */
+  async batchDestroy(ownerId: string, shareIds: string[]): Promise<void> {
+    for (const id of shareIds) {
+      await this.destroy(id, ownerId);
+    }
+  },
+
   async assertOwner(shareId: string, ownerId: string) {
     const share = await db.select().from(shares).where(eq(shares.id, shareId)).get();
     if (!share) throw Errors.shareNotFound();

@@ -622,6 +622,13 @@ function PreviewModal({
               src={getMediumUrl(code, p.id)}
               className="preview-img"
               mode="aspectFit"
+              onClick={() => {
+                // 点击图片打开系统原生预览，支持双指缩放
+                Taro.previewImage({
+                  urls: photos.map((pp) => getOriginalUrl(code, pp.id)),
+                  current: getOriginalUrl(code, p.id),
+                });
+              }}
             />
           </SwiperItem>
         ))}

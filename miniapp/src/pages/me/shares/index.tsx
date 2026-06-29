@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { getMyShares, endShare, extendShare, renameShare, getShareContributors, reviewContributor, deleteShare } from '@/api/share.api';
+import { getMyShares, endShare, extendShare, renameShare, getShareContributors, reviewContributor, deleteShare, batchEndShares, batchDeleteShares } from '@/api/share.api';
 import type { ContributorInfo } from '@photo/shared/dto';
 import { useAuth } from '@/stores/auth.store';
 import { colors } from '@/theme';
@@ -44,6 +44,8 @@ export default function MySharesPage() {
   const [manageOpen, setManageOpen] = useState<{ shareId: string; code: string } | null>(null);
   const [contributors, setContributors] = useState<ContributorInfo[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   async function load() {
     setLoading(true);
@@ -156,6 +158,61 @@ export default function MySharesPage() {
     });
   }
 
+  async function onBatchEnd() {
+    if (selectedIds.size === 0) return;
+    Taro.showModal({
+      title: '批量结束',
+      content: `确认结束选中的 ${selectedIds.size} 个分享？`,
+      confirmColor: '#ef4444',
+      success: async (m) => {
+        if (!m.confirm) return;
+        try {
+          await batchEndShares(Array.from(selectedIds));
+          Taro.showToast({ title: `已结束 ${selectedIds.size} 个`, icon: 'success' });
+          setSelectMode(false);
+          setSelectedIds(new Set());
+          void load();
+        } catch {
+          Taro.showToast({ title: '操作失败', icon: 'none' });
+        }
+      },
+    });
+  }
+
+  async function onBatchDelete() {
+    if (selectedIds.size === 0) return;
+    Taro.showModal({
+      title: '批量删除',
+      content: `永久删除选中的 ${selectedIds.size} 个分享？此操作不可撤销。`,
+      confirmColor: '#ef4444',
+      success: async (m) => {
+        if (!m.confirm) return;
+        try {
+          await batchDeleteShares(Array.from(selectedIds));
+          Taro.showToast({ title: `已删除 ${selectedIds.size} 个`, icon: 'success' });
+          setSelectMode(false);
+          setSelectedIds(new Set());
+          void load();
+        } catch {
+          Taro.showToast({ title: '删除失败', icon: 'none' });
+        }
+      },
+    });
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function leaveSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
   function confirmLogout() {
     Taro.showModal({
       title: '退出登录',
@@ -198,6 +255,29 @@ export default function MySharesPage() {
         refresherTriggered={refreshing}
         onRefresherRefresh={onRefresherRefresh}
       >
+      {/* 批量操作 header */}
+      {items.length > 0 && (
+        <View className="batch-header">
+          {selectMode ? (
+            <>
+              <Text className="batch-header-count">已选 {selectedIds.size} 个</Text>
+              <View style={{ flex: 1 }} />
+              <View className="batch-header-btn" onClick={leaveSelectMode}>
+                <Text className="batch-header-btn-text">取消</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text className="batch-header-title">我的分享</Text>
+              <View style={{ flex: 1 }} />
+              <View className="batch-header-btn" onClick={() => setSelectMode(true)}>
+                <Text className="batch-header-btn-text">管理</Text>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
       {items.length === 0 ? (
         <View className="center">
           <View className="empty-icon">
@@ -216,13 +296,22 @@ export default function MySharesPage() {
             const remaining = active ? formatRemaining(item.expiresAt - now) : '—';
             const lowTime = active && item.expiresAt - now < 3600_000;
             return (
-              <View key={item.id} className="share-card">
+              <View
+                key={item.id}
+                className={`share-card ${selectMode ? 'share-card-selectable' : ''} ${selectMode && selectedIds.has(item.id) ? 'share-card-selected' : ''}`}
+                onClick={() => { if (selectMode) toggleSelect(item.id); }}
+              >
+                {selectMode && (
+                  <View className={`select-check ${selectedIds.has(item.id) ? 'select-check-on' : ''}`}>
+                    {selectedIds.has(item.id) && <Text className="select-check-icon">✓</Text>}
+                  </View>
+                )}
                 <View className="card-top">
-                  <Text className="card-title" numberOfLines={1} onClick={(e: any) => { e.stopPropagation(); onRename(item); }}>{item.title || '未命名相册'}</Text>
+                  <Text className="card-title" numberOfLines={1} onClick={(e: any) => { e.stopPropagation(); if (!selectMode) onRename(item); }}>{item.title || '未命名相册'}</Text>
                   <View className="pill" style={{ backgroundColor: st.bg }}>
                     <Text className="pill-text" style={{ color: st.color }}>{st.text}</Text>
                   </View>
-                  {(item.status === 'ended' || item.status === 'cleaned') && (
+                  {!selectMode && (item.status === 'ended' || item.status === 'cleaned') && (
                     <View className="delete-icon" onClick={(e: any) => { e.stopPropagation(); onDelete(item); }}>
                       <Image src={iconTrash('#ef4444')} className="delete-icon-img" />
                     </View>
@@ -279,6 +368,18 @@ export default function MySharesPage() {
               </View>
             );
           })}
+        </View>
+      )}
+
+      {/* 批量操作条 */}
+      {selectMode && selectedIds.size > 0 && (
+        <View className="batch-bar">
+          <View className="batch-bar-action batch-bar-end" onClick={onBatchEnd}>
+            <Text className="batch-bar-action-text">结束</Text>
+          </View>
+          <View className="batch-bar-action batch-bar-delete" onClick={onBatchDelete}>
+            <Text className="batch-bar-action-text">永久删除</Text>
+          </View>
         </View>
       )}
 

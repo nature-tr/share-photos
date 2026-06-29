@@ -24,6 +24,53 @@ const qrVisible = ref(false);
 const qrCode = ref('');
 const qrTitle = ref('');
 
+// 批量选择
+const selectMode = ref(false);
+const selectedIds = ref<Set<string>>(new Set());
+
+function toggleSelectMode() { selectMode.value = !selectMode.value; selectedIds.value = new Set(); }
+function toggleSelect(id: string) {
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  selectedIds.value = next;
+}
+async function batchEnd() {
+  if (selectedIds.value.size === 0) return;
+  const dialog = DialogPlugin.confirm({
+    header: '批量结束',
+    body: `确认结束选中的 ${selectedIds.value.size} 个分享？`,
+    confirmBtn: { content: '确认结束', theme: 'danger' },
+    onConfirm: async () => {
+      try {
+        await shareApi.batchEnd(Array.from(selectedIds.value));
+        MessagePlugin.success(`已结束 ${selectedIds.value.size} 个分享`);
+        selectMode.value = false; selectedIds.value = new Set();
+        await load();
+      } catch (err) { if (err instanceof ApiException) MessagePlugin.error(err.message); }
+      finally { dialog.destroy(); }
+    },
+    onClose: () => dialog.destroy(),
+  });
+}
+async function batchDestroy() {
+  if (selectedIds.value.size === 0) return;
+  const dialog = DialogPlugin.confirm({
+    header: '批量永久删除',
+    body: `确认永久删除选中的 ${selectedIds.value.size} 个分享？此操作不可撤销。`,
+    confirmBtn: { content: '永久删除', theme: 'danger' },
+    onConfirm: async () => {
+      try {
+        await shareApi.batchDestroy(Array.from(selectedIds.value));
+        MessagePlugin.success(`已删除 ${selectedIds.value.size} 个分享`);
+        selectMode.value = false; selectedIds.value = new Set();
+        await load();
+      } catch (err) { if (err instanceof ApiException) MessagePlugin.error(err.message); }
+      finally { dialog.destroy(); }
+    },
+    onClose: () => dialog.destroy(),
+  });
+}
+
 // 贡献者管理
 const manageVisible = ref(false);
 const manageShareId = ref('');
@@ -231,6 +278,8 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
         <p class="page-sub">{{ total }} 个分享 · 管理你创建的所有相册</p>
       </div>
       <div class="header-btns">
+        <t-button v-if="selectMode" variant="text" @click="toggleSelectMode">取消</t-button>
+        <t-button v-else variant="outline" @click="toggleSelectMode">管理</t-button>
         <t-button variant="outline" :loading="refreshing" @click="load">
           <template #icon><span class="i-tdesign:refresh"></span></template>
         </t-button>
@@ -255,14 +304,22 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
       </div>
 
       <div v-else class="grid">
-        <div v-for="s in items" :key="s.id" class="card" :class="statusInfo(s).cls">
+        <div
+          v-for="s in items" :key="s.id" class="card"
+          :class="[statusInfo(s).cls, { 'card-selectable': selectMode, 'card-selected': selectMode && selectedIds.has(s.id) }]"
+          @click="selectMode && toggleSelect(s.id)"
+        >
+          <!-- 选择 checkbox -->
+          <div v-if="selectMode" class="select-check" :class="{ 'select-check-on': selectedIds.has(s.id) }">
+            <span v-if="selectedIds.has(s.id)">✓</span>
+          </div>
           <div class="card-head">
             <div class="title-line">
               <h3
                 class="title"
-                :class="{ 'title-editable': s.status === 'active' }"
-                :title="s.status === 'active' ? '点击重命名' : ''"
-                @click="s.status === 'active' && renameShare(s)"
+                :class="{ 'title-editable': s.status === 'active' && !selectMode }"
+                :title="s.status === 'active' && !selectMode ? '点击重命名' : ''"
+                @click.stop="!selectMode && s.status === 'active' && renameShare(s)"
               >{{ s.title || '未命名相册' }}</h3>
               <span class="status-pill">
                 <span class="status-dot"></span>
@@ -352,6 +409,12 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
             </button>
           </div>
         </div>
+      </div>
+
+      <div v-if="selectMode && selectedIds.size > 0" class="batch-bar">
+        <span class="batch-bar-info">已选 {{ selectedIds.size }} 个</span>
+        <t-button theme="warning" @click="batchEnd">批量结束</t-button>
+        <t-button theme="danger" @click="batchDestroy">批量永久删除</t-button>
       </div>
 
       <div v-if="total > pageSize" class="pagination">
@@ -500,8 +563,61 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
   transform: translateY(-2px);
 }
 
+.card.card-selectable {
+  cursor: pointer;
+  padding-left: 52px;
+  position: relative;
+}
+
+.card.card-selected {
+  background: rgba(37, 99, 235, 0.04);
+  border-color: var(--primary);
+}
+
 .card.st-cleaned {
   opacity: 0.7;
+}
+
+.select-check {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  z-index: 2;
+}
+
+.select-check-on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* 批量操作条 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.batch-bar-info {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .card-head {

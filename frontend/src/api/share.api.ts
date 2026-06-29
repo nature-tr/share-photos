@@ -34,6 +34,12 @@ export const shareApi = {
   destroy(shareId: string) {
     return request<void>(`/api/shares/${shareId}/destroy`, { method: 'POST' });
   },
+  batchEnd(shareIds: string[]) {
+    return request<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } });
+  },
+  batchDestroy(shareIds: string[]) {
+    return request<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } });
+  },
 
   // 凭码访问（公开，带可选认证获取 isOwner）
   getByCode(code: string, page?: number, pageSize?: number) {

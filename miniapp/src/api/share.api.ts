@@ -80,6 +80,16 @@ export async function deleteShare(shareId: string) {
   }
 }
 
+/** 批量结束分享 */
+export async function batchEndShares(shareIds: string[]) {
+  return api<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } });
+}
+
+/** 批量永久删除分享 */
+export async function batchDeleteShares(shareIds: string[]) {
+  return api<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } });
+}
+
 /* ─── 贡献者 ─── */
 
 /** 凭分享码申请加入 */

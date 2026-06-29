@@ -81,3 +81,27 @@
 .manage-reject-text { color: var(--color-danger); font-size: 24rpx; font-weight: 600; line-height: 1; }
 .manage-close { margin-top: 24rpx; padding: 8rpx 32rpx; align-self: center; flex-shrink: 0; }
 .manage-close-text { font-size: 26rpx; color: var(--color-text3); line-height: 1; }
+
+/* ─── 批量操作 ─── */
+.batch-header { display: flex; flex-direction: row; align-items: center; padding: 24rpx 32rpx 8rpx; }
+.batch-header-title { font-size: 34rpx; font-weight: 700; color: var(--color-text1); line-height: 1.3; }
+.batch-header-count { font-size: 28rpx; font-weight: 600; color: var(--color-primary); line-height: 1.3; }
+.batch-header-btn { padding: 12rpx 28rpx; background: var(--color-surface-soft); border: 1rpx solid var(--color-border); border-radius: 9999rpx; }
+.batch-header-btn-text { font-size: 24rpx; font-weight: 600; color: var(--color-text1); line-height: 1; }
+
+/* 选择模式卡片 */
+.share-card-selectable { padding-left: 72rpx; }
+.share-card-selected { background: var(--color-primary-softer); }
+
+.select-check { position: absolute; left: 20rpx; top: 50%; transform: translateY(-50%); width: 44rpx; height: 44rpx; border-radius: 22rpx; border: 3rpx solid var(--color-border); display: flex; align-items: center; justify-content: center; z-index: 2; }
+.select-check-on { background: var(--color-primary); border-color: var(--color-primary); }
+.select-check-icon { color: #fff; font-size: 28rpx; font-weight: 700; line-height: 1; }
+
+/* 批量操作条 */
+.batch-bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--color-surface); padding: 24rpx 32rpx; padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--color-border); z-index: 100; display: flex; flex-direction: row; gap: 20rpx; }
+.batch-bar-action { flex: 1; height: 84rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
+.batch-bar-end { background: var(--color-warning-soft, #fef3c7); }
+.batch-bar-delete { background: var(--color-danger-soft); }
+.batch-bar-action-text { font-size: 28rpx; font-weight: 600; line-height: 1; }
+.batch-bar-end .batch-bar-action-text { color: #f59e0b; }
+.batch-bar-delete .batch-bar-action-text { color: var(--color-danger); }

@@ -73,6 +73,24 @@ export async function shareRoutes(app: FastifyInstance): Promise<void> {
     reply.code(204).send();
   });
 
+  // ─── 批量操作 ───
+
+  // 批量结束分享
+  app.post('/batch-end', async (req, reply) => {
+    const { shareIds } = z.object({ shareIds: z.array(entityIdSchema).min(1).max(100) }).parse(req.body);
+    const userId = req.currentUser!.sub;
+    await shareService.batchEnd(userId, shareIds);
+    reply.code(204).send();
+  });
+
+  // 批量永久删除分享
+  app.post('/batch-destroy', async (req, reply) => {
+    const { shareIds } = z.object({ shareIds: z.array(entityIdSchema).min(1).max(100) }).parse(req.body);
+    const userId = req.currentUser!.sub;
+    await shareService.batchDestroy(userId, shareIds);
+    reply.code(204).send();
+  });
+
   // ─── 贡献者管理 ───
 
   // 列出所有贡献者（含 pending）
