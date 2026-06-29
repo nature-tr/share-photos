@@ -2,6 +2,7 @@ import { PropsWithChildren } from 'react';
 import { useLaunch } from '@tarojs/taro';
 import { useAuth } from '@/stores/auth.store';
 import PrivacyConsent from '@/components/PrivacyConsent';
+import GlobalProgress from '@/components/GlobalProgress';
 import './app.scss';
 
 function App({ children }: PropsWithChildren) {
@@ -15,6 +16,7 @@ function App({ children }: PropsWithChildren) {
     <>
       {children}
       <PrivacyConsent />
+      <GlobalProgress />
     </>
   );
 }

@@ -4,7 +4,6 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';
 import { getHistory, saveHistoryList } from '@/utils/history';
 import { getViewerShare } from '@/api/share.api';
-import GlobalProgress from '@/components/GlobalProgress';
 import {
   iconAdd,
   iconList,
@@ -154,7 +153,6 @@ export default function IndexPage() {
 
       <View style={{ height: '64rpx' }} />
       <Text className="footer-text">格子橱窗 · v0.1</Text>
-      <GlobalProgress />
     </ScrollView>
   );
 }

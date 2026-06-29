@@ -7,7 +7,6 @@ import { useTaskStore } from '@/stores/task.store';
 import { taskManager, type UploadItem } from '@/stores/task.manager';
 import { pickImagesFromAlbum } from '@/utils/hooks';
 import QrSheet from '@/components/QrSheet';
-import GlobalProgress from '@/components/GlobalProgress';
 import './index.scss';
 
 function formatBytes(bytes: number) {
@@ -348,7 +347,6 @@ export default function NewSharePage() {
         )}
       </View>
       </ScrollView>
-      <GlobalProgress />
     </>
   );
 }
