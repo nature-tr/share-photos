@@ -125,6 +125,70 @@ function endShare(s: ShareSummary) {
   });
 }
 
+async function renameShare(s: ShareSummary) {
+  const dialog = DialogPlugin({
+    header: '重命名相册',
+    body: '',
+    footer: false,
+    onClose: () => dialog.destroy(),
+  });
+  // 手动构建含输入框的内容
+  const el = document.createElement('div');
+  el.style.padding = '16px 0';
+  el.innerHTML = `
+    <input id="rename-input" type="text" maxlength="50" value="${escapeHtml(s.title || '')}"
+      placeholder="输入新名称" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" />
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+      <button id="rename-cancel" style="padding:8px 20px;border:1px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;font-size:14px;">取消</button>
+      <button id="rename-confirm" style="padding:8px 20px;border:none;border-radius:8px;background:var(--primary,#2563eb);color:white;cursor:pointer;font-size:14px;font-weight:600;">确认</button>
+    </div>`;
+  // 找到 dialog body 容器插入
+  const body = (dialog as any).$el?.querySelector?.('.t-dialog__body') as HTMLElement | null;
+  if (body) body.appendChild(el);
+
+  const input = el.querySelector('#rename-input') as HTMLInputElement | null;
+  input?.focus();
+  input?.select();
+
+  el.querySelector('#rename-cancel')?.addEventListener('click', () => dialog.destroy());
+  el.querySelector('#rename-confirm')?.addEventListener('click', async () => {
+    const v = input?.value.trim() ?? '';
+    if (!v) { MessagePlugin.warning('名称不能为空'); return; }
+    try {
+      await shareApi.rename(s.id, v);
+      s.title = v;
+      MessagePlugin.success('已重命名');
+      dialog.destroy();
+    } catch (err) {
+      if (err instanceof ApiException) MessagePlugin.error(err.message);
+    }
+  });
+}
+
+async function destroyShare(s: ShareSummary) {
+  const dialog = DialogPlugin.confirm({
+    header: '永久删除',
+    body: `确认永久删除分享「${s.title || s.code}」？\n该操作不可撤销，所有图片数据将被彻底清除。`,
+    confirmBtn: { content: '永久删除', theme: 'danger' },
+    onConfirm: async () => {
+      try {
+        await shareApi.destroy(s.id);
+        MessagePlugin.success('已永久删除');
+        await load();
+      } catch (err) {
+        if (err instanceof ApiException) MessagePlugin.error(err.message);
+      } finally {
+        dialog.destroy();
+      }
+    },
+    onClose: () => dialog.destroy(),
+  });
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function viewAlbum(code: string) {
   const url = router.resolve({ name: 'viewer', params: { code } }).href;
   window.open(url, '_blank');
@@ -194,7 +258,12 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
         <div v-for="s in items" :key="s.id" class="card" :class="statusInfo(s).cls">
           <div class="card-head">
             <div class="title-line">
-              <h3 class="title">{{ s.title || '未命名相册' }}</h3>
+              <h3
+                class="title"
+                :class="{ 'title-editable': s.status === 'active' }"
+                :title="s.status === 'active' ? '点击重命名' : ''"
+                @click="s.status === 'active' && renameShare(s)"
+              >{{ s.title || '未命名相册' }}</h3>
               <span class="status-pill">
                 <span class="status-dot"></span>
                 {{ statusInfo(s).text }}
@@ -273,6 +342,14 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
             >
               结束
             </t-button>
+            <button
+              v-if="s.status === 'ended' || s.status === 'cleaned'"
+              class="icon-btn icon-btn-danger"
+              title="永久删除"
+              @click="destroyShare(s)"
+            >
+              <span class="i-tdesign:delete text-16px"></span>
+            </button>
           </div>
         </div>
       </div>
@@ -451,6 +528,16 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
   flex: 1;
   min-width: 0;
 }
+.title-editable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: background var(--transition-fast);
+}
+.title-editable:hover {
+  background: var(--surface-hover);
+}
 
 .status-pill {
   display: inline-flex;
@@ -557,6 +644,15 @@ async function handleReview(userId: string, action: 'accepted' | 'rejected') {
 .icon-btn:hover {
   background: var(--surface-hover);
   color: var(--primary);
+}
+
+.icon-btn-danger {
+  color: var(--text-3);
+  margin-left: auto;
+}
+.icon-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
 }
 
 /* —— Meta —— */

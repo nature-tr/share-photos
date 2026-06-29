@@ -28,6 +28,12 @@ export const shareApi = {
   end(shareId: string) {
     return request<void>(`/api/shares/${shareId}`, { method: 'DELETE' });
   },
+  rename(shareId: string, title: string) {
+    return request<void>(`/api/shares/${shareId}/rename`, { method: 'PATCH', body: { title } });
+  },
+  destroy(shareId: string) {
+    return request<void>(`/api/shares/${shareId}/destroy`, { method: 'POST' });
+  },
 
   // 凭码访问（公开，带可选认证获取 isOwner）
   getByCode(code: string, page?: number, pageSize?: number) {
