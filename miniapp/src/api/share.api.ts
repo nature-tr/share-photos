@@ -82,12 +82,14 @@ export async function deleteShare(shareId: string) {
 
 /** 批量结束分享 */
 export async function batchEndShares(shareIds: string[]) {
-  return api<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } });
+  const res = await api<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } });
+  if (res.error) throw new Error(res.error.message || '批量结束失败');
 }
 
 /** 批量永久删除分享 */
 export async function batchDeleteShares(shareIds: string[]) {
-  return api<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } });
+  const res = await api<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } });
+  if (res.error) throw new Error(res.error.message || '批量删除失败');
 }
 
 /* ─── 贡献者 ─── */
