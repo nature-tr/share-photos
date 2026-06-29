@@ -7,7 +7,7 @@ import { useTaskStore } from '@/stores/task.store';
 import { taskManager, type UploadItem } from '@/stores/task.manager';
 import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils/history';
 import { useNow, pickImagesFromAlbum } from '@/utils/hooks';
-import { requestAlbumPermission } from '@/utils/permission';
+import { requestWriteAlbumPermission } from '@/utils/permission';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
@@ -309,7 +309,7 @@ export default function ViewerPage() {
 
   /** 在预览弹窗中保存当前图片到相册 */
   async function saveCurrent(photoId: string) {
-    const ok = await requestAlbumPermission();
+    const ok = await requestWriteAlbumPermission();
     if (!ok) return;
     const url = getOriginalUrl(code, photoId);
     try {

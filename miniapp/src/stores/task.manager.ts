@@ -14,7 +14,7 @@
 import Taro from '@tarojs/taro';
 import { useTaskStore } from './task.store';
 import { useAuth, API_BASE } from './auth.store';
-import { requestAlbumPermission } from '../utils/permission';
+import { requestWriteAlbumPermission } from '../utils/permission';
 
 /* ────────────────── 公共类型 ────────────────── */
 
@@ -242,7 +242,7 @@ async function runDownload(ctx: DownloadCtx) {
   try {
     // 批量下载前先请求相册权限
     if (ctx.cursor === 0) {
-      const granted = await requestAlbumPermission();
+      const granted = await requestWriteAlbumPermission();
       if (!granted) {
         useTaskStore.getState().cancelDownload(ctx.code);
         ctx.running = false;
