@@ -45,32 +45,37 @@ export interface PickImagesResult {
 /**
  * 弹出 actionSheet 让用户选择「原图 / 压缩」，再调用 chooseMedia。
  * 始终 resolve，通过 reason 区分是用户取消还是权限被拒绝。
+ *
+ * 关键：chooseMedia 必须在异步函数顶层调用，不能嵌套在 showActionSheet
+ * 的回调里。微信的隐私授权流程（onNeedPrivacyAuthorization→resolve→重试）
+ * 无法穿透嵌套回调的微任务边界，导致 errno 112 永不恢复。
  */
-export function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickImagesResult> {
+export async function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<PickImagesResult> {
   const { count = 9 } = opts;
-  return new Promise((resolve) => {
+
+  // 第一步：弹出「原图 / 压缩」选择，用 Promise 在顶层等待结果
+  const compressed = await new Promise<boolean | null>((resolve) => {
     Taro.showActionSheet({
       itemList: ['原图', '压缩'],
-      success: (sheet) => {
-        const compressed = sheet.tapIndex === 1;
-        Taro.chooseMedia({
-          count,
-          mediaType: ['image'],
-          sizeType: compressed ? ['compressed'] : ['original'],
-          success: (res) => {
-            resolve({ items: res.tempFiles.map((f) => ({ path: f.tempFilePath, size: f.size })) });
-          },
-          fail: (err: any) => {
-            const msg: string = err?.errMsg ?? '';
-            if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('permission') >= 0 || msg.indexOf('privacy') >= 0 || msg.indexOf('scope') >= 0) {
-              resolve({ items: [], reason: 'denied' });
-            } else {
-              resolve({ items: [], reason: 'cancel' });
-            }
-          },
-        });
-      },
-      fail: () => resolve({ items: [], reason: 'cancel' }),
+      success: (sheet) => resolve(sheet.tapIndex === 1),
+      fail: () => resolve(null),
     });
   });
+  if (compressed === null) return { items: [], reason: 'cancel' };
+
+  // 第二步：在顶层调用 chooseMedia（不嵌套！）
+  try {
+    const res = await Taro.chooseMedia({
+      count,
+      mediaType: ['image'],
+      sizeType: compressed ? ['compressed'] : ['original'],
+    });
+    return { items: res.tempFiles.map((f) => ({ path: f.tempFilePath, size: f.size })) };
+  } catch (err: any) {
+    const msg: string = err?.errMsg ?? '';
+    if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0 || msg.indexOf('authorize') >= 0 || msg.indexOf('permission') >= 0 || msg.indexOf('privacy') >= 0 || msg.indexOf('scope') >= 0) {
+      return { items: [], reason: 'denied' };
+    }
+    return { items: [], reason: 'cancel' };
+  }
 }
