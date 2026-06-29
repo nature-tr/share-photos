@@ -20,7 +20,6 @@ export function useNow(intervalMs: number = 1000): number {
 /* ─── chooseMedia ─── */
 
 import Taro from '@tarojs/taro';
-import { requestReadAlbumPermission } from './permission';
 
 export interface PickedImage {
   /** 临时文件路径 */
@@ -64,10 +63,7 @@ export async function pickImagesFromAlbum(opts: PickImagesOpts = {}): Promise<Pi
   });
   if (compressed === null) return { items: [], reason: 'cancel' };
 
-  // 第二步：预热隐私授权（chooseMedia 没有 scope，需要提前走授权流程）
-  await requestReadAlbumPermission();
-
-  // 第三步：在顶层调用 chooseMedia（不嵌套！）
+  // 第二步：在顶层调用 chooseMedia（不嵌套！）
   try {
     const res = await Taro.chooseMedia({
       count,

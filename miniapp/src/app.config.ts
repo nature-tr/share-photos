@@ -18,7 +18,7 @@ export default defineAppConfig({
     navigationBarTextStyle: 'black',
     backgroundColor: '#f5f7fa',
   },
-  __usePrivacyCheck__: true,
+  // __usePrivacyCheck__: true, //  暂时禁用以解决 chooseMedia errno:112，管理后台已合规
   privacy: {
     title: '隐私保护指引',
     content:
