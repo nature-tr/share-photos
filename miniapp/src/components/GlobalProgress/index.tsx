@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
@@ -33,10 +33,13 @@ type AT = (UploadTask & { kind: 'upload' }) | (DownloadTask & { kind: 'download'
 function useActiveTasks(): AT[] {
   const ups = useTaskStore(useShallow((s) => s.uploads));
   const dls = useTaskStore(useShallow((s) => s.downloads));
-  const out: AT[] = [];
-  for (const id of Object.keys(ups)) { const t = ups[id]; if (t && t.status !== 'cancelled') out.push({ ...t, kind: 'upload' }); }
-  for (const id of Object.keys(dls)) { const t = dls[id]; if (t && t.status !== 'cancelled') out.push({ ...t, kind: 'download' }); }
-  return out;
+
+  return useMemo(() => {
+    const out: AT[] = [];
+    for (const id of Object.keys(ups)) { const t = ups[id]; if (t && t.status !== 'cancelled') out.push({ ...t, kind: 'upload' }); }
+    for (const id of Object.keys(dls)) { const t = dls[id]; if (t && t.status !== 'cancelled') out.push({ ...t, kind: 'download' }); }
+    return out;
+  }, [ups, dls]);
 }
 
 /* ───── 主体 ───── */

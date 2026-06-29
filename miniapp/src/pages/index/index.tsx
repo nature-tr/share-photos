@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';
@@ -20,12 +20,16 @@ interface HistoryItem { code: string; title: string; lastViewedAt: number; photo
 export default function IndexPage() {
   const storeUser = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
-  // 首次渲染直接读 storage 保底，logout后不再使用保底值
+  // 首次渲染直接读 storage 保底
   const [storageUser, setStorageUser] = useState(() => getUserFromStorage());
-  if (storeUser === null && storageUser !== null) {
-    // logout 发生，同步清空保底值（在下一次渲染生效）
-    setStorageUser(null);
-  }
+
+  // logout 发生时同步清空保底值（在 useEffect 而非 render 中执行副作用）
+  useEffect(() => {
+    if (storeUser === null && storageUser !== null) {
+      setStorageUser(null);
+    }
+  }, [storeUser, storageUser]);
+
   const user = storeUser ?? storageUser;
   const [code, setCode] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);

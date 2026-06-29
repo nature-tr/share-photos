@@ -203,14 +203,21 @@ export default function ViewerPage() {
     if (!album || loadMore || !hasMore) return;
     setLoadMore(true);
     const nextPage = page + 1;
-    getViewerShare(code, nextPage, PAGE_SIZE).then((res) => {
+    try {
+      const res = await getViewerShare(code, nextPage, PAGE_SIZE);
       if (res.data) {
         const data = res.data as ShareDetail;
         setAlbum((prev) => prev ? { ...prev, photos: [...prev.photos, ...data.photos] } : data);
         setPage(nextPage);
         setHasMore((res.data as any).hasMore ?? false);
+      } else if (res.error) {
+        Taro.showToast({ title: res.error.message ?? '加载失败', icon: 'none' });
       }
-    }).finally(() => setLoadMore(false));
+    } catch {
+      Taro.showToast({ title: '加载失败，请重试', icon: 'none' });
+    } finally {
+      setLoadMore(false);
+    }
   }
 
   /** 上传新照片（owner 或 accepted 贡献者均可） */
@@ -345,12 +352,24 @@ export default function ViewerPage() {
     // 收齐所有 photoId（manager 不发请求拉取分页）
     let allPhotos = [...album.photos];
     if (allPhotos.length < totalCount) {
+      Taro.showLoading({ title: '加载列表中…' });
       const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      let hasError = false;
       for (let pg = 2; pg <= totalPages; pg++) {
-        const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
-        if (pageRes.data) {
-          allPhotos.push(...(pageRes.data as ShareDetail).photos);
+        try {
+          const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
+          if (pageRes.data) {
+            allPhotos.push(...(pageRes.data as ShareDetail).photos);
+          } else {
+            hasError = true;
+          }
+        } catch {
+          hasError = true;
         }
+      }
+      Taro.hideLoading();
+      if (hasError) {
+        Taro.showToast({ title: '部分照片加载失败，将保存已加载的照片', icon: 'none' });
       }
     }
 

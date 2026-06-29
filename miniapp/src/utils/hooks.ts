@@ -2,16 +2,27 @@
  * 通用 Hooks（小工具集）
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * 1Hz（默认）的"当前时间"，用于显示倒计时/剩余时长。
- * 用 hook 局部订阅，避免在多个页面重复写 setInterval/setNow。
+ *
+ * 优化：使用 ref 跟踪上一次的"秒级时间戳"，只有当秒级发生变化时才 setState，
+ * 避免每秒触发不必要的重渲染（即使 interval 是 1s，setInterval 也可能因 JS 调度
+ * 在 900ms 就触发，导致同一秒内多次 setState）。
  */
 export function useNow(intervalMs: number = 1000): number {
   const [now, setNow] = useState(() => Date.now());
+  const lastSecond = useRef(Math.floor(Date.now() / intervalMs));
+
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    const t = setInterval(() => {
+      const cur = Math.floor(Date.now() / intervalMs);
+      if (cur !== lastSecond.current) {
+        lastSecond.current = cur;
+        setNow(Date.now());
+      }
+    }, intervalMs);
     return () => clearInterval(t);
   }, [intervalMs]);
   return now;

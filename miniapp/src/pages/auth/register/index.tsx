@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { register } from '@/api/auth.api';
@@ -13,6 +13,12 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 组件卸载时清理 redirect timer
+  useEffect(() => () => {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+  }, []);
 
   async function onSubmit() {
     if (!email.trim() || !password) {
@@ -33,7 +39,10 @@ export default function RegisterPage() {
       if (res.data) {
         setAuth(res.data.user, res.data.accessToken, res.data.refreshToken, res.data.refreshExpiresAt);
         Taro.showToast({ title: '注册成功', icon: 'success' });
-        setTimeout(() => Taro.redirectTo({ url: '/pages/index/index' }), 800);
+        redirectTimer.current = setTimeout(() => {
+          redirectTimer.current = null;
+          Taro.redirectTo({ url: '/pages/index/index' });
+        }, 800);
       } else {
         Taro.showToast({ title: res.error?.message ?? '注册失败', icon: 'none' });
       }
