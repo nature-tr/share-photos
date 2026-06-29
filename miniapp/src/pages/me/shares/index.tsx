@@ -452,10 +452,12 @@ export default function MySharesPage() {
       )}
 
       {/* FAB 新建分享 */}
+      {!selectMode && (
       <View className="fab" onClick={() => Taro.navigateTo({ url: '/pages/me/new/index' })}>
         <Text className="fab-icon">+</Text>
         <Text className="fab-text">新建分享</Text>
       </View>
+      )}
 
       {/* 二维码弹层 */}
       <QrSheet
