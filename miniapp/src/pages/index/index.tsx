@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { useAuth, getUserFromStorage } from '@/stores/auth.store';
@@ -33,8 +33,11 @@ export default function IndexPage() {
   const user = storeUser ?? storageUser;
   const [code, setCode] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  // 防止 useDidShow 的异步验证在组件卸载后 setState
+  const showSeq = useRef(0);
 
   useDidShow(() => {
+    const seq = ++showSeq.current;
     const raw = getHistory();
     setHistory(raw);
     // 后台验证：移除失效分享 + 同步重命名
@@ -51,6 +54,7 @@ export default function IndexPage() {
             .catch(() => ({ code: h.code, invalid: true })),
         ),
       ).then((results) => {
+        if (showSeq.current !== seq) return; // 页面已离开，不更新
         const hasChange = results.some((r) => r !== null);
         if (!hasChange) return;
         let list = getHistory();

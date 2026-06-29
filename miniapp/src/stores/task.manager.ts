@@ -200,7 +200,9 @@ async function runUpload(ctx: UploadCtx) {
         ctx.failed = failed;
         persistUpload(ctx);
         notifyUpload(ctx);
-        useTaskStore.getState().updateUpload(ctx.shareId, done, failed);
+        // 使用 ctx.done/ctx.failed（共享引用），而非局部 done/failed，
+        // 防止并发 worker 先后完成时局部变量互相覆盖导致进度倒退
+        useTaskStore.getState().updateUpload(ctx.shareId, ctx.done, ctx.failed);
       }
     };
 

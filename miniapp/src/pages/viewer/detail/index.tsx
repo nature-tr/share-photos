@@ -70,7 +70,8 @@ export default function ViewerPage() {
   const uploadingMore = upStatus === 'uploading' || upStatus === 'paused';
 
   useLoad((options) => {
-    const c = (options?.code as string) ?? '';
+    const c = String(options?.code ?? '');
+    if (!c) return;
     setCode(c.toUpperCase());
     // 只有从最近浏览点进来才恢复滚动位置
     if (options?.fromHistory === '1') {
@@ -85,7 +86,8 @@ export default function ViewerPage() {
   useEffect(() => {
     const prev = lastUpStatusRef.current;
     lastUpStatusRef.current = upStatus;
-    if (prev && prev !== 'done' && upStatus === 'done') {
+    // prev 初始为 undefined，不能用 prev && 短路（否则首次 done 时跳过了）
+    if (prev !== 'done' && upStatus === 'done') {
       getViewerShare(code, 1, PAGE_SIZE).then((res) => {
         if (res.data) {
           setAlbum(res.data as ShareDetail);
