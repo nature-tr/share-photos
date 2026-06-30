@@ -161,7 +161,6 @@ export default function IndexPage() {
       )}
 
       <View style={{ height: '64rpx' }} />
-      <Text className="footer-text">格子橱窗 · v0.1</Text>
       <GlobalProgress />
     </ScrollView> 
   );
