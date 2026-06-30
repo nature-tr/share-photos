@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
@@ -11,9 +11,6 @@ import './index.scss';
 
 const STORAGE_KEY = 'gp_pos_v1';
 interface Pos { y: number; ballX?: number; collapsed: boolean }
-function loadPos(): Pos | null {
-  try { const r = Taro.getStorageSync(STORAGE_KEY); return r ? JSON.parse(r) as Pos : null; } catch { return null; }
-}
 function savePos(p: Pos) {
   try { Taro.setStorageSync(STORAGE_KEY, JSON.stringify(p)); } catch { /* */ }
 }
@@ -57,19 +54,7 @@ export default function GlobalProgress() {
   const shield = useTaskStore((s) => s.gpShield);
   const setShield = useTaskStore((s) => s.setGpShield);
 
-  /* 初次挂载时从 storage 恢复（仅对当前组件实例初始值，store 里已有默认 0） */
-  const initDone = useRef(false);
-  useEffect(() => {
-    if (initDone.current) return;
-    initDone.current = true;
-    const saved = loadPos();
-    if (saved) {
-      setGpPos(saved.y ?? Math.max(SAFE_T, H - 240), saved.ballX ?? W - BALL_H - MARGIN, saved.collapsed ?? false);
-    } else {
-      setGpPos(Math.max(SAFE_T, H - 240), W - BALL_H - MARGIN, false);
-    }
-  }, []);
-
+  /* 位置初始化已在 app.tsx useLaunch 中完成，此处不再读 storage */
   /* collapsed 变化时夹 y 到合法范围 */
   useEffect(() => {
     const newY = clamp(y, SAFE_T, H - (collapsed ? BALL_H : CARD_H) - SAFE_B);

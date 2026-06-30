@@ -9,6 +9,7 @@ import { addBrowsingHistory, updateLastPosition, getLastPosition } from '@/utils
 import { useNow, pickImagesFromAlbum } from '@/utils/hooks';
 import { requestWriteAlbumPermission } from '@/utils/permission';
 import QrSheet from '@/components/QrSheet';
+import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
 import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
@@ -569,6 +570,7 @@ export default function ViewerPage() {
         />
       )}
       </ScrollView>
+      <GlobalProgress />
     </>
   );
 }
