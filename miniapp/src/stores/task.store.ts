@@ -113,7 +113,9 @@ export const useTaskStore = create<TaskState>((set) => ({
   updateUpload: (shareId, done, failed) =>
     set((s) => {
       const e = s.uploads[shareId];
-      if (!e || e.status !== 'uploading') return s;
+      // 不检查 status：manager 控制流程，store 只管记录数据。
+      // 如果检查 status !== 'uploading'，暂停/恢复时会丢失已完成的进度更新。
+      if (!e) return s;
       return patchUpload(s, shareId, { done, failed });
     }),
 
@@ -141,7 +143,8 @@ export const useTaskStore = create<TaskState>((set) => ({
   updateDownload: (shareCode, done, failed) =>
     set((s) => {
       const e = s.downloads[shareCode];
-      if (!e || e.status !== 'downloading') return s;
+      // 不检查 status，同上
+      if (!e) return s;
       return patchDownload(s, shareCode, { done, failed });
     }),
 
