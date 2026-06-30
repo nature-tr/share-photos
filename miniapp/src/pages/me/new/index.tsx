@@ -71,18 +71,6 @@ export default function NewSharePage() {
     unsubRef.current = null;
   }, []);
 
-  // 上传进行中时，防止用户误按返回按钮销毁页面
-  // 微信不支持静默拦截返回，只能用原生 Alert 警告用户
-  useEffect(() => {
-    if (taskStatus !== 'uploading') return;
-    // @ts-expect-error Taro 类型声明可能未包含此 API
-    Taro.enableAlertBeforeUnload?.({ message: '上传正在进行中，直接返回将中断上传。请使用「最小化」按钮切换到后台继续上传。' });
-    return () => {
-      // @ts-expect-error
-      Taro.disableAlertBeforeUnload?.();
-    };
-  }, [taskStatus]);
-
   /* ── 任务状态（仅用于 UI 文案） ── */
   const taskStatus = useTaskStore((s) => (created?.id ? s.uploads[created.id]?.status : undefined));
 
@@ -316,14 +304,7 @@ export default function NewSharePage() {
             </View>
           )}
         </View>
-        {taskStatus === 'uploading' ? (
-          <View
-            className="btn btn-minimize"
-            onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}
-          >
-            <Text className="btn-minimize-text">最小化</Text>
-          </View>
-        ) : taskStatus === 'paused' ? (
+        {taskStatus === 'paused' ? (
           <View className="btn-group">
             <View
               className="btn btn-small"
@@ -334,7 +315,7 @@ export default function NewSharePage() {
           </View>
         ) : (
           <View
-            className={`btn ${(items.length === 0 || creating || !!restoreShareId) ? 'btn-disabled' : ''}`}
+            className={`btn ${(items.length === 0 || creating || !!restoreShareId || taskStatus === 'uploading') ? 'btn-disabled' : ''}`}
             onClick={() => !creating && !restoreShareId && items.length > 0 && start()}
           >
             <Text className="btn-text">
@@ -342,6 +323,8 @@ export default function NewSharePage() {
                 ? taskStatus === 'paused' ? '已暂停' : '正在上传中'
                 : creating
                 ? '创建中…'
+                : taskStatus === 'uploading'
+                ? '上传中'
                 : '创建并上传'}
             </Text>
           </View>

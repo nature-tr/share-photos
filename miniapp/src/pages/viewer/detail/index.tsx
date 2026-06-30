@@ -54,16 +54,6 @@ export default function ViewerPage() {
   const dlStatus = useTaskStore((s) => s.downloads[code]?.status);
   const saving = dlStatus === 'downloading' || dlStatus === 'paused';
 
-  // 下载进行中时，防止用户误按返回按钮销毁页面
-  useEffect(() => {
-    if (dlStatus !== 'downloading') return;
-    // @ts-expect-error Taro 类型声明可能未包含此 API
-    Taro.enableAlertBeforeUnload?.({ message: '下载正在进行中，直接返回将中断下载。请使用「最小化」按钮切换到后台继续下载。' });
-    return () => {
-      // @ts-expect-error
-      Taro.disableAlertBeforeUnload?.();
-    };
-  }, [dlStatus]);
 
   // 上传任务状态：完成时刷新 album
   const upStatus = useTaskStore((s) => (album?.id ? s.uploads[album.id]?.status : undefined));
@@ -441,11 +431,8 @@ export default function ViewerPage() {
           </>
         )}
         {dlStatus === 'downloading' ? (
-          <View
-            className="save-all-btn save-all-minimize"
-            onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}
-          >
-            <Text className="save-all-btn-text save-all-minimize-text">最小化</Text>
+          <View className="save-all-btn save-all-disabled">
+            <Text className="save-all-btn-text">保存中…</Text>
           </View>
         ) : dlStatus === 'paused' ? (
           <View

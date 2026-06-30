@@ -108,12 +108,5 @@
 }
 .btn-outline-text { color: var(--color-text1); font-size: 30rpx; font-weight: 600; line-height: 1; }
 
-/* ───── 最小化按钮（上传中） ───── */
-.btn-minimize {
-  background: var(--color-surface);
-  border: 2rpx solid var(--color-primary);
-}
-.btn-minimize-text { color: var(--color-primary); font-size: 28rpx; font-weight: 600; line-height: 1; }
-
 .btn-group { display: flex; flex-direction: row; gap: 16rpx; margin-left: 24rpx; flex-shrink: 0; }
 .btn-small { padding: 0 28rpx; height: 76rpx; }

@@ -24,10 +24,6 @@
 .save-all-btn-text { color: #fff; font-size: 24rpx; font-weight: 600; line-height: 1; white-space: nowrap; }
 .save-all-disabled { opacity: 0.5; }
 
-/* 最小化按钮（下载中） */
-.save-all-minimize { background: var(--color-surface); border: 2rpx solid var(--color-primary); }
-.save-all-minimize-text { color: var(--color-primary); }
-
 .grid { display: flex; flex-direction: row; flex-wrap: wrap; padding: 12rpx; padding-bottom: 160rpx; }
 .grid-item { width: calc(33.33% - 6rpx); margin: 3rpx; aspect-ratio: 1; border-radius: 12rpx; overflow: hidden; background: #f1f5f9; position: relative; }
 .grid-item-selected { opacity: 0.8; }
