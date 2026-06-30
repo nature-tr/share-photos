@@ -180,19 +180,34 @@ export default function MySharesPage() {
 
   async function onBatchDelete() {
     if (selectedIds.size === 0) return;
+    // 分离：active 的需要先结束再删，ended/cleaned 的直接删
+    const toEnd: string[] = [];
+    for (const id of selectedIds) {
+      const s = items.find((i) => i.id === id);
+      if (s && s.status === 'active') toEnd.push(id);
+    }
+    const needEnd = toEnd.length > 0;
+
     Taro.showModal({
       title: '批量删除',
-      content: `永久删除选中的 ${selectedIds.size} 个分享？此操作不可撤销。`,
+      content: `永久删除选中的 ${selectedIds.size} 个分享？\n此操作不可撤销。${needEnd ? `\n\n其中 ${toEnd.length} 个生效中的分享将先自动结束再永久删除。` : ''}`,
       confirmColor: '#ef4444',
       success: async (m) => {
         if (!m.confirm) return;
         try {
+          if (needEnd) {
+            Taro.showLoading({ title: '先结束生效分享…' });
+            await batchEndShares(toEnd);
+          }
+          Taro.showLoading({ title: '删除中…' });
           await batchDeleteShares(Array.from(selectedIds));
+          Taro.hideLoading();
           Taro.showToast({ title: `已删除 ${selectedIds.size} 个`, icon: 'success' });
           setSelectMode(false);
           setSelectedIds(new Set());
           void load();
         } catch {
+          Taro.hideLoading();
           Taro.showToast({ title: '删除失败', icon: 'none' });
         }
       },

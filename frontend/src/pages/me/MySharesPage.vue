@@ -54,12 +54,28 @@ async function batchEnd() {
 }
 async function batchDestroy() {
   if (selectedIds.value.size === 0) return;
+  // 分离：active 的需要先结束再删
+  const toEnd: string[] = [];
+  for (const id of selectedIds.value) {
+    const s = items.value.find((i) => i.id === id);
+    if (s && s.status === 'active') toEnd.push(id);
+  }
+  const needEnd = toEnd.length > 0;
+  const bodyText = needEnd
+    ? `确认永久删除选中的 ${selectedIds.value.size} 个分享？\n\n其中 ${toEnd.length} 个生效中的分享将先自动结束再永久删除。此操作不可撤销。`
+    : `确认永久删除选中的 ${selectedIds.value.size} 个分享？此操作不可撤销。`;
+
   const dialog = DialogPlugin.confirm({
     header: '批量永久删除',
-    body: `确认永久删除选中的 ${selectedIds.value.size} 个分享？此操作不可撤销。`,
+    body: bodyText,
     confirmBtn: { content: '永久删除', theme: 'danger' },
     onConfirm: async () => {
       try {
+        if (needEnd) {
+          MessagePlugin.loading('先结束生效分享…');
+          await shareApi.batchEnd(toEnd);
+        }
+        MessagePlugin.loading('删除中…');
         await shareApi.batchDestroy(Array.from(selectedIds.value));
         MessagePlugin.success(`已删除 ${selectedIds.value.size} 个分享`);
         selectMode.value = false; selectedIds.value = new Set();
