@@ -143,8 +143,16 @@ export default function GlobalProgress() {
           return (
             <View key={up ? t.shareId : t.shareCode} className="gp-row" onClick={() => {
               const cur = pages[pages.length - 1];
-              if (up) { if (cur?.route !== 'pages/me/new/index') Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` }); }
-              else { if (!(cur?.route === 'pages/viewer/detail/index' && (cur?.options as any)?.code === t.shareCode)) Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}` }); }
+              if (up) {
+                // 仅当当前页面正是该上传任务的恢复页时才跳过，新创建的上传页仍可跳转
+                const curRestoreId = (cur?.options as any)?.restoreShareId;
+                if (cur?.route === 'pages/me/new/index' && curRestoreId === t.shareId) return;
+                Taro.navigateTo({ url: `/pages/me/new/index?restoreShareId=${t.shareId}` });
+              } else {
+                const curCode = (cur?.options as any)?.code;
+                if (cur?.route === 'pages/viewer/detail/index' && curCode === t.shareCode) return;
+                Taro.navigateTo({ url: `/pages/viewer/detail/index?code=${t.shareCode}` });
+              }
             }}>
               <View className="gp-row-left">
                 <Text className="gp-row-label">
