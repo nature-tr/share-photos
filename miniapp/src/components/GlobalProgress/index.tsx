@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import Taro from '@tarojs/taro';
 import { View, Text, Image } from '@tarojs/components';
