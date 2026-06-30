@@ -11,7 +11,7 @@ import { requestWriteAlbumPermission } from '@/utils/permission';
 import QrSheet from '@/components/QrSheet';
 import GlobalProgress from '@/components/GlobalProgress';
 import { iconQrcode, iconImagePlus, iconTrash } from '@/assets/icons';
-import type { ShareDetail, ContributorInfo } from '@photo/shared/dto';
+import type { ViewerAlbum, ContributorInfo } from '@photo/shared/dto';
 import './index.scss';
 
 function formatBytes(bytes: number) {
@@ -30,7 +30,7 @@ function formatRemaining(ms: number) {
 
 export default function ViewerPage() {
   const user = useAuth((s) => s.user);
-  const [album, setAlbum] = useState<ShareDetail | null>(null);
+  const [album, setAlbum] = useState<ViewerAlbum | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -81,9 +81,9 @@ export default function ViewerPage() {
     if (prev !== 'done' && upStatus === 'done') {
       getViewerShare(code, 1, PAGE_SIZE).then((res) => {
         if (res.data) {
-          setAlbum(res.data as ShareDetail);
+          setAlbum(res.data);
           setPage(1);
-          setHasMore((res.data as any).hasMore ?? false);
+          setHasMore(res.data.hasMore ?? false);
         }
       });
     }
@@ -104,11 +104,11 @@ export default function ViewerPage() {
           setLoading(false);
           return;
         }
-        const firstData = firstRes.data as ShareDetail;
-        const totalPhotos = (firstRes.data as any).totalPhotos ?? firstData.photos?.length ?? 0;
+        const firstData = firstRes.data;
+        const totalPhotos = firstData.totalPhotos ?? firstData.photos?.length ?? 0;
         let allPhotos = [...firstData.photos];
         let currentPage = 1;
-        let hasMorePages = (firstRes.data as any).hasMore ?? false;
+        let hasMorePages = firstData.hasMore ?? false;
 
         const lastPhotoCount = getLastPosition(code).photoCount;
         const needPages = Math.min(
@@ -120,24 +120,24 @@ export default function ViewerPage() {
           const pageRes = await getViewerShare(code, pg, PAGE_SIZE);
           if (cancelled) return;
           if (pageRes.data) {
-            const pData = pageRes.data as ShareDetail;
+            const pData = pageRes.data;
             allPhotos = [...allPhotos, ...pData.photos];
             currentPage = pg;
-            hasMorePages = (pageRes.data as any).hasMore ?? false;
+            hasMorePages = pData.hasMore ?? false;
           }
         }
 
         if (cancelled) return;
-        setAlbum({ ...firstData, photos: allPhotos } as ShareDetail);
+        setAlbum({ ...firstData, photos: allPhotos });
         setPage(currentPage);
         setHasMore(hasMorePages);
-        setIsOwner((firstRes.data as any).isOwner ?? false);
+        setIsOwner(firstData.isOwner ?? false);
         addBrowsingHistory(code, firstData.title || '未命名相册', totalPhotos);
 
-        const contributors: ContributorInfo[] = (firstRes.data as any).contributors ?? [];
+        const contributors: ContributorInfo[] = firstData.contributors ?? [];
         if (user && contributors.length > 0) {
-          const me = contributors.find((c: ContributorInfo) => c.userId === user.id);
-          setJoinStatus(me ? (me.status as any) : 'none');
+          const me = contributors.find((c) => c.userId === user.id);
+          setJoinStatus(me ? me.status : 'none');
         }
       } catch {
         if (!cancelled) setError('加载失败');
@@ -202,7 +202,7 @@ export default function ViewerPage() {
         const data = res.data as ShareDetail;
         setAlbum((prev) => prev ? { ...prev, photos: [...prev.photos, ...data.photos] } : data);
         setPage(nextPage);
-        setHasMore((res.data as any).hasMore ?? false);
+        setHasMore(res.data.hasMore ?? false);
       } else if (res.error) {
         Taro.showToast({ title: res.error.message ?? '加载失败', icon: 'none' });
       }
@@ -247,7 +247,7 @@ export default function ViewerPage() {
     try {
       const res = await requestJoin(code);
       if (res.data) {
-        setJoinStatus(res.data.status as any);
+        setJoinStatus(res.data.status);
         Taro.showToast({ title: '申请已提交，等待创建者审核', icon: 'none' });
       } else {
         setJoinStatus('none');
@@ -259,7 +259,7 @@ export default function ViewerPage() {
     }
   }
 
-  const totalBytes = useMemo(() => (album as any)?.totalBytes ?? album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
+  const totalBytes = useMemo(() => album?.totalBytes ?? album?.photos.reduce((s, p) => s + p.sizeBytes, 0) ?? 0, [album]);
 
   /** 点击网格中的图片 → 打开预览 */
   function openPreview(index: number) {
@@ -335,7 +335,7 @@ export default function ViewerPage() {
 
   async function saveAll() {
     if (!album || album.photos.length === 0) return;
-    const totalCount = (album as any).totalPhotos ?? album.photos.length;
+    const totalCount = album.totalPhotos ?? album.photos.length;
     const confirmed = await Taro.showModal({
       title: '保存全部到相册？',
       content: `共 ${totalCount} 张 · ${formatBytes(totalBytes)}\n下载并写入手机相册`,
@@ -407,7 +407,7 @@ export default function ViewerPage() {
             <Text className="nav-code">{album.code}</Text>
           </View>
           <Text className="nav-meta">
-            {photos.length}/{((album as any)?.totalPhotos ?? photos.length)}张 · {formatBytes(totalBytes)} · {formatRemaining(album.expiresAt - now)}
+            {photos.length}/{(album?.totalPhotos ?? photos.length)}张 · {formatBytes(totalBytes)} · {formatRemaining(album.expiresAt - now)}
           </Text>
         </View>
         <View className="nav-qr" onClick={() => setQrVisible(true)}>
@@ -519,7 +519,7 @@ export default function ViewerPage() {
         <View className="loadmore-row">
           <View className="loadmore-btn" onClick={handleLoadMore}>
             <Text className="loadmore-btn-text">
-              {loadMore ? '加载中…' : `加载更多 · ${(album as any)?.totalPhotos ? `${(album as any).totalPhotos - photos.length} 张剩余` : ''}`}
+              {loadMore ? '加载中…' : `加载更多 · ${album?.totalPhotos ? `${album.totalPhotos - photos.length} 张剩余` : ''}`}
             </Text>
           </View>
         </View>

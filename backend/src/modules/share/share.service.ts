@@ -100,14 +100,28 @@ export const shareService = {
       .where(where)
       .get();
 
-    // 批量查 pending 贡献者数 + 首图ID
+    // 批量查 pending 贡献者数 + 首图ID（避免 N+1）
+    const shareIds = items.map((s) => s.id);
     const extras: Record<string, { pending: number; firstPhotoId: string | null }> = {};
-    for (const s of items) {
-      const [pRow, fRow] = await Promise.all([
-        db.select({ count: sql<number>`count(*)` }).from(contributors).where(and(eq(contributors.shareId, s.id), eq(contributors.status, 'pending'))).get(),
-        db.select({ id: photos.id }).from(photos).where(eq(photos.shareId, s.id)).orderBy(photos.sortIndex).limit(1).get(),
+    if (shareIds.length > 0) {
+      const [pRows, fRows] = await Promise.all([
+        db.select({ shareId: contributors.shareId, count: sql<number>`count(*)` })
+          .from(contributors)
+          .where(and(sql`${contributors.shareId} IN (${shareIds.map(() => '?').join(',')})`, eq(contributors.status, 'pending')))
+          .groupBy(contributors.shareId)
+          .all(),
+        // SQLite 子查询取每组首图：用 MIN(sortIndex) 作为分组键
+        db.select({ shareId: photos.shareId, id: sql<string>`(SELECT ${photos.id} FROM photos p2 WHERE p2.share_id = ${photos.shareId} ORDER BY p2.sort_index LIMIT 1)` })
+          .from(photos)
+          .where(sql`${photos.shareId} IN (${shareIds.map(() => '?').join(',')})`)
+          .groupBy(photos.shareId)
+          .all(),
       ]);
-      extras[s.id] = { pending: Number(pRow?.count ?? 0), firstPhotoId: fRow?.id ?? null };
+      for (const s of items) {
+        const p = pRows.find((r: any) => r.shareId === s.id);
+        const f = fRows.find((r: any) => r.shareId === s.id);
+        extras[s.id] = { pending: Number(p?.count ?? 0), firstPhotoId: f?.id ?? null };
+      }
     }
 
     return {
@@ -138,25 +152,31 @@ export const shareService = {
       .orderBy(contributors.createdAt)
       .all();
 
+    // 批量查用户信息（避免 N+1）
+    const userIds = [...new Set(contributorList.map((c) => c.userId))];
+    const userMap = new Map<string, any>();
+    if (userIds.length > 0) {
+      const { users } = await import('../../db/schema.js');
+      const userRows = await db.select().from(users).where(sql`${users.id} IN (${userIds.map(() => '?').join(',')})`).all();
+      for (const u of userRows) userMap.set(u.id, u);
+    }
+
     return {
       ...toSummary(share),
       photos: photoList.map(toPhotoMeta),
-      contributors: await Promise.all(
-        contributorList.map(async (c) => {
-          const { users } = await import('../../db/schema.js');
-          const user = await db.select().from(users).where(eq(users.id, c.userId)).get();
-          return {
-            id: c.id,
-            shareId: c.shareId,
-            userId: c.userId,
-            displayName: user?.displayName ?? null,
-            email: user?.email ?? '',
-            status: c.status,
-            role: c.role,
-            createdAt: c.createdAt,
-          };
-        }),
-      ),
+      contributors: contributorList.map((c) => {
+        const user = userMap.get(c.userId);
+        return {
+          id: c.id,
+          shareId: c.shareId,
+          userId: c.userId,
+          displayName: user?.displayName ?? null,
+          email: user?.email ?? '',
+          status: c.status,
+          role: c.role,
+          createdAt: c.createdAt,
+        };
+      }),
     };
   },
 

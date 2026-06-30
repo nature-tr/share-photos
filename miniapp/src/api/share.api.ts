@@ -1,7 +1,14 @@
 import Taro from '@tarojs/taro';
 import { api } from './client';
 import { useAuth, API_BASE } from '@/stores/auth.store';
-import type { ShareSummary, ShareDetail, ContributorInfo } from '@photo/shared/dto';
+import type { ShareSummary, ShareDetail, ViewerAlbum, ContributorInfo } from '@photo/shared/dto';
+
+/** 断言 API 成功，失败则抛异常（统一 error 检查模式） */
+async function assertOk<T>(p: Promise<{ data?: T; error?: { code: string; message: string } }>): Promise<T> {
+  const res = await p;
+  if (res.error) throw new Error(res.error.message || '请求失败');
+  return res.data as T;
+}
 
 /** 缩略图 URL（网格用，400px 短边 JPEG） */
 export function getThumbUrl(code: string, photoId: string) {
@@ -20,7 +27,7 @@ export function getOriginalUrl(code: string, photoId: string) {
 
 /** 凭码访问相册（支持分页） */
 export async function getViewerShare(code: string, page = 1, pageSize = 50) {
-  return api<ShareDetail>(`/api/v/${code}?page=${page}&pageSize=${pageSize}`);
+  return api<ViewerAlbum>(`/api/v/${code}?page=${page}&pageSize=${pageSize}`);
 }
 
 /** 我的分享列表 */
@@ -65,31 +72,22 @@ export async function extendShare(shareId: string, extendSeconds: number) {
 
 /** 结束分享 */
 export async function endShare(shareId: string) {
-  const res = await api(`/api/shares/${shareId}`, { method: 'DELETE' });
-  if (res.error) {
-    console.error('[endShare] failed', res.error);
-    throw new Error(res.error.message || '结束分享失败');
-  }
+  return assertOk(api<void>(`/api/shares/${shareId}`, { method: 'DELETE' }));
 }
 
 /** 永久删除分享 */
 export async function deleteShare(shareId: string) {
-  const res = await api(`/api/shares/${shareId}/destroy`, { method: 'POST' });
-  if (res.error) {
-    throw new Error(res.error.message || '删除失败');
-  }
+  return assertOk(api<void>(`/api/shares/${shareId}/destroy`, { method: 'POST' }));
 }
 
 /** 批量结束分享 */
 export async function batchEndShares(shareIds: string[]) {
-  const res = await api<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } });
-  if (res.error) throw new Error(res.error.message || '批量结束失败');
+  return assertOk(api<void>('/api/shares/batch-end', { method: 'POST', body: { shareIds } }));
 }
 
 /** 批量永久删除分享 */
 export async function batchDeleteShares(shareIds: string[]) {
-  const res = await api<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } });
-  if (res.error) throw new Error(res.error.message || '批量删除失败');
+  return assertOk(api<void>('/api/shares/batch-destroy', { method: 'POST', body: { shareIds } }));
 }
 
 /* ─── 贡献者 ─── */
